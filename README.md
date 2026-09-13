@@ -14,22 +14,23 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
   classifier in `scraper/brands.py`, Korean-positioning flag, reviews enrichment and
   new-brand/product detection (`scraper/reviews.py`, `scraper/newness.py`). Seed list
   still open for owner review (7 brands are `unknown`).
-- Phase 3 (Supabase schema + writes): **built and tested against a local
-  Postgres; awaiting the owner's Supabase project to go live.** Schema in
+- Phase 3 (Supabase): **live since 2026-09-13.** Schema applied to the
+  project, 2026-09-13 snapshot backfilled. Schema in
   `supabase/migrations/001_initial_schema.sql`, writer in `scraper/db.py`,
   backfill/ingest CLI in `scraper/ingest.py`.
 - Phase 4 (GitHub Actions): workflow in `.github/workflows/scrape.yml`, daily
   at 07:00 IST with up to 30 min jitter. **Dry-run on a GitHub runner succeeded
-  on 2026-09-13** (Akamai let the data-centre IP through). Scheduled full runs
-  start once the two Supabase secrets are added (see below).
+  on 2026-09-13** (Akamai let the data-centre IP through). **Secrets added and
+  the first full run (scrape + enrich + ingest) succeeded from GitHub on
+  2026-09-13.** The daily schedule is active.
 - Phase 5 (Streamlit dashboard): built in `dashboard/`, verified against a
   local Postgres with the real 2026-09-13 snapshot. Views: overview + share of
   shelf, rank tracking, pricing, ratings & reviews, new entrants (incl. Korean
   positioning), brand classification review (editable), data health. Trend
   charts appear once more than one scrape day exists.
-- Phase 6 (auth + hosting): Supabase email/password login gate built in
-  `dashboard/auth.py` (untested until a Supabase project exists). Streamlit
-  Community Cloud deployment steps and the free-tier ceilings are below.
+- Phase 6 (auth + hosting): Supabase email/password login gate in
+  `dashboard/auth.py`. Remaining owner steps: create the auth user, deploy on
+  Streamlit Community Cloud, sign in and verify (see below).
 
 ### Going live with Phase 3 (owner steps)
 

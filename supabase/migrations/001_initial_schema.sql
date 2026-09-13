@@ -160,6 +160,16 @@ begin
     popularity_score = excluded.popularity_score, nykaa_l2 = excluded.nykaa_l2, nykaa_l3 = excluded.nykaa_l3,
     tags = excluded.tags, scraped_at = excluded.scraped_at;
 
+  -- Same-day re-run = true overwrite: drop rows for (date, subcategory) that
+  -- this run did not produce, so a product that left the listing between two
+  -- same-day runs does not linger. Other days are never touched.
+  delete from scrape_snapshots s
+  where s.scrape_date = v_date
+    and s.subcategory in (select distinct r->>'subcategory' from jsonb_array_elements(p_rows) r)
+    and not exists (
+      select 1 from jsonb_array_elements(p_rows) r
+      where r->>'subcategory' = s.subcategory and r->>'product_id' = s.product_id);
+
   return v_run_id;
 end;
 $$;
