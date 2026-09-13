@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import random
 import time
 import csv
@@ -77,6 +78,7 @@ def main() -> int:
     ap.add_argument("--top-n", type=int, default=config.TOP_N)
     ap.add_argument("--out", default=config.DATA_DIR)
     ap.add_argument("--no-enrich", action="store_true", help="skip the reviews-API enrichment step")
+    ap.add_argument("--no-db", action="store_true", help="skip the Supabase ingest even if SUPABASE_URL is set")
     args = ap.parse_args()
     setup_logging()
     log = logging.getLogger("run")
@@ -116,6 +118,18 @@ def main() -> int:
         for e in r.errors:
             log.error("   %s", e)
     log.info("wrote %s (%d rows)", out, sum(len(r.products) for r in results))
+
+    if args.no_db:
+        log.info("--no-db: skipping Supabase ingest")
+    elif not os.getenv("SUPABASE_URL"):
+        log.warning("SUPABASE_URL not set: results are on disk only, nothing ingested")
+    else:
+        from .ingest import ingest_day
+        try:
+            ingest_day(out)
+        except Exception as e:  # noqa: BLE001
+            log.error("Supabase ingest FAILED (data is still on disk in %s): %s", out, e)
+            return 1
     return 0 if ok else 1
 
 

@@ -14,22 +14,40 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
   classifier in `scraper/brands.py`, Korean-positioning flag, reviews enrichment and
   new-brand/product detection (`scraper/reviews.py`, `scraper/newness.py`). Seed list
   still open for owner review (7 brands are `unknown`).
-- **Phase 3 (Supabase schema + writes): next — paused 2026-09-13.**
+- Phase 3 (Supabase schema + writes): **built and tested against a local
+  Postgres; awaiting the owner's Supabase project to go live.** Schema in
+  `supabase/migrations/001_initial_schema.sql`, writer in `scraper/db.py`,
+  backfill/ingest CLI in `scraper/ingest.py`.
+- Phase 4 (GitHub Actions): next after Phase 3 goes live.
 
-### Resuming at Phase 3
+### Going live with Phase 3 (owner steps)
 
-1. Owner creates a free Supabase project and provides: Project URL, anon key,
-   service role key (Project Settings > API). Put them in `.env` (never commit).
-2. Design schema per the instructions file: `products`, `brand_classification`
-   (seeded once from the CSV, then the source of truth), `scrape_snapshots`
-   (one row per product per scrape date, incl. rank, listing_source, is_ad,
-   is_pinned, review_count, first_review_date), `scrape_runs`. Confirm with owner.
-3. Add a Supabase writer to `scraper/run.py` alongside the file outputs.
-4. Decisions already made: rank = Nykaa **app** ordering; web fallback opt-in;
-   enrichment volume capped (see constraints below); Phase 4 must test
-   whether GitHub Actions IPs get through Akamai before relying on them.
-5. Local data from 2026-09-13 (`data/`, git-ignored) is real and can be
-   back-filled as the first snapshot.
+1. Create a free project at supabase.com (region: Mumbai / ap-south-1 is
+   closest). From **Project Settings > API** copy: Project URL, `anon` key,
+   `service_role` key.
+2. Locally: `cp .env.example .env` and fill `SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`. Never commit `.env`.
+3. In the Supabase dashboard open **SQL Editor**, paste the whole of
+   `supabase/migrations/001_initial_schema.sql`, Run. It is idempotent.
+4. Backfill the first real snapshot:
+   `.venv/bin/python -m scraper.ingest --date 2026-09-13`
+5. From then on `scraper.run` ingests automatically whenever `SUPABASE_URL`
+   is set (`--no-db` to skip).
+
+### Schema summary
+
+| table | grain | notes |
+|---|---|---|
+| `scrape_runs` | one row per run | success/blocked flags, per-category status, enrichment stats, git sha |
+| `products` | one row per Nykaa product | `first_seen_date` (never moves later), `last_seen_date`, `first_review_date`, `review_count` |
+| `scrape_snapshots` | one row per product × subcategory × day | rank, listing_source, prices, rating, ad/pinned flags. Unique on (date, subcategory, product) so re-runs overwrite that day only |
+| `brand_classification` | one row per brand | origin, source (seed/auto/manual), confirmed, k_marketing. Scraper upserts never overwrite owner edits |
+| `v_snapshots` | view | snapshots joined to product + brand origin, what the dashboard reads |
+
+Writes go through two Postgres functions (`ingest_run`,
+`upsert_brand_classifications`) callable only with the service role key.
+Logged-in dashboard users can read everything and update
+`brand_classification` (the review screen); anonymous users see nothing.
 
 ## Local setup
 
