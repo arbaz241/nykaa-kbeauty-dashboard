@@ -9,7 +9,8 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
 ## Status
 
 - Phase 0 (setup): done
-- Phase 1 (scraper feasibility): investigation done, findings in `docs/phase1-feasibility.md` — awaiting go-ahead + subcategory confirmation before building the scraper
+- Phase 1 (scraper): done — headless-Chromium scraper in `scraper/`, findings in `docs/phase1-feasibility.md`
+- Phase 2 (brand classification): next
 
 ## Local setup
 
@@ -19,3 +20,25 @@ python3 -m venv .venv
 .venv/bin/playwright install chromium
 cp .env.example .env   # then fill in values
 ```
+
+## Running the scraper
+
+```bash
+.venv/bin/python -m scraper.run                       # all categories, top 100
+.venv/bin/python -m scraper.run --categories serum,lipstick --top-n 40
+```
+
+Output lands in `data/<date>/products.csv|json` and `data/<date>/run.json`.
+Categories and top-N live in `scraper/config.py`; delays in `.env`.
+
+## Known scraping constraints (read this before trusting a gap in the data)
+
+- Nykaa sits behind Akamai Bot Manager. Plain HTTP clients get 403; the
+  scraper must drive full Chromium. Akamai rules can change any day, so a
+  run can start failing without any code change. Failed pages are logged
+  loudly and recorded in `run.json`; they are never filled with fake data.
+- All testing so far was from a residential IP. Whether GitHub Actions
+  (data-centre IPs) is allowed through is unknown until Phase 4.
+- Listings include paid "featured pinning" slots (`is_pinned`). Rank and
+  share-of-shelf should be reported both with and without them.
+- Nykaa exposes rating count on listings, not a separate text-review count.
