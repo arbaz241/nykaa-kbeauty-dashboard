@@ -27,7 +27,9 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
   shelf, rank tracking, pricing, ratings & reviews, new entrants (incl. Korean
   positioning), brand classification review (editable), data health. Trend
   charts appear once more than one scrape day exists.
-- Phase 6 (auth + Streamlit Cloud): next, after Phase 3 goes live.
+- Phase 6 (auth + hosting): Supabase email/password login gate built in
+  `dashboard/auth.py` (untested until a Supabase project exists). Streamlit
+  Community Cloud deployment steps and the free-tier ceilings are below.
 
 ### Going live with Phase 3 (owner steps)
 
@@ -82,6 +84,32 @@ DATABASE_URL=postgresql://... .venv/bin/streamlit run dashboard/app.py
 Database > Connection string > Session pooler). On Streamlit Cloud it goes in
 the app's Secrets as `DATABASE_URL = "..."`. Tracked brands and the palette are
 in `dashboard/config.py`. Data is cached for 10 minutes.
+
+### Deploying to Streamlit Community Cloud (owner steps, Phase 6)
+
+1. In Supabase: **Authentication > Providers** keep Email enabled; disable
+   "Allow new users to sign up" (this app has no self-signup). Then
+   **Authentication > Users > Add user** for yourself (tick auto-confirm).
+2. At share.streamlit.io: New app → this GitHub repo → branch `main` →
+   main file `dashboard/app.py` → Python 3.12.
+3. App settings → **Secrets**, paste (TOML):
+   ```toml
+   DATABASE_URL = "postgresql://postgres.<ref>:<password>@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+   SUPABASE_URL = "https://<ref>.supabase.co"
+   SUPABASE_ANON_KEY = "<anon key>"
+   ```
+   Never put the service role key in the dashboard.
+4. Deploy, open the URL, sign in as the test user, walk every tab.
+
+### Known ceilings of this setup (read before sharing widely)
+
+| Layer | Free-tier limit | What it means here |
+|---|---|---|
+| Streamlit Community Cloud | ~1 GB RAM per app, shared CPU; apps **sleep after inactivity** (currently ~12 h without visitors) and take ~30 s to wake; public URL by default (the login gate is the only barrier, and the app must stay a *private* Streamlit app to hide the URL, which requires the GitHub repo to be private, as it is) | Fine for a handful of users. A cold start on first visit each morning is normal. At tens of concurrent users it will feel slow: move to Streamlit for Teams, a small VPS, or a container host. |
+| Supabase (free) | 500 MB database, 5 GB egress/month, 50k monthly active users, **project pauses after 7 days with no activity** (the daily scraper counts as activity), 2 projects per org | Snapshots grow ~0.25 MB/day (~90 MB/year), so the 500 MB fits several years. Pausing only happens if the scraper stops for a week: unpause manually in the dashboard. Pro is $25/month when needed. |
+| GitHub Actions (free, private repo) | 2,000 minutes/month | A run is ~10 min → ~300 min/month. Comfortable. |
+| Nykaa / Akamai | no SLA; can block any day | See constraints above. Runs are logged, gaps are visible in Data health. |
+| Data model | top-100 of 7 categories once a day | Not the whole market. Products outside these lists are invisible; ranks are the app's ordering at scrape time. |
 
 ## Brand classification
 

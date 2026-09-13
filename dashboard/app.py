@@ -13,11 +13,12 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # so `scraper` and `dashboard` import when run by streamlit
 
-from dashboard import charts, config as C, data  # noqa: E402
+from dashboard import auth, charts, config as C, data  # noqa: E402
 from scraper.brands import brand_stats, norm  # noqa: E402
 from scraper.newness import brand_newness  # noqa: E402
 
 st.set_page_config(page_title="Nykaa K-Beauty Market", page_icon="🧴", layout="wide")
+USER_EMAIL = auth.require_login()
 
 SUB = C.SUBCATEGORY_LABELS
 ORIGIN = C.ORIGIN_LABELS
@@ -70,6 +71,7 @@ with st.sidebar:
     st.divider()
     n_days = raw.scrape_date.nunique()
     st.caption(f"{n_days} scrape day{'s' if n_days != 1 else ''} in range · data through {hi:%d %b %Y}")
+auth.logout_button()
 
 # base = everything in top-N after ad/pinned exclusion (denominator for shares)
 base = raw[raw["rank"] <= top_n]
@@ -346,7 +348,7 @@ with tab_brands:
     changed = edited[(edited.origin != editable.origin) | (edited.confirmed != editable.confirmed)
                      | (edited.note.fillna("") != editable.note.fillna(""))]
     if st.button(f"Save {len(changed)} change{'s' if len(changed) != 1 else ''}", disabled=changed.empty, type="primary"):
-        who = st.session_state.get("user_email", "dashboard")
+        who = USER_EMAIL
         n = data.save_brand_edits(changed[["brand", "origin", "confirmed", "note"]].to_dict("records"), who)
         st.success(f"Saved {n} brand{'s' if n != 1 else ''}.")
         st.rerun()
