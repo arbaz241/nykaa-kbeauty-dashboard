@@ -36,7 +36,15 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 DATA_DIR = os.getenv("SCRAPE_DATA_DIR", "data")
 
 API_URL = ("https://www.nykaa.com/app-api/index.php/products/list"
-           "?category_id={category_id}&page_no={page_no}&sort=popularity&platform=dweb")
+           "?category_id={category_id}&page_no={page_no}&sort=popularity")
+# ^ Without platform=dweb this returns the *app* ranking (primary, per owner
+#   decision 2026-09-13: most Nykaa shoppers are on the app). Adding
+#   &platform=dweb would return the desktop-website ranking instead.
+
+# If the API fails for a category, optionally re-scrape that whole category
+# from the website pages (web ranking, tagged listing_source="web").
+# Off by default: mixed sources across days make rank trends misleading.
+WEB_FALLBACK = os.getenv("SCRAPE_WEB_FALLBACK", "0") == "1"
 
 # Realistic, recent desktop Chrome user agents. One is chosen per run so the
 # whole session is self-consistent (per-request rotation looks *more* bot-like).

@@ -39,6 +39,9 @@ Categories and top-N live in `scraper/config.py`; delays in `.env`.
   loudly and recorded in `run.json`; they are never filled with fake data.
 - All testing so far was from a residential IP. Whether GitHub Actions
   (data-centre IPs) is allowed through is unknown until Phase 4.
+- Ranks are the **Nykaa app** ordering (where most shoppers are). The
+  website orders listings differently; each row's `listing_source` says
+  which one it came from. Do not compare ranks across sources.
 - Listings include paid "featured pinning" slots (`is_pinned`). Rank and
   share-of-shelf should be reported both with and without them.
 - Nykaa exposes rating count on listings, not a separate text-review count.

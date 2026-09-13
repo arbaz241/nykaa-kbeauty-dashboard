@@ -5,9 +5,13 @@ Strategy (see docs/phase1-feasibility.md):
      rejected by Akamai at the TLS/HTTP2 layer.
   2. Load the category page once so Akamai's sensor sets its cookies.
   3. For each page 1..N call Nykaa's internal JSON listing API *from inside
-     the page* (page.evaluate + fetch). Direct HTTP calls get 403.
-  4. If the API fails for a page, fall back to loading the SSR page and
-     reading window.__PRELOADED_STATE__.
+     the page* (page.evaluate + fetch). Direct HTTP calls get 403. This
+     returns the Nykaa *app* ranking, which is the primary source.
+  4. Optional (config.WEB_FALLBACK): if any API page of a category fails,
+     re-scrape the whole category from the website pages
+     (window.__PRELOADED_STATE__). Web ranking differs from app ranking, so
+     rows are tagged listing_source="web" and sources are never mixed within
+     a category.
 
 Every failure is logged with category, page, attempt, and reason. Nothing is
 silently swallowed; a page that fails all retries raises.
@@ -39,7 +43,7 @@ class BlockedError(RuntimeError):
 class PageResult:
     products: list[dict]
     total_found: int | None
-    source: str  # "api" | "ssr"
+    source: str  # "app" | "web"
 
 
 @dataclass
@@ -47,6 +51,7 @@ class CategoryResult:
     category: config.Category
     products: list[dict] = field(default_factory=list)   # normalized rows
     total_found: int | None = None
+    listing_source: str | None = None  # "app" | "web"
     pages_ok: int = 0
     pages_failed: int = 0
     errors: list[str] = field(default_factory=list)
@@ -54,7 +59,7 @@ class CategoryResult:
 
 # ---------------------------------------------------------------- normalize
 
-def normalize(raw: dict, category: config.Category, rank: int, scraped_at: str) -> dict:
+def normalize(raw: dict, category: config.Category, rank: int, scraped_at: str, source: str) -> dict:
     """Flatten one API/SSR product record into the row shape we persist.
 
     API uses snake_case (brand_name, rating_count); SSR uses camelCase
@@ -88,6 +93,7 @@ def normalize(raw: dict, category: config.Category, rank: int, scraped_at: str) 
         "subcategory": category.key,
         "category_id": category.nykaa_id,
         "rank": rank,
+        "listing_source": source,
         "url": f"https://www.nykaa.com/{slug}" if slug else None,
         "scraped_at": scraped_at,
     }
@@ -116,7 +122,7 @@ async def _fetch_api_page(page: Page, category: config.Category, page_no: int) -
     products = resp.get("products") or []
     if not products:
         raise RuntimeError(f"API returned 0 products for {category.key} p{page_no} (status={data.get('status')})")
-    return PageResult(products, resp.get("total_found"), "api")
+    return PageResult(products, resp.get("total_found"), "app")
 
 
 async def _fetch_ssr_page(page: Page, category: config.Category, page_no: int) -> PageResult:
@@ -132,45 +138,36 @@ async def _fetch_ssr_page(page: Page, category: config.Category, page_no: int) -
     products = ld.get("products") or []
     if not products:
         raise RuntimeError(f"SSR returned 0 products for {category.key} p{page_no}")
-    return PageResult(products, ld.get("totalFound"), "ssr")
+    return PageResult(products, ld.get("totalFound"), "web")
 
 
-async def _fetch_page_with_retry(page: Page, category: config.Category, page_no: int) -> PageResult:
+async def _fetch_page_with_retry(fetcher, page: Page, category: config.Category, page_no: int) -> PageResult:
     last: Exception | None = None
     for attempt in range(1, config.MAX_RETRIES + 1):
-        for fetcher in (_fetch_api_page, _fetch_ssr_page):
-            try:
-                res = await fetcher(page, category, page_no)
-                if fetcher is _fetch_ssr_page:
-                    log.warning("%s p%d served by SSR fallback", category.key, page_no)
-                return res
-            except BlockedError as e:
-                last = e
-                log.error("BLOCKED (%s) attempt %d/%d: %s", fetcher.__name__, attempt, config.MAX_RETRIES, e)
-                break  # don't try the other fetcher while blocked; back off instead
-            except Exception as e:  # noqa: BLE001 — we log and retry deliberately
-                last = e
-                log.warning("%s p%d %s attempt %d/%d failed: %s",
-                            category.key, page_no, fetcher.__name__, attempt, config.MAX_RETRIES, e)
+        try:
+            return await fetcher(page, category, page_no)
+        except BlockedError as e:
+            last = e
+            log.error("BLOCKED (%s) %s p%d attempt %d/%d: %s",
+                      fetcher.__name__, category.key, page_no, attempt, config.MAX_RETRIES, e)
+        except Exception as e:  # noqa: BLE001 — logged and retried deliberately
+            last = e
+            log.warning("%s p%d %s attempt %d/%d failed: %s",
+                        category.key, page_no, fetcher.__name__, attempt, config.MAX_RETRIES, e)
         backoff = min(60, (2 ** attempt) * random.uniform(2, 4))
         log.info("%s p%d: backing off %.0fs", category.key, page_no, backoff)
         await asyncio.sleep(backoff)
     raise RuntimeError(f"{category.key} p{page_no} failed after {config.MAX_RETRIES} attempts: {last}")
 
 
-async def scrape_category(page: Page, category: config.Category, top_n: int, scraped_at: str) -> CategoryResult:
+async def _scrape_category_via(fetcher, page: Page, category: config.Category,
+                               top_n: int, scraped_at: str) -> CategoryResult:
     result = CategoryResult(category=category)
     n_pages = -(-top_n // config.PAGE_SIZE)  # ceil
-    # Establish/refresh the Akamai session on the real category page.
-    resp = await page.goto(category.url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
-    if resp is None or resp.status != 200:
-        raise BlockedError(f"category page {category.url} -> {resp.status if resp else 'no response'}")
-    await page.wait_for_timeout(1500)
-
     seen: set[str] = set()
     for page_no in range(1, n_pages + 1):
         try:
-            pr = await _fetch_page_with_retry(page, category, page_no)
+            pr = await _fetch_page_with_retry(fetcher, page, category, page_no)
         except Exception as e:  # noqa: BLE001
             result.pages_failed += 1
             result.errors.append(str(e))
@@ -178,10 +175,11 @@ async def scrape_category(page: Page, category: config.Category, top_n: int, scr
             await _sleep_polite()
             continue
         result.pages_ok += 1
+        result.listing_source = pr.source
         result.total_found = result.total_found or pr.total_found
         for i, raw in enumerate(pr.products):
             rank = (page_no - 1) * config.PAGE_SIZE + i + 1
-            row = normalize(raw, category, rank, scraped_at)
+            row = normalize(raw, category, rank, scraped_at, pr.source)
             if row["product_id"] in seen:
                 log.debug("%s duplicate product %s at rank %d (skipped)", category.key, row["product_id"], rank)
                 continue
@@ -191,6 +189,23 @@ async def scrape_category(page: Page, category: config.Category, top_n: int, scr
                  category.key, page_no, pr.source, len(pr.products), pr.total_found)
         await _sleep_polite()
     result.products = result.products[:top_n]
+    return result
+
+
+async def scrape_category(page: Page, category: config.Category, top_n: int, scraped_at: str) -> CategoryResult:
+    # Establish/refresh the Akamai session on the real category page.
+    resp = await page.goto(category.url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
+    if resp is None or resp.status != 200:
+        raise BlockedError(f"category page {category.url} -> {resp.status if resp else 'no response'}")
+    await page.wait_for_timeout(1500)
+
+    result = await _scrape_category_via(_fetch_api_page, page, category, top_n, scraped_at)
+    if result.pages_failed and config.WEB_FALLBACK:
+        log.warning("%s: %d app-API page(s) failed; re-scraping whole category from website pages "
+                    "(web ranking, listing_source=web)", category.key, result.pages_failed)
+        web = await _scrape_category_via(_fetch_ssr_page, page, category, top_n, scraped_at)
+        web.errors = result.errors + web.errors
+        return web
     return result
 
 

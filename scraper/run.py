@@ -44,7 +44,7 @@ def write_outputs(scraped_at: str, results, out_root: Path) -> Path:
         "top_n": config.TOP_N,
         "categories": [
             {"key": r.category.key, "nykaa_id": r.category.nykaa_id, "products": len(r.products),
-             "total_found": r.total_found, "pages_ok": r.pages_ok, "pages_failed": r.pages_failed,
+             "total_found": r.total_found, "listing_source": r.listing_source, "pages_ok": r.pages_ok, "pages_failed": r.pages_failed,
              "errors": r.errors} for r in results
         ],
         "total_rows": len(rows),
@@ -79,8 +79,8 @@ def main() -> int:
     for r in results:
         status = "OK " if r.pages_failed == 0 else "ERR"
         ok &= r.pages_failed == 0
-        log.info("%s %-17s products=%3d pages_ok=%d pages_failed=%d total_found=%s",
-                 status, r.category.key, len(r.products), r.pages_ok, r.pages_failed, r.total_found)
+        log.info("%s %-17s products=%3d pages_ok=%d pages_failed=%d total_found=%s source=%s",
+                 status, r.category.key, len(r.products), r.pages_ok, r.pages_failed, r.total_found, r.listing_source)
         for e in r.errors:
             log.error("   %s", e)
     log.info("wrote %s (%d rows)", out, sum(len(r.products) for r in results))
