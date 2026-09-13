@@ -10,7 +10,8 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
 
 - Phase 0 (setup): done
 - Phase 1 (scraper): done — headless-Chromium scraper in `scraper/`, findings in `docs/phase1-feasibility.md`
-- Phase 2 (brand classification): next
+- Phase 2 (brand classification): built — seed list in `scraper/seed/brand_classification.csv`, classifier in `scraper/brands.py`; awaiting owner review of the seed list
+- Phase 3 (Supabase schema + writes): next
 
 ## Local setup
 
@@ -20,6 +21,20 @@ python3 -m venv .venv
 .venv/bin/playwright install chromium
 cp .env.example .env   # then fill in values
 ```
+
+## Brand classification
+
+```bash
+.venv/bin/python -m scraper.classify            # classifies brands in today's scrape
+```
+
+Origins are `kbeauty`, `local` (India), `global`, or `unknown`. The seed list
+in `scraper/seed/brand_classification.csv` is the curated default; brands not
+in it are auto-classified using Nykaa's own "Korean Beauty" store membership
+and name patterns, and are flagged `source=auto, confirmed=false`. Nothing is
+`confirmed` until the owner confirms it (dashboard review screen, Phase 5).
+From Phase 3 on, the Supabase `brand_classification` table is the source of
+truth; the CSV only seeds it once.
 
 ## Running the scraper
 

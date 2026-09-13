@@ -26,6 +26,10 @@ CATEGORIES: list[Category] = [
     Category("foundation",        228, "https://www.nykaa.com/makeup/face/face-foundation/c/228", "makeup"),
 ]
 
+# Nykaa's own "Korean Beauty" store category. Products listed in it carry
+# this id in category_ids — a strong K-beauty signal for brand classification.
+KBEAUTY_STORE_CATEGORY_ID = "30710"
+
 TOP_N = int(os.getenv("SCRAPE_TOP_N", "100"))
 PAGE_SIZE = 20  # fixed by Nykaa; page_size param is ignored server-side
 MIN_DELAY = float(os.getenv("SCRAPE_MIN_DELAY_SEC", "2"))

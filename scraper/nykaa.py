@@ -69,6 +69,7 @@ def normalize(raw: dict, category: config.Category, rank: int, scraped_at: str, 
     tm = raw.get("tracking_metadata") or raw.get("trackingMetadata") or {}
     cats = raw.get("primary_categories") or raw.get("primaryCategories") or {}
     slug = g("slug") or ""
+    cat_ids = str(g("category_ids", "categoryIds") or "")
     return {
         "product_id": str(g("id", "productId")),
         "sku": g("sku"),
@@ -88,6 +89,7 @@ def normalize(raw: dict, category: config.Category, rank: int, scraped_at: str, 
         "is_pinned": bool(tm.get("pinning_info")),
         "pinning_info": tm.get("pinning_info") or None,
         "popularity_score": tm.get("popularity"),
+        "in_kbeauty_store": config.KBEAUTY_STORE_CATEGORY_ID in cat_ids.split(","),
         "nykaa_l2": (cats.get("l2") or {}).get("name"),
         "nykaa_l3": (cats.get("l3") or {}).get("name"),
         "subcategory": category.key,
