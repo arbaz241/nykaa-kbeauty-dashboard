@@ -1,0 +1,84 @@
+name: Daily Nykaa scrape
+
+on:
+  schedule:
+    # 01:30 UTC = 07:00 IST. The job itself adds up to 30 min of random jitter.
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "full = scrape + enrich + ingest to Supabase; dry-run = listings only, no DB (Akamai/IP test)"
+        type: choice
+        default: full
+        options: [full, dry-run]
+      categories:
+        description: "comma-separated category keys (blank = all)"
+        required: false
+        default: ""
+
+concurrency:
+  group: nykaa-scrape
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SCRAPE_RUNNER: github-actions
+      LOG_LEVEL: INFO
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      # first_review_date cache: restore from the previous run so we don't
+      # re-fetch dates we already know. Keyed per run so it is always re-saved.
+      - name: Restore review cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/cache
+          key: review-cache-${{ github.run_id }}
+          restore-keys: review-cache-
+
+      - name: Run scraper
+        id: run
+        env:
+          # jitter only on the schedule, not on manual runs
+          SCRAPE_START_JITTER_SEC: ${{ github.event_name == 'schedule' && '1800' || '0' }}
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.mode }}" = "dry-run" ]; then ARGS="--no-db --no-enrich"; fi
+          if [ -n "${{ github.event.inputs.categories }}" ]; then ARGS="$ARGS --categories ${{ github.event.inputs.categories }}"; fi
+          echo "args: $ARGS"
+          python -m scraper.run $ARGS
+
+      - name: Save review cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/cache
+          key: review-cache-${{ github.run_id }}
+
+      # Raw output for inspection / recovery if the DB ingest fails.
+      - name: Upload run output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-${{ github.run_id }}
+          path: data/
+          retention-days: 14
+          if-no-files-found: warn
