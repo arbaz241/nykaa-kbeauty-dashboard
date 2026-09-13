@@ -6,13 +6,9 @@ from .. import config as C, data, styles as S
 
 
 def render(ctx: dict) -> None:
-    S.eyebrow("Admin")
-    st.title("Brand classification review")
     can_edit = data.is_admin(ctx["user_email"])
-    if can_edit:
-        S.lede("Auto-classified and unconfirmed brands first. Change origin, tick confirmed, add a note, then save. Confirmed rows are never overwritten by the scraper.")
-    else:
-        st.info("Read-only: only admins can change brand classifications.")
+    S.hero("Brand classification", "Auto-classified and unconfirmed brands first. Change origin, tick confirmed, add a note, then save. "
+           "Confirmed rows are never overwritten by the scraper." if can_edit else "Read-only: only admins can change brand classifications.")
     bdf = data.brands()
     only_unconfirmed = st.checkbox("Show only unconfirmed", value=True)
     verify_first = st.checkbox("Show 'VERIFY' conflicts first (seed origin disagrees with country of origin)", value=True)

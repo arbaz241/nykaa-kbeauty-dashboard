@@ -23,15 +23,15 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
   on 2026-09-13** (Akamai let the data-centre IP through). **Secrets added and
   the first full run (scrape + enrich + ingest) succeeded from GitHub on
   2026-09-13.** The daily schedule is active.
-- Phase 5 (Streamlit dashboard): redesigned 2026-09-14 as a consultant-grade
-  tool (`dashboard/`, pages in `dashboard/views/`): Overview (KPIs, data-derived
-  narrative, category snapshot, brand leaderboard, launch radar, movers),
-  Market structure (share of shelf, top-20 vs top-100, paid placement, price
-  tiers, concern landscape), Brand comparison (portfolio cards, presence
-  matrix, products side by side with USP / concerns / ingredients / shopper
-  sentiment), Launches, Pricing (incl. ₹/ml), Ratings & momentum (incl.
-  review themes), Data & method, Admin. Trend elements appear once more than
-  one scrape day exists.
+- Phase 5 (Streamlit dashboard): simplified 2026-09-14 after owner feedback
+  to three pages (`dashboard/views/`): **Overview** tells the story in order
+  (numbers → visibility → leaders → price → launches → movement → watch-outs),
+  each section led by a data-derived takeaway sentence and one plain bar
+  chart or ranked list; **Compare brands** (profile cards, presence by
+  category, products side by side with USP / targets / ingredients / shopper
+  sentiment); **About the data**; Admin for admins. Filters are one row:
+  category, period, listing depth, paid slots. No sidebar. Trend elements
+  appear once more than one scrape day exists.
 - Product details (2026-09-14): `scraper/product_details.py` fetches Nykaa's
   product-details endpoint once per product (country of origin, highlight
   attributes, AI summary as USP proxy, ingredients, review key phrases,

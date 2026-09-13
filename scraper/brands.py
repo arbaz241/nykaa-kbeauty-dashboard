@@ -118,8 +118,10 @@ def classify_brand(brand: str, stats: dict, seed: dict) -> Classification:
         if stats.get("kstore", 0):
             ev.append(f"{stats['kstore']}/{stats['n']} products placed in Nykaa Korean Beauty store")
         kr = (stats.get("countries") or {}).get("KR", 0)
-        if kr:
-            ev.append(f"{kr} product(s) with country of origin South Korea")
+        if kr and c.origin == "local":
+            # An Indian brand manufacturing in Korea puts "Made in Korea" on the pack: positioning.
+            # A global brand's Korean factory is supply chain, not marketing, so it does not count.
+            ev.append(f"{kr} product(s) made in South Korea")
         if ev:
             c.k_marketing = True
             c.k_marketing_evidence = "; ".join(ev)

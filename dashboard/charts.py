@@ -11,7 +11,7 @@ FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'
 
 def _base(fig: go.Figure, height: int = 340, legend: bool = True) -> go.Figure:
     fig.update_layout(
-        height=height, margin=dict(l=8, r=8, t=28, b=8),
+        height=height, margin=dict(l=8, r=8, t=8 if not legend else 28, b=8),
         paper_bgcolor=C.SURFACE, plot_bgcolor=C.SURFACE,
         font=dict(family=FONT, color=C.INK_2, size=12),
         hovermode="x unified" if legend else "closest",
@@ -57,7 +57,7 @@ def share_trend(share: pd.DataFrame) -> go.Figure:
     return _time_axis(_base(fig), share.scrape_date)
 
 
-def share_by_subcategory(latest: pd.DataFrame) -> go.Figure:
+def share_by_subcategory(latest: pd.DataFrame, show_legend: bool = True) -> go.Figure:
     """latest: columns subcategory, origin, share. Horizontal 100% stacked bars, one per subcategory."""
     fig = go.Figure()
     subs = list(latest.subcategory.unique())
@@ -73,9 +73,9 @@ def share_by_subcategory(latest: pd.DataFrame) -> go.Figure:
             hovertemplate="%{x:.0f}%<extra>" + origin_label(o) + "</extra>",
         ))
     fig.update_layout(barmode="stack")
-    fig.update_xaxes(range=[0, 100], ticksuffix="%")
-    fig.update_yaxes(autorange="reversed", showgrid=False)
-    return _base(fig, height=max(220, 34 * len(subs) + 80))
+    fig.update_xaxes(range=[0, 100], ticksuffix="%", showticklabels=False)
+    fig.update_yaxes(autorange="reversed", showgrid=False, tickfont=dict(color=C.INK, size=13))
+    return _base(fig, height=max(200, 34 * len(subs) + 50), legend=show_legend)
 
 
 # --------------------------------------------------------------- rank tracking
@@ -118,7 +118,7 @@ def price_box(latest: pd.DataFrame, value_col: str = "price") -> go.Figure:
     return _base(fig, height=360)
 
 
-def grouped_bar(tbl: pd.DataFrame, value_col: str, fmt: str, suffix: str = "", prefix: str = "") -> go.Figure:
+def grouped_bar(tbl: pd.DataFrame, value_col: str, fmt: str, suffix: str = "", prefix: str = "", show_legend: bool = True) -> go.Figure:
     """tbl: columns subcategory, origin, <value_col>. Grouped bars by origin, fixed order."""
     fig = go.Figure()
     subs = list(dict.fromkeys(tbl.subcategory))
@@ -133,7 +133,8 @@ def grouped_bar(tbl: pd.DataFrame, value_col: str, fmt: str, suffix: str = "", p
         ))
     fig.update_layout(barmode="group", bargroupgap=0.08)
     fig.update_yaxes(tickprefix=prefix, ticksuffix=suffix, title=None)
-    return _base(fig, height=320)
+    fig.update_xaxes(tickfont=dict(color=C.INK, size=13))
+    return _base(fig, height=300, legend=show_legend)
 
 
 # ---------------------------------------------------------------- ratings
@@ -231,3 +232,23 @@ def velocity_bars(radar: pd.DataFrame, top: int = 10) -> go.Figure:
     fig.update_yaxes(showgrid=False, categoryorder="array", categoryarray=[f"{b} · {n[:32]}" for b, n in zip(d.brand, d.name)])
     fig.update_xaxes(title="ratings per day since first review")
     return _base(fig, height=max(240, 30 * len(d) + 90))
+
+
+def rank_band_bars(latest: pd.DataFrame) -> go.Figure:
+    """One category: share of slots by origin within rank bands (1-20, 21-50, 51-100)."""
+    d = latest.copy()
+    d["band"] = pd.cut(d["rank"], [0, 20, 50, 100], labels=["Top 20", "21–50", "51–100"])
+    tot = d.groupby("band", observed=True).size()
+    fig = go.Figure()
+    for o in C.ORIGIN_ORDER:
+        s = d[d.origin == o].groupby("band", observed=True).size().reindex(tot.index).fillna(0) / tot * 100
+        if s.sum() == 0:
+            continue
+        fig.add_trace(go.Bar(y=list(map(str, s.index)), x=s.values, orientation="h", name=origin_label(o),
+                             marker=dict(color=C.ORIGIN_COLORS[o], line=dict(color=C.SURFACE, width=2)),
+                             text=[f"{v:.0f}%" if v >= 8 else "" for v in s.values], textposition="inside", insidetextfont=dict(color="#ffffff", size=11),
+                             hovertemplate="%{x:.0f}%<extra>" + origin_label(o) + "</extra>"))
+    fig.update_layout(barmode="stack")
+    fig.update_xaxes(range=[0, 100], showticklabels=False)
+    fig.update_yaxes(autorange="reversed", showgrid=False, tickfont=dict(color=C.INK, size=13))
+    return _base(fig, height=170, legend=False)
