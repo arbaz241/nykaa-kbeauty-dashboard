@@ -36,14 +36,36 @@ and name patterns, and are flagged `source=auto, confirmed=false`. Nothing is
 From Phase 3 on, the Supabase `brand_classification` table is the source of
 truth; the CSV only seeds it once.
 
+**Korean positioning flag.** A non-Korean brand is flagged `k_marketing` when
+its product names sell the product as Korean ("Korean", "K-beauty", "glass
+skin", "Seoul", "Jeju", "hanbang"), when its products are placed in Nykaa's
+Korean Beauty store, or when `k_positioned` is set in the seed CSV. Ingredient
+words alone (cica, snail, rice water) do not trigger it. The evidence string
+says which product triggered it.
+
+**New brands / new products.** Listings have no launch date, so the scraper
+enriches low-rating-count products from Nykaa's reviews API with the text
+review count and the date of the oldest review (`first_review_date`), cached
+permanently once found. A product is new if its first review is within
+`NEW_WINDOW_DAYS` (90). A brand whose listed products are all new is a
+**new entrant** to the tracked categories (`is_new_entrant`); it is only a
+**new brand** (`is_new_brand`) if it is also absent from the seed list, since
+an established brand launching one product in these categories (e.g. SK-II)
+is not a new brand. Nykaa's own `NEW` tag is recorded (`is_new_tag`) but not
+trusted. Once daily snapshots
+exist (Phase 3+), first-seen-in-top-N becomes a third signal.
+
 ## Running the scraper
 
 ```bash
-.venv/bin/python -m scraper.run                       # all categories, top 100
+.venv/bin/python -m scraper.run                       # all categories, top 100, + reviews enrichment
+.venv/bin/python -m scraper.run --no-enrich           # listings only (~3.5 min instead of ~15)
 .venv/bin/python -m scraper.run --categories serum,lipstick --top-n 40
 ```
 
-Output lands in `data/<date>/products.csv|json` and `data/<date>/run.json`.
+Output lands in `data/<date>/products.csv|json` and `data/<date>/run.json`;
+`scraper.classify` then writes `brand_classification.csv` and
+`products_enriched.csv` (origin + newness flags) next to them.
 Categories and top-N live in `scraper/config.py`; delays in `.env`.
 
 ## Known scraping constraints (read this before trusting a gap in the data)
@@ -54,6 +76,18 @@ Categories and top-N live in `scraper/config.py`; delays in `.env`.
   loudly and recorded in `run.json`; they are never filled with fake data.
 - All testing so far was from a residential IP. Whether GitHub Actions
   (data-centre IPs) is allowed through is unknown until Phase 4.
+- **Block handling:** a 403 aborts the whole run immediately with no retries
+  (retrying against an active block prolongs it). Remaining categories are
+  recorded as skipped in `run.json`; the next scheduled run tries again.
+- **Volume budget:** listings are 42 requests/day. Reviews enrichment is
+  capped at `ENRICH_MAX_PRODUCTS_PER_RUN` products (default 80) per run,
+  only for products with fewer than `ENRICH_MAX_RATING_COUNT` (300) ratings,
+  refreshed at most every `ENRICH_REFRESH_DAYS` (7) days; first-review
+  dates are cached forever. Steady state is roughly 50–120 requests/day.
+- **Jitter:** scheduled runs set `SCRAPE_START_JITTER_SEC` so the daily run
+  does not start at the same minute every day.
+- The scraper never logs in. A block can only ever affect the IP it runs
+  from, never a Nykaa account.
 - Ranks are the **Nykaa app** ordering (where most shoppers are). The
   website orders listings differently; each row's `listing_source` says
   which one it came from. Do not compare ranks across sources.

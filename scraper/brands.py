@@ -23,6 +23,11 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 SEED_PATH = Path(__file__).parent / "seed" / "brand_classification.csv"
+
+# "Korean positioning" by a non-Korean brand: product names that sell the
+# product as Korean. Ingredient words alone (cica, snail, rice) are NOT enough
+# — many Indian brands use them without claiming Korean origin.
+_K_MARKETING = re.compile(r"\b(korea|korean|k-?beauty|glass skin|seoul|jeju|hanbang|k-?glow)\b", re.I)
 ORIGINS = ("kbeauty", "local", "global", "unknown")
 
 _K_PATTERNS = re.compile(r"\b(korea|korean|seoul|k-?beauty)\b", re.I)
@@ -42,23 +47,27 @@ class Classification:
     confirmed: bool
     evidence: str
     products_seen: int = 0
+    k_marketing: bool = False        # non-Korean brand marketing products as Korean
+    k_marketing_evidence: str = ""
 
 
-def load_seed(path: Path = SEED_PATH) -> dict[str, tuple[str, str, str]]:
-    seed: dict[str, tuple[str, str, str]] = {}
+def load_seed(path: Path = SEED_PATH) -> dict[str, dict]:
+    seed: dict[str, dict] = {}
     with path.open(newline="") as f:
         for row in csv.DictReader(f):
             origin = row["origin"].strip()
             assert origin in ORIGINS, f"bad origin {origin!r} for {row['brand']!r}"
-            seed[norm(row["brand"])] = (row["brand"].strip(), origin, (row.get("note") or "").strip())
+            seed[norm(row["brand"])] = {"brand": row["brand"].strip(), "origin": origin,
+                                        "note": (row.get("note") or "").strip(),
+                                        "k_positioned": (row.get("k_positioned") or "").strip().lower() in ("1", "true", "yes")}
     return seed
 
 
-def classify_brand(brand: str, stats: dict, seed: dict) -> Classification:
+def _origin(brand: str, stats: dict, seed: dict) -> Classification:
     key = norm(brand)
     if key in seed:
-        _, origin, note = seed[key]
-        return Classification(brand, origin, "seed", False, f"seed list{': ' + note if note else ''}", stats["n"])
+        e = seed[key]
+        return Classification(brand, e["origin"], "seed", False, f"seed list{': ' + e['note'] if e['note'] else ''}", stats["n"])
     if stats.get("kstore", 0) > 0:
         return Classification(brand, "kbeauty", "auto", False,
                               f"{stats['kstore']}/{stats['n']} products in Nykaa Korean Beauty store", stats["n"])
@@ -69,12 +78,40 @@ def classify_brand(brand: str, stats: dict, seed: dict) -> Classification:
     return Classification(brand, "unknown", "auto", False, "no signal — needs owner classification", stats["n"])
 
 
+def classify_brand(brand: str, stats: dict, seed: dict) -> Classification:
+    c = _origin(brand, stats, seed)
+    if c.origin != "kbeauty":
+        ev = []
+        if seed.get(norm(brand), {}).get("k_positioned"):
+            ev.append("seed: k_positioned")
+        if stats.get("k_marketing_names", 0):
+            ev.append(f"{stats['k_marketing_names']}/{stats['n']} product names use Korean positioning "
+                      f"(e.g. {stats['k_marketing_example']!r})")
+        if stats.get("kstore", 0):
+            ev.append(f"{stats['kstore']}/{stats['n']} products placed in Nykaa Korean Beauty store")
+        if ev:
+            c.k_marketing = True
+            c.k_marketing_evidence = "; ".join(ev)
+    return c
+
+
 def brand_stats(rows: list[dict]) -> dict[str, dict]:
-    stats: dict[str, dict] = defaultdict(lambda: {"n": 0, "kstore": 0})
+    stats: dict[str, dict] = defaultdict(lambda: {"n": 0, "kstore": 0, "k_marketing_names": 0,
+                                                  "k_marketing_example": None, "first_review_dates": [],
+                                                  "unenriched": 0, "zero_review": 0})
     for r in rows:
         s = stats[r["brand"]]
         s["n"] += 1
         s["kstore"] += 1 if r.get("in_kbeauty_store") else 0
+        if _K_MARKETING.search(r.get("name") or ""):
+            s["k_marketing_names"] += 1
+            s["k_marketing_example"] = s["k_marketing_example"] or (r["name"] or "")[:60]
+        if r.get("first_review_date"):
+            s["first_review_dates"].append(r["first_review_date"])
+        elif r.get("review_count") == 0:
+            s["zero_review"] += 1          # enriched, but no text reviews yet
+        else:
+            s["unenriched"] += 1           # rating_count above threshold: an established product
     return stats
 
 

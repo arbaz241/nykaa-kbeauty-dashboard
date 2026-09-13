@@ -37,6 +37,24 @@ MAX_DELAY = float(os.getenv("SCRAPE_MAX_DELAY_SEC", "5"))
 MAX_RETRIES = int(os.getenv("SCRAPE_MAX_RETRIES", "4"))
 NAV_TIMEOUT_MS = 60_000
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+# Review enrichment (reviews API, one browser fetch per page of 50 reviews).
+# Only products with rating_count below this threshold are enriched — those
+# are the only plausible "new" products, and it bounds daily request volume.
+ENRICH_MAX_RATING_COUNT = int(os.getenv("ENRICH_MAX_RATING_COUNT", "300"))
+ENRICH_MAX_PAGES = int(os.getenv("ENRICH_MAX_PAGES", "6"))       # 6 x 50 reviews
+ENRICH_DELAY_SEC = float(os.getenv("ENRICH_DELAY_SEC", "1.5"))
+# review_count is refreshed at most once per this many days per product;
+# first_review_date is fetched once and cached forever.
+ENRICH_REFRESH_DAYS = int(os.getenv("ENRICH_REFRESH_DAYS", "7"))
+# Hard cap on products enriched per run; the rest wait for the next run.
+ENRICH_MAX_PRODUCTS_PER_RUN = int(os.getenv("ENRICH_MAX_PRODUCTS_PER_RUN", "80"))
+# Random delay before the run starts (seconds). 0 locally; the scheduled job
+# sets it so the daily run does not land at the same minute every day.
+START_JITTER_SEC = int(os.getenv("SCRAPE_START_JITTER_SEC", "0"))
+NEW_WINDOW_DAYS = int(os.getenv("NEW_WINDOW_DAYS", "90"))        # "new" = first review within N days
+REVIEWS_URL = ("https://www.nykaa.com/gateway-api/products/{product_id}/reviews"
+               "?pageNo={page_no}&size=50&sort=MOST_RECENT&domain=nykaa&source=react")
 DATA_DIR = os.getenv("SCRAPE_DATA_DIR", "data")
 
 API_URL = ("https://www.nykaa.com/app-api/index.php/products/list"

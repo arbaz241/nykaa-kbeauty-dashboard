@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import random
+import time
 import csv
 import json
 import logging
@@ -16,7 +18,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import config
-from .nykaa import scrape_all
+from .nykaa import scrape_all, open_browser, BlockedError
+from .reviews import enrich
+from playwright.async_api import async_playwright
 
 
 def setup_logging() -> None:
@@ -28,7 +32,19 @@ def setup_logging() -> None:
     )
 
 
-def write_outputs(scraped_at: str, results, out_root: Path) -> Path:
+async def run_enrichment(rows: list[dict]) -> dict:
+    async with async_playwright() as pw:
+        browser, ctx, page = await open_browser(pw)
+        try:
+            # any category page establishes the Akamai session for the reviews API
+            await page.goto(config.CATEGORIES[0].url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
+            await page.wait_for_timeout(1500)
+            return await enrich(page, rows)
+        finally:
+            await browser.close()
+
+
+def write_outputs(scraped_at: str, results, out_root: Path, enrich_stats: dict | None = None) -> Path:
     day = scraped_at[:10]
     out = out_root / day
     out.mkdir(parents=True, exist_ok=True)
@@ -48,6 +64,7 @@ def write_outputs(scraped_at: str, results, out_root: Path) -> Path:
              "errors": r.errors} for r in results
         ],
         "total_rows": len(rows),
+        "enrichment": enrich_stats,
         "success": all(r.pages_failed == 0 for r in results),
     }
     (out / "run.json").write_text(json.dumps(run_meta, indent=1))
@@ -59,6 +76,7 @@ def main() -> int:
     ap.add_argument("--categories", help="comma-separated category keys (default: all)")
     ap.add_argument("--top-n", type=int, default=config.TOP_N)
     ap.add_argument("--out", default=config.DATA_DIR)
+    ap.add_argument("--no-enrich", action="store_true", help="skip the reviews-API enrichment step")
     args = ap.parse_args()
     setup_logging()
     log = logging.getLogger("run")
@@ -71,9 +89,23 @@ def main() -> int:
         if missing:
             log.error("unknown categories: %s", sorted(missing)); return 2
 
+    if config.START_JITTER_SEC > 0:
+        wait = random.uniform(0, config.START_JITTER_SEC)
+        log.info("start jitter: sleeping %.0fs", wait)
+        time.sleep(wait)
     log.info("starting: %d categories, top %d each", len(cats), args.top_n)
     scraped_at, results = asyncio.run(scrape_all(cats, args.top_n))
-    out = write_outputs(scraped_at, results, Path(args.out))
+    blocked = any(any(e.startswith("BLOCKED") for e in r.errors) for r in results)
+    enrich_stats = None
+    if blocked:
+        log.error("run was blocked during listing scrape — skipping enrichment")
+    elif not args.no_enrich:
+        try:
+            enrich_stats = asyncio.run(run_enrichment([p for r in results for p in r.products]))
+        except BlockedError as e:
+            log.error("BLOCKED during enrichment — stopped: %s", e)
+            enrich_stats = {"blocked": str(e)}
+    out = write_outputs(scraped_at, results, Path(args.out), enrich_stats)
 
     ok = True
     for r in results:

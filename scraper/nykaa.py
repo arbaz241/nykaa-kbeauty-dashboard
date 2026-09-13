@@ -86,6 +86,9 @@ def normalize(raw: dict, category: config.Category, rank: int, scraped_at: str, 
         "in_stock": g("is_saleable", "inStock"),
         "pack_size": g("pack_size", "packSize"),
         "tags": ",".join(g("dynamic_tags", "dynamicTags") or []),
+        "is_ad": "AD" in (g("dynamic_tags", "dynamicTags") or []),
+        "is_new_tag": "NEW" in (g("dynamic_tags", "dynamicTags") or []),   # Nykaa's label; unreliable, see docs
+        "is_bestseller": "BESTSELLER" in (g("dynamic_tags", "dynamicTags") or []),
         "is_pinned": bool(tm.get("pinning_info")),
         "pinning_info": tm.get("pinning_info") or None,
         "popularity_score": tm.get("popularity"),
@@ -148,10 +151,11 @@ async def _fetch_page_with_retry(fetcher, page: Page, category: config.Category,
     for attempt in range(1, config.MAX_RETRIES + 1):
         try:
             return await fetcher(page, category, page_no)
-        except BlockedError as e:
-            last = e
-            log.error("BLOCKED (%s) %s p%d attempt %d/%d: %s",
-                      fetcher.__name__, category.key, page_no, attempt, config.MAX_RETRIES, e)
+        except BlockedError:
+            # Never retry against an active block — every extra request makes
+            # it last longer. Propagate so the whole run stops.
+            log.error("BLOCKED on %s p%d via %s — aborting run, no retries", category.key, page_no, fetcher.__name__)
+            raise
         except Exception as e:  # noqa: BLE001 — logged and retried deliberately
             last = e
             log.warning("%s p%d %s attempt %d/%d failed: %s",
@@ -170,6 +174,8 @@ async def _scrape_category_via(fetcher, page: Page, category: config.Category,
     for page_no in range(1, n_pages + 1):
         try:
             pr = await _fetch_page_with_retry(fetcher, page, category, page_no)
+        except BlockedError:
+            raise
         except Exception as e:  # noqa: BLE001
             result.pages_failed += 1
             result.errors.append(str(e))
@@ -226,9 +232,22 @@ async def scrape_all(categories: list[config.Category], top_n: int) -> tuple[str
     async with async_playwright() as pw:
         browser, ctx, page = await open_browser(pw)
         try:
+            blocked: str | None = None
             for cat in categories:
+                if blocked:
+                    r = CategoryResult(category=cat)
+                    r.errors.append(f"skipped: run aborted after block ({blocked})")
+                    r.pages_failed = -(-top_n // config.PAGE_SIZE)
+                    results.append(r)
+                    continue
                 try:
                     results.append(await scrape_category(page, cat, top_n, scraped_at))
+                except BlockedError as e:
+                    blocked = str(e)
+                    r = CategoryResult(category=cat)
+                    r.errors.append(f"BLOCKED: {e}"); r.pages_failed = -(-top_n // config.PAGE_SIZE)
+                    results.append(r)
+                    log.error("%s BLOCKED — aborting remaining categories: %s", cat.key, e)
                 except Exception as e:  # noqa: BLE001
                     r = CategoryResult(category=cat)
                     r.errors.append(str(e)); r.pages_failed = -(-top_n // config.PAGE_SIZE)
