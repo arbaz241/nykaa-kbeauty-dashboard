@@ -9,7 +9,7 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
 ## Status
 
 - Phase 0 (setup): done
-- Phase 1 (scraper feasibility): in progress — see `docs/phase1-feasibility.md`
+- Phase 1 (scraper feasibility): investigation done, findings in `docs/phase1-feasibility.md` — awaiting go-ahead + subcategory confirmation before building the scraper
 
 ## Local setup
 
