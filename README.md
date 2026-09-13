@@ -10,8 +10,26 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
 
 - Phase 0 (setup): done
 - Phase 1 (scraper): done — headless-Chromium scraper in `scraper/`, findings in `docs/phase1-feasibility.md`
-- Phase 2 (brand classification): built — seed list in `scraper/seed/brand_classification.csv`, classifier in `scraper/brands.py`; awaiting owner review of the seed list
-- Phase 3 (Supabase schema + writes): next
+- Phase 2 (brand classification): done — seed list in `scraper/seed/brand_classification.csv`,
+  classifier in `scraper/brands.py`, Korean-positioning flag, reviews enrichment and
+  new-brand/product detection (`scraper/reviews.py`, `scraper/newness.py`). Seed list
+  still open for owner review (7 brands are `unknown`).
+- **Phase 3 (Supabase schema + writes): next — paused 2026-09-13.**
+
+### Resuming at Phase 3
+
+1. Owner creates a free Supabase project and provides: Project URL, anon key,
+   service role key (Project Settings > API). Put them in `.env` (never commit).
+2. Design schema per the instructions file: `products`, `brand_classification`
+   (seeded once from the CSV, then the source of truth), `scrape_snapshots`
+   (one row per product per scrape date, incl. rank, listing_source, is_ad,
+   is_pinned, review_count, first_review_date), `scrape_runs`. Confirm with owner.
+3. Add a Supabase writer to `scraper/run.py` alongside the file outputs.
+4. Decisions already made: rank = Nykaa **app** ordering; web fallback opt-in;
+   enrichment volume capped (see constraints below); Phase 4 must test
+   whether GitHub Actions IPs get through Akamai before relying on them.
+5. Local data from 2026-09-13 (`data/`, git-ignored) is real and can be
+   back-filled as the first snapshot.
 
 ## Local setup
 
