@@ -130,6 +130,20 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             log.error("Supabase ingest FAILED (data is still on disk in %s): %s", out, e)
             return 1
+        if not blocked and not args.no_enrich:
+            # product details for products we have never fetched (capped per run)
+            from .db import connect
+            from .details import missing_product_ids, run_details
+            try:
+                client = connect()
+                ids = [p for p in missing_product_ids(client) if p in {r["product_id"] for r in [x for rr in results for x in rr.products]}]
+                if ids:
+                    log.info("product details: %d listed products without details", len(ids))
+                    asyncio.run(run_details(ids, config.DETAILS_MAX_PER_RUN, client))
+            except BlockedError as e:
+                log.error("BLOCKED during product details — stopped: %s", e)
+            except Exception as e:  # noqa: BLE001
+                log.error("product details step failed (non-fatal): %s", e)
     return 0 if ok else 1
 
 

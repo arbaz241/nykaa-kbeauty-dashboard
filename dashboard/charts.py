@@ -170,3 +170,64 @@ def dot_plot(tbl: pd.DataFrame, value_col: str, fmt: str, y_range: tuple[float, 
     fig.update_yaxes(range=list(y_range), title=None, dtick=0.25)
     fig.update_xaxes(showgrid=True, gridcolor=C.GRID)
     return _base(fig, height=320)
+
+
+# ------------------------------------------------------------- market extras
+
+SEQ_BLUE = ["#cde2fb", "#86b6ef", "#3987e5", "#1c5cab"]   # sequential ramp, light -> dark
+
+
+def tier_stack(t: pd.DataFrame, origin: str, tiers: list[str]) -> go.Figure:
+    """Price-tier mix for one origin: 100% stacked horizontal bars per subcategory, one hue light->dark."""
+    fig = go.Figure()
+    subs = list(dict.fromkeys(t.subcategory))
+    d = t[t.origin == origin]
+    for i, tier in enumerate(tiers):
+        s = d[d.tier == tier].set_index("subcategory").reindex(subs)
+        fig.add_trace(go.Bar(
+            y=[C.SUBCATEGORY_LABELS.get(x, x) for x in subs], x=s.share.fillna(0) * 100, orientation="h", name=tier,
+            marker=dict(color=SEQ_BLUE[i % len(SEQ_BLUE)], line=dict(color=C.SURFACE, width=2)),
+            text=[f"{v:.0f}%" if v >= 10 else "" for v in s.share.fillna(0) * 100], textposition="inside",
+            insidetextfont=dict(color="#ffffff" if i >= 2 else C.INK, size=11),
+            hovertemplate="%{x:.0f}%<extra>" + tier + "</extra>",
+        ))
+    fig.update_layout(barmode="stack")
+    fig.update_xaxes(range=[0, 100], ticksuffix="%")
+    fig.update_yaxes(autorange="reversed", showgrid=False)
+    return _base(fig, height=max(200, 30 * len(subs) + 80))
+
+
+def concern_bars(t: pd.DataFrame, top: int = 8) -> go.Figure:
+    """Top concerns in one subcategory, grouped bars by origin (count of products claiming it)."""
+    order = t.groupby("concerns").n.sum().sort_values(ascending=False).index[:top]
+    fig = go.Figure()
+    for o in C.ORIGIN_ORDER:
+        s = t[t.origin == o].set_index("concerns").reindex(order)
+        if s.n.isna().all() or o == "unknown":
+            continue
+        fig.add_trace(go.Bar(y=list(order), x=s.n.fillna(0), orientation="h", name=origin_label(o),
+                             marker=dict(color=C.ORIGIN_COLORS[o], line=dict(color=C.SURFACE, width=2)),
+                             hovertemplate="%{x} products<extra>" + origin_label(o) + "</extra>"))
+    fig.update_layout(barmode="group", bargroupgap=0.05)
+    fig.update_yaxes(autorange="reversed", showgrid=False)
+    fig.update_xaxes(title="products in top listings claiming the concern")
+    return _base(fig, height=max(240, 34 * len(order) + 90))
+
+
+def velocity_bars(radar: pd.DataFrame, top: int = 10) -> go.Figure:
+    """Launch traction: ratings per day since first review, colored by origin (entity color, fixed)."""
+    from .metrics import short_name
+    d = radar[radar.ratings_per_day.notna()].head(top).iloc[::-1]
+    d = d.assign(name=[short_name(n, b) for n, b in zip(d.name, d.brand)])
+    fig = go.Figure()
+    for o in C.ORIGIN_ORDER:
+        s = d[d.origin == o]
+        if s.empty:
+            continue
+        fig.add_trace(go.Bar(y=[f"{b} · {n[:32]}" for b, n in zip(s.brand, s.name)], x=s.ratings_per_day, orientation="h",
+                             name=origin_label(o), marker=dict(color=C.ORIGIN_COLORS[o], line=dict(color=C.SURFACE, width=2)),
+                             hovertemplate="%{x:.1f} ratings/day<extra>" + origin_label(o) + "</extra>"))
+    fig.update_layout(barmode="overlay")
+    fig.update_yaxes(showgrid=False, categoryorder="array", categoryarray=[f"{b} · {n[:32]}" for b, n in zip(d.brand, d.name)])
+    fig.update_xaxes(title="ratings per day since first review")
+    return _base(fig, height=max(240, 30 * len(d) + 90))

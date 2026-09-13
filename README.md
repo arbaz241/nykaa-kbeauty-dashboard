@@ -23,11 +23,22 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
   on 2026-09-13** (Akamai let the data-centre IP through). **Secrets added and
   the first full run (scrape + enrich + ingest) succeeded from GitHub on
   2026-09-13.** The daily schedule is active.
-- Phase 5 (Streamlit dashboard): built in `dashboard/`, verified against a
-  local Postgres with the real 2026-09-13 snapshot. Views: overview + share of
-  shelf, rank tracking, pricing, ratings & reviews, new entrants (incl. Korean
-  positioning), brand classification review (editable), data health. Trend
-  charts appear once more than one scrape day exists.
+- Phase 5 (Streamlit dashboard): redesigned 2026-09-14 as a consultant-grade
+  tool (`dashboard/`, pages in `dashboard/views/`): Overview (KPIs, data-derived
+  narrative, category snapshot, brand leaderboard, launch radar, movers),
+  Market structure (share of shelf, top-20 vs top-100, paid placement, price
+  tiers, concern landscape), Brand comparison (portfolio cards, presence
+  matrix, products side by side with USP / concerns / ingredients / shopper
+  sentiment), Launches, Pricing (incl. ₹/ml), Ratings & momentum (incl.
+  review themes), Data & method, Admin. Trend elements appear once more than
+  one scrape day exists.
+- Product details (2026-09-14): `scraper/product_details.py` fetches Nykaa's
+  product-details endpoint once per product (country of origin, highlight
+  attributes, AI summary as USP proxy, ingredients, review key phrases,
+  variants, image) into `product_details` (migration 003). Daily cap
+  `DETAILS_MAX_PER_RUN` (40); one-time backfill `python -m scraper.details --all`.
+  Country of origin now feeds brand classification (KR → K-beauty, IN → Local)
+  and flags seed entries that disagree with "VERIFY" in the admin screen.
 - Phase 6 (auth + hosting): Supabase email/password sign-in + sign-up in
   `dashboard/auth.py`, verified against the live project on 2026-09-14
   (sign-in, wrong-password rejection, non-admin read-only review screen).

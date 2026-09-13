@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import config
 from .brands import classify_all, to_rows
-from .db import build_brand_payload, build_row_payload, build_run_payload, connect, ingest
+from .db import build_brand_payload, build_row_payload, build_run_payload, connect, fetch_country_map, ingest
 from .reviews import load_cache
 
 log = logging.getLogger("ingest")
@@ -31,19 +31,19 @@ def load_day(day_dir: Path) -> tuple[dict, list[dict]]:
     return run_meta, rows
 
 
-def payloads_for_day(day_dir: Path) -> tuple[dict, list[dict], list[dict]]:
+def payloads_for_day(day_dir: Path, country_by_product: dict[str, str] | None = None) -> tuple[dict, list[dict], list[dict]]:
     run_meta, rows = load_day(day_dir)
     run_payload = build_run_payload(run_meta)
     row_payload = build_row_payload(rows, load_cache())
-    brand_payload = build_brand_payload(to_rows(classify_all(rows)), run_payload["scrape_date"])
+    brand_payload = build_brand_payload(to_rows(classify_all(rows, country_by_product=country_by_product)), run_payload["scrape_date"])
     return run_payload, row_payload, brand_payload
 
 
 def ingest_day(day_dir: Path, client=None) -> int:
-    run_payload, row_payload, brand_payload = payloads_for_day(day_dir)
+    client = client or connect()
+    run_payload, row_payload, brand_payload = payloads_for_day(day_dir, fetch_country_map(client))
     if not row_payload:
         log.warning("%s has no rows; recording the run only", day_dir)
-    client = client or connect()
     run_id = ingest(client, run_payload, row_payload, brand_payload)
     log.info("ingested %s: run_id=%s rows=%d brands=%d", day_dir.name, run_id, len(row_payload), len(brand_payload))
     return run_id

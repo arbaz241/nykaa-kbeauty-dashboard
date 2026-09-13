@@ -7,10 +7,15 @@ Resolution order for a brand:
      table once; from then on that table is the source of truth and edits
      happen there, not here.
   2. Auto heuristics, source="auto", with an `evidence` string:
-       a. any of the brand's products is in Nykaa's own "Korean Beauty" store
+       a. country_of_origin from product details (KR -> kbeauty, IN -> local,
+          anything else -> global) when a majority of the brand's detailed
+          products agree                                    -> strongest signal
+       b. any of the brand's products is in Nykaa's own "Korean Beauty" store
           category (in_kbeauty_store)                      -> kbeauty
-       b. brand name contains korea/korean/seoul/k-beauty  -> kbeauty
-       c. brand name contains ayurved/herbal/india/bharat  -> local
+       c. brand name contains korea/korean/seoul/k-beauty  -> kbeauty
+       d. brand name contains ayurved/herbal/india/bharat  -> local
+     Seed entries that contradict the country-of-origin majority keep the seed
+     origin but get a "verify" note in evidence for the owner.
   3. Otherwise origin="unknown" — surfaced for the owner to classify.
 Nothing auto-classified is ever marked confirmed.
 """
@@ -63,11 +68,34 @@ def load_seed(path: Path = SEED_PATH) -> dict[str, dict]:
     return seed
 
 
+_COUNTRY_TO_ORIGIN = {"KR": "kbeauty", "IN": "local"}
+
+
+def _country_majority(stats: dict) -> tuple[str | None, str]:
+    """(origin implied by country_of_origin majority, evidence text)."""
+    counts: dict[str, int] = stats.get("countries") or {}
+    if not counts:
+        return None, ""
+    code, n = max(counts.items(), key=lambda kv: kv[1])
+    total = sum(counts.values())
+    if n * 2 < total:  # no majority
+        return None, f"country_of_origin mixed: {dict(counts)}"
+    return _COUNTRY_TO_ORIGIN.get(code, "global"), f"country_of_origin {code} on {n}/{total} detailed products"
+
+
 def _origin(brand: str, stats: dict, seed: dict) -> Classification:
     key = norm(brand)
+    c_origin, c_evidence = _country_majority(stats)
     if key in seed:
         e = seed[key]
-        return Classification(brand, e["origin"], "seed", False, f"seed list{': ' + e['note'] if e['note'] else ''}", stats["n"])
+        ev = f"seed list{': ' + e['note'] if e['note'] else ''}"
+        if c_origin and c_origin != e["origin"]:
+            ev += f"; VERIFY: {c_evidence} suggests {c_origin}"
+        elif c_evidence:
+            ev += f"; confirmed by {c_evidence}"
+        return Classification(brand, e["origin"], "seed", False, ev, stats["n"])
+    if c_origin:
+        return Classification(brand, c_origin, "auto", False, c_evidence, stats["n"])
     if stats.get("kstore", 0) > 0:
         return Classification(brand, "kbeauty", "auto", False,
                               f"{stats['kstore']}/{stats['n']} products in Nykaa Korean Beauty store", stats["n"])
@@ -89,19 +117,27 @@ def classify_brand(brand: str, stats: dict, seed: dict) -> Classification:
                       f"(e.g. {stats['k_marketing_example']!r})")
         if stats.get("kstore", 0):
             ev.append(f"{stats['kstore']}/{stats['n']} products placed in Nykaa Korean Beauty store")
+        kr = (stats.get("countries") or {}).get("KR", 0)
+        if kr:
+            ev.append(f"{kr} product(s) with country of origin South Korea")
         if ev:
             c.k_marketing = True
             c.k_marketing_evidence = "; ".join(ev)
     return c
 
 
-def brand_stats(rows: list[dict]) -> dict[str, dict]:
+def brand_stats(rows: list[dict], country_by_product: dict[str, str] | None = None) -> dict[str, dict]:
+    """rows: listing rows. country_by_product: product_id -> country_of_origin code (from product details)."""
+    country_by_product = country_by_product or {}
     stats: dict[str, dict] = defaultdict(lambda: {"n": 0, "kstore": 0, "k_marketing_names": 0,
                                                   "k_marketing_example": None, "first_review_dates": [],
-                                                  "unenriched": 0, "zero_review": 0})
+                                                  "unenriched": 0, "zero_review": 0, "countries": {}})
     for r in rows:
         s = stats[r["brand"]]
         s["n"] += 1
+        code = country_by_product.get(str(r.get("product_id")))
+        if code:
+            s["countries"][code] = s["countries"].get(code, 0) + 1
         s["kstore"] += 1 if r.get("in_kbeauty_store") else 0
         if _K_MARKETING.search(r.get("name") or ""):
             s["k_marketing_names"] += 1
@@ -115,9 +151,9 @@ def brand_stats(rows: list[dict]) -> dict[str, dict]:
     return stats
 
 
-def classify_all(rows: list[dict], seed: dict | None = None) -> list[Classification]:
+def classify_all(rows: list[dict], seed: dict | None = None, country_by_product: dict[str, str] | None = None) -> list[Classification]:
     seed = seed if seed is not None else load_seed()
-    stats = brand_stats(rows)
+    stats = brand_stats(rows, country_by_product)
     return sorted((classify_brand(b, s, seed) for b, s in stats.items()),
                   key=lambda c: (c.origin, -c.products_seen, c.brand.lower()))
 

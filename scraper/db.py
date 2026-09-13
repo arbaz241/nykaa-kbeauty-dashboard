@@ -117,3 +117,26 @@ def ingest_with_psycopg(conn, run_payload: dict, row_payload: list[dict], brand_
             cur.execute("select upsert_brand_classifications(%s::jsonb)", (json.dumps(brand_payload),))
     conn.commit()
     return int(run_id)
+
+
+def upsert_product_details(client, rows: list[dict]) -> int:
+    """Upsert parsed product_details rows (service role; RLS bypassed)."""
+    if not rows:
+        return 0
+    n = 0
+    for i in range(0, len(rows), 100):
+        chunk = rows[i:i + 100]
+        client.table("product_details").upsert(chunk, on_conflict="product_id").execute()
+        n += len(chunk)
+    log.info("product_details upsert -> %d rows", n)
+    return n
+
+
+def fetch_country_map(client) -> dict[str, str]:
+    """product_id -> country_of_origin from product_details (empty if none yet)."""
+    try:
+        data = client.table("product_details").select("product_id,country_of_origin").limit(20000).execute().data
+        return {d["product_id"]: d["country_of_origin"] for d in data if d.get("country_of_origin")}
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not load country map: %s", e)
+        return {}

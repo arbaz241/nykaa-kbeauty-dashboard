@@ -52,7 +52,12 @@ ENRICH_MAX_PRODUCTS_PER_RUN = int(os.getenv("ENRICH_MAX_PRODUCTS_PER_RUN", "80")
 # Random delay before the run starts (seconds). 0 locally; the scheduled job
 # sets it so the daily run does not land at the same minute every day.
 START_JITTER_SEC = int(os.getenv("SCRAPE_START_JITTER_SEC", "0"))
-NEW_WINDOW_DAYS = int(os.getenv("NEW_WINDOW_DAYS", "90"))        # "new" = first review within N days
+NEW_WINDOW_DAYS = int(os.getenv("NEW_WINDOW_DAYS", "90"))
+
+# Product-details enrichment: one fetch per product, ever. Daily cap covers
+# new products; the one-time backfill runs locally with --all.
+DETAILS_MAX_PER_RUN = int(os.getenv("DETAILS_MAX_PER_RUN", "40"))
+DETAILS_DELAY_SEC = float(os.getenv("DETAILS_DELAY_SEC", "2.0"))        # "new" = first review within N days
 REVIEWS_URL = ("https://www.nykaa.com/gateway-api/products/{product_id}/reviews"
                "?pageNo={page_no}&size=50&sort=MOST_RECENT&domain=nykaa&source=react")
 DATA_DIR = os.getenv("SCRAPE_DATA_DIR", "data")

@@ -1,10 +1,7 @@
-"""Data access for the dashboard: plain SQL over psycopg, cached by Streamlit.
-
-Reads come from v_snapshots / products / brand_classification / scrape_runs.
-The only write is the brand-classification review screen.
-"""
+"""Data access for the dashboard: plain SQL over psycopg, cached by Streamlit."""
 from __future__ import annotations
 
+import json
 import re
 from datetime import date, timedelta
 
@@ -36,21 +33,42 @@ def date_bounds() -> tuple[date | None, date | None]:
     return (d.iloc[0, 0], d.iloc[0, 1]) if not d.empty else (None, None)
 
 
-@st.cache_data(ttl=600, show_spinner="Loading snapshots…")
+@st.cache_data(ttl=600, show_spinner="Loading market data…")
 def snapshots(date_from: date, date_to: date) -> pd.DataFrame:
     df = _df(
         """select scrape_date, subcategory, product_id, name, brand, origin, origin_confirmed, k_marketing,
                   rank, listing_source, mrp, price, discount_pct, rating, rating_count, in_stock,
-                  is_pinned, is_ad, is_new_tag, is_bestseller, in_kbeauty_store,
+                  is_pinned, is_ad, is_new_tag, is_bestseller, in_kbeauty_store, pack_size,
                   first_seen_date, first_review_date, review_count, url
-           from v_snapshots where scrape_date between %s and %s""",
+           from v_snapshots v
+           left join lateral (select pack_size from products p where p.product_id = v.product_id) pp on true
+           where scrape_date between %s and %s""",
         (date_from, date_to),
     )
     for col in ("mrp", "price", "discount_pct", "rating"):
         df[col] = pd.to_numeric(df[col], errors="coerce")
     df["scrape_date"] = pd.to_datetime(df["scrape_date"])
+    df["first_review_date"] = pd.to_datetime(df["first_review_date"])
+    df["first_seen_date"] = pd.to_datetime(df["first_seen_date"])
     df["origin"] = df["origin"].fillna("unknown")
     df["brand_key"] = df["brand"].map(norm)
+    df["is_paid"] = df.is_ad | df.is_pinned
+    return df
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def details() -> pd.DataFrame:
+    """One row per product with detail attributes (empty frame if none fetched yet)."""
+    df = _df(
+        """select product_id, country_of_origin, country_name, manufacturer_name, formulation, skin_types, concerns,
+                  key_ingredients, preferences, usp_summary, usp_points, description_text, how_to_use,
+                  review_key_phrases, review_splitup, review_count as detail_review_count, variants, image_url, fetched_at
+           from product_details"""
+    )
+    for col in ("skin_types", "concerns", "key_ingredients", "preferences", "usp_points"):
+        df[col] = df[col].apply(lambda v: list(v) if isinstance(v, (list, tuple)) else [])
+    for col in ("review_key_phrases", "variants", "review_splitup"):
+        df[col] = df[col].apply(lambda v: v if isinstance(v, (list, dict)) else (json.loads(v) if isinstance(v, str) else ([] if col != "review_splitup" else {})))
     return df
 
 
@@ -71,7 +89,7 @@ def products() -> pd.DataFrame:
     df = _df(
         """select p.product_id, p.name, p.brand, coalesce(b.origin, 'unknown') as origin, b.source as brand_source,
                   p.first_seen_date, p.last_seen_date, p.first_review_date, p.first_review_complete,
-                  p.review_count, p.url
+                  p.review_count, p.url, p.pack_size
            from products p left join brand_classification b on b.brand = p.brand"""
     )
     for col in ("first_seen_date", "last_seen_date", "first_review_date"):
@@ -93,7 +111,7 @@ def runs(limit: int = 30) -> pd.DataFrame:
 def admin_emails() -> set[str]:
     try:
         return {e.lower() for e in _df("select email from app_admins").email}
-    except Exception:  # noqa: BLE001 — table missing until migration 002 is applied
+    except Exception:  # noqa: BLE001
         return set()
 
 
@@ -102,7 +120,6 @@ def is_admin(email: str | None) -> bool:
 
 
 def save_brand_edits(edits: list[dict], updated_by: str) -> int:
-    """edits: [{brand, origin, confirmed, note}] -> rows updated. Clears caches."""
     n = 0
     with _conn() as c, c.cursor() as cur:
         for e in edits:
