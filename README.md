@@ -22,6 +22,12 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
   at 07:00 IST with up to 30 min jitter. **Dry-run on a GitHub runner succeeded
   on 2026-09-13** (Akamai let the data-centre IP through). Scheduled full runs
   start once the two Supabase secrets are added (see below).
+- Phase 5 (Streamlit dashboard): built in `dashboard/`, verified against a
+  local Postgres with the real 2026-09-13 snapshot. Views: overview + share of
+  shelf, rank tracking, pricing, ratings & reviews, new entrants (incl. Korean
+  positioning), brand classification review (editable), data health. Trend
+  charts appear once more than one scrape day exists.
+- Phase 6 (auth + Streamlit Cloud): next, after Phase 3 goes live.
 
 ### Going live with Phase 3 (owner steps)
 
@@ -65,6 +71,17 @@ python3 -m venv .venv
 .venv/bin/playwright install chromium
 cp .env.example .env   # then fill in values
 ```
+
+## Dashboard
+
+```bash
+DATABASE_URL=postgresql://... .venv/bin/streamlit run dashboard/app.py
+```
+
+`DATABASE_URL` is the Supabase Postgres connection string (Project Settings >
+Database > Connection string > Session pooler). On Streamlit Cloud it goes in
+the app's Secrets as `DATABASE_URL = "..."`. Tracked brands and the palette are
+in `dashboard/config.py`. Data is cached for 10 minutes.
 
 ## Brand classification
 
