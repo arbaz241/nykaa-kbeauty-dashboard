@@ -156,7 +156,7 @@ def _s(v) -> str | None:
 
 def product_card(r: dict, det: dict | None, as_of, compact: bool = False) -> str:
     from .metrics import pack_ml, short_name
-    det = {k: (_s(v) if k in ("image_url", "usp_summary", "country_name", "formulation") else v) for k, v in (det or {}).items()}
+    det = {k: (_s(v) if k in ("image_url", "usp_summary", "country_name", "formulation", "description_text") else v) for k, v in (det or {}).items()}
     img = f'<img src="{html.escape(det["image_url"])}" alt="">' if det.get("image_url") else ""
     tags = f'<span class="pill rank">#{int(r["rank"])}</span>' + ('<span class="pill ad">Paid slot</span>' if (r.get("is_ad") or r.get("is_pinned")) else "")
     mrp = f'<span class="mrp">₹{r["mrp"]:,.0f}</span>' if not _isna(r.get("mrp")) and r["mrp"] > r["price"] else ""
@@ -168,6 +168,11 @@ def product_card(r: dict, det: dict | None, as_of, compact: bool = False) -> str
         days = max(1, (as_of - frd).days)
         launch = f' · on Nykaa since {frd:%b %Y}' + (f', gaining {(r.get("rating_count") or 0) / days:.1f} ratings a day' if days <= 180 else "")
     usp = det.get("usp_summary") or ""
+    if not usp:
+        # Nykaa has no AI summary for every product: fall back to the first real sentence of the description
+        desc = _s(det.get("description_text")) or ""
+        first = next((x.strip() for x in desc.replace("\n", ". ").split(". ") if len(x.strip()) > 40 and not x.lower().startswith(("explore the entire", "shop more", "you can browse"))), "")
+        usp = (first[:180] + ("…" if len(first) > 180 else "")) if first else ""
     country = det.get("country_name")
     facts = " · ".join(x for x in [det.get("formulation"), f"Made in {country}" if country else None, r.get("pack_size") if isinstance(r.get("pack_size"), str) else None] if x)
     phr = det.get("review_key_phrases") or []
