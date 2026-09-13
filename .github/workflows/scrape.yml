@@ -67,7 +67,7 @@ jobs:
           python -m scraper.run $ARGS
 
       - name: Save review cache
-        if: always()
+        if: always() && hashFiles('data/cache/**') != ''
         uses: actions/cache/save@v4
         with:
           path: data/cache

@@ -18,7 +18,10 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
   Postgres; awaiting the owner's Supabase project to go live.** Schema in
   `supabase/migrations/001_initial_schema.sql`, writer in `scraper/db.py`,
   backfill/ingest CLI in `scraper/ingest.py`.
-- Phase 4 (GitHub Actions): next after Phase 3 goes live.
+- Phase 4 (GitHub Actions): workflow in `.github/workflows/scrape.yml`, daily
+  at 07:00 IST with up to 30 min jitter. **Dry-run on a GitHub runner succeeded
+  on 2026-09-13** (Akamai let the data-centre IP through). Scheduled full runs
+  start once the two Supabase secrets are added (see below).
 
 ### Going live with Phase 3 (owner steps)
 
@@ -33,6 +36,11 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
    `.venv/bin/python -m scraper.ingest --date 2026-09-13`
 5. From then on `scraper.run` ingests automatically whenever `SUPABASE_URL`
    is set (`--no-db` to skip).
+6. GitHub Actions: in the repo go to **Settings > Secrets and variables >
+   Actions > New repository secret** and add `SUPABASE_URL` and
+   `SUPABASE_SERVICE_ROLE_KEY`. Then **Actions > Daily Nykaa scrape > Run
+   workflow** (mode: full) for the first scheduled-style run, and check the
+   `scrape_runs` table afterwards. (Streamlit Cloud secrets come in Phase 6.)
 
 ### Schema summary
 
@@ -110,8 +118,10 @@ Categories and top-N live in `scraper/config.py`; delays in `.env`.
   scraper must drive full Chromium. Akamai rules can change any day, so a
   run can start failing without any code change. Failed pages are logged
   loudly and recorded in `run.json`; they are never filled with fake data.
-- All testing so far was from a residential IP. Whether GitHub Actions
-  (data-centre IPs) is allowed through is unknown until Phase 4.
+- Residential IP and a GitHub Actions runner (Azure data-centre IP) both got
+  through Akamai on 2026-09-13. That is one data point, not a guarantee: if
+  scheduled runs start failing with 403, the fallback is running the scraper
+  from a home machine or via a residential proxy.
 - **Block handling:** a 403 aborts the whole run immediately with no retries
   (retrying against an active block prolongs it). Remaining categories are
   recorded as skipped in `run.json`; the next scheduled run tries again.
