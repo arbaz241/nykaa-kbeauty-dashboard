@@ -89,6 +89,18 @@ def runs(limit: int = 30) -> pd.DataFrame:
     )
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def admin_emails() -> set[str]:
+    try:
+        return {e.lower() for e in _df("select email from app_admins").email}
+    except Exception:  # noqa: BLE001 — table missing until migration 002 is applied
+        return set()
+
+
+def is_admin(email: str | None) -> bool:
+    return bool(email) and (email.lower() in admin_emails() or email == "local-dev")
+
+
 def save_brand_edits(edits: list[dict], updated_by: str) -> int:
     """edits: [{brand, origin, confirmed, note}] -> rows updated. Clears caches."""
     n = 0

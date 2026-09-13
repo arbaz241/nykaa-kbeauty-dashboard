@@ -327,8 +327,12 @@ with tab_new:
 # --------------------------------------------------------------- brand review
 with tab_brands:
     st.subheader("Brand classification review")
-    st.caption("Auto-classified and unconfirmed brands first. Change origin, tick 'confirmed', add a note, then Save. "
-               "Confirmed rows are never overwritten by the scraper.")
+    can_edit = data.is_admin(USER_EMAIL)
+    if can_edit:
+        st.caption("Auto-classified and unconfirmed brands first. Change origin, tick 'confirmed', add a note, then Save. "
+                   "Confirmed rows are never overwritten by the scraper.")
+    else:
+        st.info("Read-only: only admins can change brand classifications. Auto-classified and unconfirmed brands are listed first.")
     bdf = data.brands()
     only_unconfirmed = st.checkbox("Show only unconfirmed", value=True)
     view = bdf[~bdf.confirmed] if only_unconfirmed else bdf
@@ -336,7 +340,7 @@ with tab_brands:
     editable = view[["brand", "origin", "confirmed", "note", "source", "evidence", "k_marketing", "n_products"]].reset_index(drop=True)
     edited = st.data_editor(
         editable, width="stretch", hide_index=True, num_rows="fixed", key="brand_editor",
-        disabled=["brand", "source", "evidence", "k_marketing", "n_products"],
+        disabled=(not can_edit) or ["brand", "source", "evidence", "k_marketing", "n_products"],
         column_config={
             "origin": st.column_config.SelectboxColumn("origin", options=C.ORIGIN_ORDER, required=True),
             "confirmed": st.column_config.CheckboxColumn("confirmed"),
@@ -347,7 +351,7 @@ with tab_brands:
         })
     changed = edited[(edited.origin != editable.origin) | (edited.confirmed != editable.confirmed)
                      | (edited.note.fillna("") != editable.note.fillna(""))]
-    if st.button(f"Save {len(changed)} change{'s' if len(changed) != 1 else ''}", disabled=changed.empty, type="primary"):
+    if can_edit and st.button(f"Save {len(changed)} change{'s' if len(changed) != 1 else ''}", disabled=changed.empty, type="primary"):
         who = USER_EMAIL
         n = data.save_brand_edits(changed[["brand", "origin", "confirmed", "note"]].to_dict("records"), who)
         st.success(f"Saved {n} brand{'s' if n != 1 else ''}.")

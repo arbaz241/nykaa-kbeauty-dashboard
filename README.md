@@ -28,9 +28,10 @@ Build plan and phase checkpoints: `nykaa-kbeauty-dashboard-instructions.md`.
   shelf, rank tracking, pricing, ratings & reviews, new entrants (incl. Korean
   positioning), brand classification review (editable), data health. Trend
   charts appear once more than one scrape day exists.
-- Phase 6 (auth + hosting): Supabase email/password login gate in
-  `dashboard/auth.py`. Remaining owner steps: create the auth user, deploy on
-  Streamlit Community Cloud, sign in and verify (see below).
+- Phase 6 (auth + hosting): Supabase email/password sign-in + sign-up in
+  `dashboard/auth.py`, verified against the live project on 2026-09-14
+  (sign-in, wrong-password rejection, non-admin read-only review screen).
+  Remaining owner step: deploy on Streamlit Community Cloud and sign in.
 
 ### Going live with Phase 3 (owner steps)
 
@@ -88,9 +89,19 @@ in `dashboard/config.py`. Data is cached for 10 minutes.
 
 ### Deploying to Streamlit Community Cloud (owner steps, Phase 6)
 
-1. In Supabase: **Authentication > Providers** keep Email enabled; disable
-   "Allow new users to sign up" (this app has no self-signup). Then
-   **Authentication > Users > Add user** for yourself (tick auto-confirm).
+1. Access model (owner decision 2026-09-14): **open sign-up**. Anyone can
+   create an account from the login page and view everything; only emails in
+   the `app_admins` table (migration `002_admins.sql`) can edit brand
+   classifications. Add admins with
+   `insert into app_admins (email) values ('x@y.com');` in the SQL editor.
+   In Supabase **Authentication > Sign In / Providers > Email**: keep Email
+   enabled and "Allow new users to sign up" on. **Confirm email**: if on, new
+   users must click a verification link; Supabase's built-in mailer is
+   rate-limited (a few emails per hour) and meant for testing, so for real
+   traffic either turn Confirm email off (accounts work instantly, unverified
+   addresses) or configure a custom SMTP provider under Project Settings >
+   Authentication. Create your own account from the app's "Create account"
+   tab or under Authentication > Users > Add user (auto-confirm).
 2. At share.streamlit.io: New app → this GitHub repo → branch `main` →
    main file `dashboard/app.py` → Python 3.12.
 3. App settings → **Secrets**, paste (TOML):
