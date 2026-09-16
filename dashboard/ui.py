@@ -233,7 +233,7 @@ def _nice_max(v: float) -> float:
 def line_chart(x_labels: list[str], series: list[dict], height: int = 240, y_fmt=lambda v: f"{v:,.0f}", y_label: str = "") -> str:
     """series: [{name, color, values (len == x_labels), width?}]. One y-axis, direct end labels, <title> tooltips."""
     W, H = 900, height
-    L, R, T, B = 44, 120, 12, 26
+    L, R, T, B = 44, 120, 26, 26
     ymax = _nice_max(max((v for s in series for v in s["values"] if v is not None), default=1))
     n = len(x_labels)
     xs = [L + (i * (W - L - R) / max(1, n - 1)) for i in range(n)]
@@ -266,7 +266,7 @@ def line_chart(x_labels: list[str], series: list[dict], height: int = 240, y_fmt
     for y, name, color, v in ends:
         g.append(f'<text x="{W - R + 10}" y="{y + 4:.1f}" fill="{INK2}" font-size="11.5"><tspan fill="{color}" font-weight="700">■</tspan> {esc(name[:14])} <tspan fill="{MUTED}">{esc(y_fmt(v))}</tspan></text>')
     if y_label:
-        g.append(f'<text x="{L}" y="{T - 2}" fill="{MUTED}" font-size="10.5">{esc(y_label)}</text>')
+        g.append(f'<text x="{L - 40}" y="11" fill="{MUTED}" font-size="10.5">{esc(y_label)}</text>')
     g.append("</svg>")
     return "".join(g)
 
