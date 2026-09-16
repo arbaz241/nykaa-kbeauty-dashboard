@@ -131,8 +131,8 @@ def render(ctx: dict) -> None:
         for col, d, title in ((c1, g, "Climbing"), (c2, l, "Falling")):
             with col:
                 st.markdown(f"**{title}**")
-                rows = [{"label": f"{r.brand} {M.short_name(r.name, r.brand)[:34]}", "meta": f"{L.get(r.subcategory)} · #{int(r.rank_start)} → #{int(r['rank'])}",
-                         "value": abs(int(r.change)), "value_text": f"{int(r.change):+d}", "color": HEX.get(r.origin, "#17171A")} for _, r in d.iterrows()]
+                rows = [{"label": f"{r['brand']} {M.short_name(r['name'], r['brand'])[:34]}", "meta": f"{L.get(r['subcategory'])} · #{int(r['rank_start'])} → #{int(r['rank'])}",
+                         "value": abs(int(r['change'])), "value_text": f"{int(r['change']):+d}", "color": HEX.get(r['origin'], "#17171A")} for _, r in d.iterrows()]
                 st.markdown(S.rowlist(rows), unsafe_allow_html=True)
 
     km = latest[latest.k_marketing & (latest.origin != "kbeauty")]
