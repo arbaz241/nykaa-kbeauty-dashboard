@@ -144,6 +144,15 @@ def main() -> int:
                 log.error("BLOCKED during product details — stopped: %s", e)
             except Exception as e:  # noqa: BLE001
                 log.error("product details step failed (non-fatal): %s", e)
+            # deeper signals: search shelf daily, assortment weekly, review history capped
+            from .signals_run import run_signals
+            try:
+                stats = asyncio.run(run_signals(client, {"search", "assortment", "reviews"}))
+                log.info("signals: %s", stats)
+            except BlockedError as e:
+                log.error("BLOCKED during signals — stopped: %s", e)
+            except Exception as e:  # noqa: BLE001
+                log.error("signals step failed (non-fatal): %s", e)
     return 0 if ok else 1
 
 

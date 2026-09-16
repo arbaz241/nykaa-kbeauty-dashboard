@@ -3,33 +3,32 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from .. import config as C, data, styles as S
+from .. import data, ui as U
 
 
 def render(ctx: dict) -> None:
-    S.hero("About the data", "Everything here comes from Nykaa's own app listings and product pages, collected once a day. "
-           "Nothing is estimated except where stated.")
-    S.section("01 · What is measured", "Definitions", "")
-    st.markdown("""
-- **Shelf / share of shelf**: the top-N products in a category on Nykaa's app "popularity" listing. Share is the fraction of those slots held by brands of one origin.
-- **Origin**: K-beauty, Local (India) or Global, from a curated list plus the product page's country of origin and Nykaa's own Korean Beauty store placement. Unconfirmed cases are reviewed in Admin.
-- **Sells as Korean**: an Indian or global brand whose product names or placement present the product as Korean (e.g. "Korean", "glass skin", Jeju) or whose products are made in South Korea.
-- **Paid slot**: Nykaa's AD tag or a "featured" pinned position. Both are recorded; the Paid filter excludes them.
-- **Price**: selling price on the listing; MRP is the list price. Typical = median.
-- **Ratings vs reviews**: ratings is Nykaa's star count on the listing; text reviews come from the reviews endpoint.
-- **New product / on Nykaa since**: Nykaa shows no launch date, so the oldest review is the proxy. **Ratings a day** = ratings ÷ days since that first review, a traction measure for products under about six months old.
-- **USP, targets, key ingredients, shoppers say**: from Nykaa product pages (highlight attributes, Nykaa's own product summary, review key phrases with sentiment). Fetched once per product.
-""")
-    S.section("02 · Collection", "Scraper runs", "")
-    r = data.runs(20).copy()
-    if not r.empty:
-        r["status"] = r.apply(lambda x: "blocked" if x.blocked else ("ok" if x.success else "failed"), axis=1)
-        r["minutes"] = ((pd.to_datetime(r.finished_at) - pd.to_datetime(r.scraped_at)).dt.total_seconds() / 60).round(1)
-        st.dataframe(r[["scrape_date", "status", "total_rows", "review_requests", "minutes", "runner"]].rename(columns={
-            "scrape_date": "Date", "status": "Status", "total_rows": "Rows", "review_requests": "Review calls", "minutes": "Minutes", "runner": "Runner"}),
-            width="stretch", hide_index=True, column_config={"Date": st.column_config.DateColumn(format="DD MMM YYYY")})
     latest, det = ctx["latest"], ctx["det"]
-    n_det = int(latest.product_id.isin(det.product_id).sum()) if not det.empty else 0
-    S.note(f"{int(latest.first_review_date.notna().sum())} of {len(latest)} listed products have a first-review date "
-           f"(only products under 300 ratings are checked); {n_det} of {len(latest)} have product-page details.")
-    S.note("Nykaa is protected by Akamai. A blocked run is recorded and shown as a gap, never filled with estimates.")
+    U.page_head("Data and method", "Everything comes from Nykaa's app listings, search results, brand pages, product pages and reviews, collected daily. Nothing is estimated except where stated.")
+    c1, c2 = st.columns([1.3, 1])
+    with c1:
+        defs = [
+            ("Shelf", "Top-N products in a category on Nykaa's app popularity listing. Share = fraction of slots held by an origin."),
+            ("Origin", "K-beauty, Local (India) or Global, from a curated list, product-page country of origin, and Nykaa's Korean Beauty store."),
+            ("Sells as Korean", "An Indian brand whose product names claim Korean positioning or whose products are made in South Korea."),
+            ("K-beauty search", "Top 20 results for Korean-intent searches (e.g. korean sunscreen, glass skin). Terms Nykaa redirects to a page are read from that page."),
+            ("Demand", "Monthly count of dated reviews on the leading products of tracked and top competitor brands. A proxy for sales momentum."),
+            ("Range conversion", "Products on the shelf ÷ products the brand lists on Nykaa in total (weekly)."),
+            ("Paid slot / offers", "Nykaa's AD tag or featured pin; offers are listing promotions such as gifts and coupons."),
+            ("Launch", "First review within 90 days. Ratings/day = ratings ÷ days since first review."),
+        ]
+        U.md(U.panel("Definitions", U.table([("Term", ""), ("Meaning", "")], [[f"<b>{k}</b>", U.esc(v)] for k, v in defs])))
+    with c2:
+        r = data.runs(12)
+        rows = []
+        for x in r.itertuples():
+            status = '<span class="down">blocked</span>' if x.blocked else ('<span class="up">ok</span>' if x.success else '<span class="down">failed</span>')
+            mins = (pd.to_datetime(x.finished_at) - pd.to_datetime(x.scraped_at)).total_seconds() / 60 if x.finished_at else None
+            rows.append([f"{pd.to_datetime(x.scrape_date):%d %b}", status, f'<span class="mono">{x.total_rows}</span>', f"{mins:.0f} min" if mins else "–", f'<span class="m">{U.esc(x.runner)}</span>'])
+        n_det = int(latest.product_id.isin(det.product_id).sum()) if not det.empty else 0
+        U.md(U.panel("Collection runs", U.table([("Date", ""), ("Status", ""), ("Rows", "n"), ("Took", "n"), ("Runner", "")], rows),
+                     foot=f"{n_det} of {len(latest)} shelf products have product-page details. Nykaa sits behind Akamai: a blocked run is recorded as a gap, never back-filled."))

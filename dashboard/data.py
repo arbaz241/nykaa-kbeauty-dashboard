@@ -38,7 +38,7 @@ def snapshots(date_from: date, date_to: date) -> pd.DataFrame:
     df = _df(
         """select scrape_date, subcategory, product_id, name, brand, origin, origin_confirmed, k_marketing,
                   rank, listing_source, mrp, price, discount_pct, rating, rating_count, in_stock,
-                  is_pinned, is_ad, is_new_tag, is_bestseller, in_kbeauty_store, pack_size,
+                  is_pinned, is_ad, is_new_tag, is_bestseller, in_kbeauty_store, pack_size, has_offer, offer_message,
                   first_seen_date, first_review_date, review_count, url
            from v_snapshots v
            left join lateral (select pack_size from products p where p.product_id = v.product_id) pp on true
@@ -143,3 +143,54 @@ def default_range() -> tuple[date, date]:
         today = date.today()
         return today - timedelta(days=30), today
     return max(lo, hi - timedelta(days=30)), hi
+
+
+# ------------------------------------------------------------------ deeper signals (2026-09-16)
+
+@st.cache_data(ttl=900, show_spinner=False)
+def search_latest() -> pd.DataFrame:
+    df = _df(
+        """select s.scrape_date, s.query, s.rank, s.product_id, s.brand, s.name, s.price, s.rating, s.rating_count, s.is_ad, s.total_found,
+                  coalesce(b.origin, 'unknown') as origin, coalesce(b.k_marketing, false) as k_marketing
+           from search_snapshots s left join brand_classification b on b.brand = s.brand
+           where s.scrape_date = (select max(scrape_date) from search_snapshots)"""
+    )
+    for c in ("price", "rating"):
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def assortment_latest() -> pd.DataFrame:
+    return _df(
+        """select a.brand, a.total_products, a.scrape_date, coalesce(b.origin,'unknown') as origin
+           from brand_assortment a left join brand_classification b on b.brand = a.brand
+           where a.scrape_date = (select max(scrape_date) from brand_assortment)"""
+    )
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def review_months() -> pd.DataFrame:
+    """Monthly dated reviews per product, with each product's reliable coverage start.
+
+    Nykaa's reviews endpoint stops serving new reviews after roughly 1,000 per product. When fewer reviews
+    were fetched than Nykaa reports, the oldest fetched month is partial and earlier months are unknown,
+    so coverage starts the month after the oldest one fetched."""
+    df = _df(
+        """select h.product_id, h.month, h.reviews, h.avg_rating, p.brand, p.name, coalesce(b.origin,'unknown') as origin,
+                  c.reviews_fetched, d.review_count as reported_reviews,
+                  min(h.month) over (partition by h.product_id) as oldest_month
+           from review_history h join products p using (product_id)
+           left join brand_classification b on b.brand = p.brand
+           left join review_cursor c using (product_id)
+           left join product_details d using (product_id)"""
+    )
+    if df.empty:
+        return df
+    df["month"] = pd.to_datetime(df["month"]); df["oldest_month"] = pd.to_datetime(df["oldest_month"])
+    df["avg_rating"] = pd.to_numeric(df["avg_rating"], errors="coerce")
+    truncated = df.reported_reviews.notna() & (df.reviews_fetched.fillna(0) < 0.95 * df.reported_reviews.fillna(0))
+    df["truncated"] = truncated
+    df["coverage_start"] = df.oldest_month.where(~truncated, df.oldest_month + pd.offsets.MonthBegin(1))
+    df.loc[~truncated, "coverage_start"] = pd.Timestamp("1900-01-01")
+    return df[df.month >= df.coverage_start]

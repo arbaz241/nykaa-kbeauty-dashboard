@@ -50,7 +50,15 @@ def require_login() -> str:
                  "(or DASHBOARD_AUTH_DISABLED=1 for local development).")
         st.stop()
 
-    st.title("Nykaa K-Beauty Market")
+    st.markdown('<div style="max-width:420px;margin:8vh auto 0"><div class="logo"><div class="mark"></div><span class="name">Nykaa K-Beauty Intelligence</span></div>'
+                '<div class="ph"><div class="t">Sign in</div><div class="s">Market intelligence on K-beauty brands on Nykaa India.</div></div></div>', unsafe_allow_html=True)
+    _, mid, _ = st.columns([1, 1.1, 1])
+    with mid:
+        _login_forms()
+    st.stop()
+
+
+def _login_forms() -> None:
     tab_in, tab_up = st.tabs(["Sign in", "Create account"])
     with tab_in:
         with st.form("login"):
@@ -98,7 +106,6 @@ def require_login() -> str:
                     msg = str(e)
                     friendly = "An account with this email already exists. Sign in instead." if "already registered" in msg.lower() else f"Sign-up failed: {msg[:200]}"
                     st.error(friendly)
-    st.stop()
 
 
 def logout_button() -> None:

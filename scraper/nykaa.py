@@ -89,6 +89,8 @@ def normalize(raw: dict, category: config.Category, rank: int, scraped_at: str, 
         "is_ad": "AD" in (g("dynamic_tags", "dynamicTags") or []),
         "is_new_tag": "NEW" in (g("dynamic_tags", "dynamicTags") or []),   # Nykaa's label; unreliable, see docs
         "is_bestseller": "BESTSELLER" in (g("dynamic_tags", "dynamicTags") or []),
+        "has_offer": bool(g("isOfferPresent", "showOffer")) or bool(g("offer_message", "offer")),
+        "offer_message": g("offer_message", "offer") or None,
         "is_pinned": bool(tm.get("pinning_info")),
         "pinning_info": tm.get("pinning_info") or None,
         "popularity_score": tm.get("popularity"),

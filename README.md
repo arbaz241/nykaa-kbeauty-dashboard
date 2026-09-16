@@ -208,3 +208,19 @@ Categories and top-N live in `scraper/config.py`; delays in `.env`.
 - Listings include paid "featured pinning" slots (`is_pinned`). Rank and
   share-of-shelf should be reported both with and without them.
 - Nykaa exposes rating count on listings, not a separate text-review count.
+
+## Deeper signals (added 2026-09-16)
+
+| Signal | Source | Cadence | Table |
+|---|---|---|---|
+| Korean Beauty store shelf | Nykaa category 30710, top 100 | daily, with the category scrape | `scrape_snapshots` (subcategory `kbeauty_store`) |
+| Offers on listings | listing API `isOfferPresent` / `offer_message` | daily | `scrape_snapshots.has_offer` |
+| K-beauty search capture | top 20 results for 15 Korean-intent searches; terms Nykaa redirects are read from the destination page | daily | `search_snapshots` |
+| Brand range on Nykaa | brand page `total_found` | weekly (Monday) | `brand_assortment` |
+| 12-month demand | dated reviews on up to 5 leading products of the tracked brands and the 10 most visible brands; incremental via `review_cursor`, 25 products per daily run | backfill once, then daily top-up | `review_history` |
+
+Caveat: Nykaa's reviews endpoint serves about 1,000 reviews per product. For bigger
+bestsellers only recent months are covered; the dashboard detects this (fetched < 95%
+of Nykaa's reported review count) and only uses months each product fully covers.
+
+Backfill: `python -m scraper.signals_run --all`. Schema: `supabase/migrations/004_deeper_signals.sql`.

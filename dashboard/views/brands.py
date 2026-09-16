@@ -1,77 +1,97 @@
-"""Compare brands: profile cards, presence by category, then products side by side."""
+"""Brands: head-to-head scorecard, range conversion across the market, products side by side."""
 from __future__ import annotations
-
-import html
 
 import pandas as pd
 import streamlit as st
 
-from .. import config as C, metrics as M, styles as S
+from .. import config as C, data, metrics as M, ui as U
 from ..data import norm
 
 L = C.SUBCATEGORY_LABELS
-O = C.ORIGIN_LABELS
 
 
-def _profile_card(p: dict) -> str:
-    def row(k, v):
-        return f'<div class="k">{html.escape(k)}</div><div style="font-size:13.5px;margin-top:2px">{v}</div>'
-    hdr = f'<div class="brand">{S.origin_tag(p["origin"])}' + (' · <span class="pill ad">Sells as Korean</span>' if p["k_marketing"] else "") + '</div>'
-    top = (f'<div class="name" style="font-size:20px;font-weight:800;margin-top:4px">{html.escape(p["brand"])}</div>'
-           f'<div class="meta">{"Made in " + html.escape(p["country"]) if p.get("country") else ""}</div>')
-    slots = f'{p["slots"]} products in the top listings' + (f' ({p["slots_change"]:+d} vs period start)' if "slots_change" in p else "")
-    body = (row("Visibility", f'{slots}<br>best rank #{p["best_rank"]}, typical #{p["avg_rank"]:.0f}')
-            + row("Price point", f'₹{p["median_price"]:,.0f} typical · ₹{p["min_price"]:,.0f}–{p["max_price"]:,.0f}' + (f' · {p["avg_discount"]:.0f}% off MRP' if p["avg_discount"] == p["avg_discount"] else ""))
-            + row("Rating", f'★ {p["avg_rating"]:.2f} from {p["ratings"]:,} ratings' + (f' · {p["ratings_added"]:+,} new' if "ratings_added" in p else ""))
-            + row("Paid visibility", f'{p["paid_share"]:.0%} of its slots are AD or featured')
-            + row("Categories", html.escape(", ".join(L.get(c, c) for c in p["categories"]))))
-    if p["top_concerns"]:
-        body += row("Sells against", S.pills(p["top_concerns"]))
-    if p["top_ingredients"]:
-        body += row("Leans on", S.pills(p["top_ingredients"]))
-    if p["positive_phrases"] or p["negative_phrases"]:
-        body += row("Shoppers say", S.pills(p["positive_phrases"], "pos") + S.pills(p["negative_phrases"], "neg"))
-    return f'<div class="card">{hdr}{top}{body}</div>'
+def _scorecard(picked, latest, det, assort, mom, search) -> str:
+    rows_def = []
+    prof = {b: M.brand_profile(latest, det, b) for b in picked}
+    asrt = assort.set_index("brand").total_products.to_dict() if len(assort) else {}
+    momd = mom.set_index("brand").to_dict("index") if len(mom) else {}
+    sq = search.groupby("brand").agg(terms=("query", "nunique"), hits=("product_id", "size"), best=("rank", "min")).to_dict("index") if len(search) else {}
+    offers = latest.groupby("brand").has_offer.mean().to_dict() if "has_offer" in latest else {}
+
+    def row(label, fn):
+        rows_def.append([f'<span class="m">{label}</span>'] + [fn(b) for b in picked])
+
+    row("Origin", lambda b: U.origin_chip(prof[b]["origin"]) + (U.chip("sells as Korean", "i") if prof[b]["k_marketing"] else ""))
+    row("Made in", lambda b: U.esc(prof[b].get("country") or "–"))
+    row("Products on the shelf", lambda b: f'<b class="mono">{prof[b]["slots"]}</b> <span class="m">in {len(prof[b]["categories"])} categories</span>')
+    row("Range on Nykaa", lambda b: f'<span class="mono">{asrt.get(b, "–")}</span>' + (f' <span class="m">· {prof[b]["slots"] / asrt[b]:.0%} reach the shelf</span>' if asrt.get(b) else ""))
+    row("Best / typical rank", lambda b: f'#{prof[b]["best_rank"]} <span class="m">/ #{prof[b]["avg_rank"]:.0f}</span>')
+    row("Typical price", lambda b: f'{U.inr(prof[b]["median_price"])} <span class="m">{U.inr(prof[b]["min_price"])}–{U.inr(prof[b]["max_price"])}</span>')
+    row("Discount / offers", lambda b: f'{prof[b]["avg_discount"]:.0f}% off <span class="m">· {offers.get(b, 0):.0%} with offers</span>')
+    row("Paid visibility", lambda b: f'{prof[b]["paid_share"]:.0%} <span class="m">of slots</span>')
+    row("Rating", lambda b: f'★ {prof[b]["avg_rating"]:.2f} <span class="m">· {prof[b]["ratings"]:,}</span>')
+    row("Demand, last 3 mo", lambda b: (f'<span class="mono">{int(momd[b]["last3"]):,}</span> ' + U.delta_html(momd[b]["growth"] * 100 if momd[b]["growth"] == momd[b]["growth"] else None, "{:+.0f}%")
+                                         + U.sparkline(momd[b]["spark"], 70, 18, U.ORIGIN.get(prof[b]["origin"], U.INK2))) if b in momd else '<span class="m">not tracked</span>')
+    row("In K-beauty searches", lambda b: f'{sq[b]["terms"]} terms <span class="m">· best #{sq[b]["best"]}</span>' if b in sq else '<span class="m">absent</span>')
+    row("Sells against", lambda b: "".join(U.chip(c) for c in prof[b]["top_concerns"][:4]) or "–")
+    row("Hero ingredients", lambda b: "".join(U.chip(c) for c in prof[b]["top_ingredients"][:4]) or "–")
+    row("Shoppers praise", lambda b: "".join(U.chip(c, "pos") for c in prof[b]["positive_phrases"][:3]) or "–")
+    row("Shoppers criticise", lambda b: "".join(U.chip(c, "neg") for c in prof[b]["negative_phrases"][:3]) or "–")
+    return U.table([("", "")] + [(b, "") for b in picked], rows_def)
 
 
 def render(ctx: dict) -> None:
-    latest, base, det, multi, as_of = ctx["latest"], ctx["base"], ctx["det"], ctx["multi_day"], ctx["latest_date"]
-    S.hero("Compare brands", "Pick two to four brands. See how visible each is, what it charges, how shoppers rate it, "
-           "and then its leading products side by side with what they claim and what buyers say.")
+    latest, det, as_of = ctx["latest"], ctx["det"], ctx["latest_date"]
+    assort, rm, search = data.assortment_latest(), data.review_months(), data.search_latest()
+    mom = M.brand_momentum(rm)
+
+    U.page_head("Brand comparison", "A head-to-head scorecard for up to four brands, how well each brand's range converts into shelf presence, "
+                "and their leading products side by side.")
 
     all_brands = sorted(latest.brand.unique(), key=str.lower)
     tracked = [b for b in all_brands if norm(b) in {norm(t) for t in C.TRACKED_BRANDS}]
     lb = M.brand_leaderboard(latest, None, top=300)
-    default = list(dict.fromkeys(tracked[:1] + list(lb[lb.origin == "kbeauty"].brand[:2]) + list(lb[lb.origin == "local"].brand[:1])))[:4]
-    picked = st.multiselect("Brands", all_brands, default=[b for b in default if b in all_brands], max_selections=4, label_visibility="collapsed")
+    default = list(dict.fromkeys(tracked[:2] + list(lb[lb.origin == "kbeauty"].brand[:1]) + list(lb[lb.origin == "local"].brand[:1])))[:4]
+    picked = st.multiselect("Compare", all_brands, default=[b for b in default if b in all_brands], max_selections=4)
     if len(picked) < 2:
         st.info("Pick at least two brands."); return
 
-    S.section("01 · At a glance", "The brands side by side", "Visibility, price point, ratings and paid placement from the listings; claims, ingredients and shopper sentiment from Nykaa product pages.")
-    for col, b in zip(st.columns(len(picked)), picked):
-        col.markdown(_profile_card(M.brand_profile(latest, det, b, base if multi else None)), unsafe_allow_html=True)
+    U.md(U.panel("Scorecard", _scorecard(picked, latest, det, assort, mom, search), detail=f"{as_of:%d %b %Y}",
+                 foot="Shelf = top listings across tracked categories. Range = all products the brand lists on Nykaa. Demand = dated reviews on the brand's leading products."))
 
-    S.section("02 · Where they compete", "Presence by category", "Products in the top listings, best rank and typical price. Blank means the brand is absent from that category's top listings.")
-    rows = []
-    for sub in [s for s in L if s in set(latest.subcategory)]:
-        row = {"Category": L[sub]}
-        for b in picked:
-            g = latest[(latest.subcategory == sub) & (latest.brand == b)]
-            row[b] = f"{len(g)} · best #{int(g['rank'].min())} · ₹{g.price.median():,.0f}" if len(g) else ""
-        rows.append(row)
-    st.dataframe(pd.DataFrame(rows).set_index("Category"), width="stretch")
+    c1, c2 = st.columns([1.2, 1])
+    conv = M.assortment_conversion(assort, latest)
+    with c1:
+        if len(conv):
+            big = conv[conv.total_products >= 15].sort_values("conversion", ascending=False)
+            rows = [[f"<b>{U.esc(r.brand)}</b>", U.origin_chip(r.origin), f'<span class="mono">{int(r.on_shelf)}</span> / {int(r.total_products)}',
+                     U.hbar(r.conversion / max(big.conversion.max(), 1e-9), U.ORIGIN.get(r.origin, U.INK2)), U.pct(r.conversion)] for r in big.head(14).itertuples()]
+            k_conv = big[big.origin == "kbeauty"].conversion.median(); l_conv = big[big.origin == "local"].conversion.median()
+            U.md(U.panel("Range conversion", U.table([("Brand", ""), ("Origin", ""), ("Shelf / range", "n"), ("", ""), ("Converts", "n")], rows),
+                         detail="brands with 15+ products",
+                         insight=f"Median K-beauty brand gets <b>{k_conv:.0%}</b> of its Nykaa range onto the top shelves; the median Local brand gets <b>{l_conv:.0%}</b>. "
+                                 "Low conversion with a big range means the problem is ranking, not assortment.",
+                         foot="Range counts every product on the brand page, including categories this dashboard does not track, so conversion is a lower bound."))
+        else:
+            U.md(U.panel("Range conversion", '<div class="foot">Brand ranges are collected weekly; appears after the first collection.</div>'))
+    with c2:
+        promo = M.promo_intensity(latest)
+        if len(promo):
+            rows = [[U.origin_chip(r.origin), U.hbar(r.offer, U.ORIGIN[r.origin]), U.pct(r.offer), f"{r.discount:.0f}%", U.pct(r.paid)] for r in promo.itertuples()]
+            U.md(U.panel("Promotion intensity", U.table([("Origin", ""), ("", ""), ("With offers", "n"), ("Avg discount", "n"), ("Paid slots", "n")], rows),
+                         detail="shelf products",
+                         insight="How hard each origin pushes: listing offers (gifts, bundles, coupons), markdowns off MRP, and paid placement.",
+                         foot="Offer flags are collected from 16 Sep 2026 onward."))
 
-    subs_with = [s for s in L if s in set(latest[latest.brand.isin(picked)].subcategory)]
-    S.section("03 · Product versus product", "Their leading products in one category", "Each brand's best-ranked products. Price per ml normalises pack sizes; 'targets' are the concerns the product page claims.")
+    subs = [s for s in L if s in set(latest[latest.brand.isin(picked)].subcategory)]
     c1, c2 = st.columns([2, 1])
-    sub = c1.selectbox("Category", subs_with, format_func=lambda s: L.get(s, s), key="cmp_sub")
-    n_show = c2.selectbox("Products per brand", [1, 2, 3], index=1)
+    sub = c1.selectbox("Products in category", subs, format_func=lambda s: L.get(s, s))
+    n_show = c2.selectbox("Per brand", [1, 2, 3], index=1)
     dmap = det.set_index("product_id").to_dict("index") if not det.empty else {}
     for col, b in zip(st.columns(len(picked)), picked):
         g = latest[(latest.subcategory == sub) & (latest.brand == b)].sort_values("rank").head(n_show)
         with col:
             if g.empty:
-                st.markdown(f"**{html.escape(b)}**"); st.caption("Not in this category's top listings.")
+                U.md(f'<div class="panel"><div class="ptitle"><span class="h">{U.esc(b)}</span></div><div class="foot">Not in this category\'s top listings.</div></div>')
             for _, r in g.iterrows():
-                st.markdown(S.product_card(r.to_dict(), dmap.get(r.product_id), as_of), unsafe_allow_html=True)
-                st.write("")
+                U.md(U.product_card(r.to_dict(), dmap.get(r.product_id), as_of))

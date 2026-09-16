@@ -195,3 +195,81 @@ def narrative(latest: pd.DataFrame, history: pd.DataFrame, snap: pd.DataFrame, r
     if history.scrape_date.nunique() < 2:
         out.append("Trend statements (share movement, rank gains and losses, rating growth) unlock automatically once a second daily scrape lands.")
     return out
+
+
+# ------------------------------------------------------------------ deeper signals
+
+def search_capture(search: pd.DataFrame) -> pd.DataFrame:
+    """Per query: share of top-20 results held by K-beauty, Local selling as Korean ('imitators'), other Local, Global."""
+    if search.empty:
+        return pd.DataFrame()
+    d = search.copy()
+    d["seg"] = np.where(d.origin == "kbeauty", "kbeauty",
+                np.where((d.origin == "local") & d.k_marketing, "imitator",
+                np.where(d.origin == "local", "local", np.where(d.origin == "global", "global", "unknown"))))
+    out = []
+    for q, g in d.groupby("query"):
+        n = len(g)
+        tf = pd.to_numeric(g.total_found, errors="coerce").max()
+        row = {"query": q, "results": int(tf) if tf == tf else 0, "n": n}
+        for s in ("kbeauty", "imitator", "local", "global", "unknown"):
+            row[s] = (g.seg == s).mean()
+        row["kbeauty_top5"] = (g[g["rank"] <= 5].seg == "kbeauty").mean() if (g["rank"] <= 5).any() else np.nan
+        lead = g.sort_values("rank").iloc[0]
+        row["top_brand"] = lead.brand; row["top_origin"] = lead.origin
+        bc = g.brand.value_counts(); row["most_brand"] = bc.index[0]; row["most_n"] = int(bc.iloc[0])
+        row["non_k_leader"] = next((b for b, o in zip(g.sort_values("rank").brand, g.sort_values("rank").origin) if o != "kbeauty"), None)
+        out.append(row)
+    return pd.DataFrame(out).sort_values("kbeauty", ascending=True)
+
+
+def demand_by_origin(rm: pd.DataFrame, months: int = 12) -> tuple[list[pd.Timestamp], dict[str, list[float]]]:
+    """Monthly reviews summed by origin over the last `months` complete months (current partial month excluded)."""
+    if rm.empty:
+        return [], {}
+    cur = pd.Timestamp.today().normalize().replace(day=1)
+    idx = pd.date_range(end=cur - pd.offsets.MonthBegin(1), periods=months, freq="MS")
+    d = rm[(rm.month < cur) & (rm.coverage_start <= idx[0])]   # only products with the full window covered
+    t = d.groupby(["month", "origin"]).reviews.sum().unstack().reindex(idx).fillna(0)
+    return list(idx), {o: list(t[o]) for o in ("kbeauty", "local", "global") if o in t}
+
+
+def brand_momentum(rm: pd.DataFrame) -> pd.DataFrame:
+    """Per brand: reviews in the last 3 complete months vs the 3 before; 12-month sparkline."""
+    if rm.empty:
+        return pd.DataFrame()
+    cur = pd.Timestamp.today().normalize().replace(day=1)
+    idx = pd.date_range(end=cur - pd.offsets.MonthBegin(1), periods=12, freq="MS")
+    six = idx[-6]
+    rm = rm[rm.coverage_start <= six]   # momentum compares 6 months: require products covering them
+    if rm.empty:
+        return pd.DataFrame()
+    t = rm[rm.month < cur].groupby(["brand", "month"]).reviews.sum().unstack().reindex(columns=idx).fillna(0)
+    # months before a brand's coverage are unknown, not zero: blank them for the sparkline
+    cov = rm.groupby("brand").coverage_start.min()
+    for b in t.index:
+        t.loc[b, t.columns < cov[b]] = np.nan
+    meta = rm.groupby("brand").agg(origin=("origin", "first"), products=("product_id", "nunique"))
+    out = pd.DataFrame({"last3": t.iloc[:, -3:].sum(axis=1), "prev3": t.iloc[:, -6:-3].sum(axis=1), "last12": t.sum(axis=1, min_count=1)}).join(meta)
+    out["growth"] = (out.last3 - out.prev3) / out.prev3.replace(0, np.nan)
+    out["spark"] = [[None if v != v else v for v in r] for r in t.values]
+    out["share_last3"] = out.last3 / out.last3.sum() if out.last3.sum() else np.nan
+    return out.reset_index().sort_values("last3", ascending=False)
+
+
+def assortment_conversion(assort: pd.DataFrame, latest: pd.DataFrame) -> pd.DataFrame:
+    """Brand range on Nykaa vs products that reach the top-100 shelves (distinct products across tracked categories)."""
+    if assort.empty:
+        return pd.DataFrame()
+    shelf = latest.groupby("brand").product_id.nunique().rename("on_shelf")
+    d = assort.set_index("brand").join(shelf).fillna({"on_shelf": 0}).reset_index()
+    d = d[d.total_products.fillna(0) > 0]
+    d["conversion"] = d.on_shelf / d.total_products
+    return d
+
+
+def promo_intensity(latest: pd.DataFrame) -> pd.DataFrame:
+    if "has_offer" not in latest:
+        return pd.DataFrame()
+    d = latest[latest.origin != "unknown"]
+    return d.groupby("origin").agg(offer=("has_offer", "mean"), discount=("discount_pct", "mean"), paid=("is_paid", "mean"), n=("product_id", "size")).reset_index()

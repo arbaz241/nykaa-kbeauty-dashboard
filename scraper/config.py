@@ -24,7 +24,18 @@ CATEGORIES: list[Category] = [
     Category("masks",            8400, "https://www.nykaa.com/skin/masks/masks-peels/c/8400", "skin"),
     Category("lipstick",          249, "https://www.nykaa.com/makeup/lips/lipstick/c/249", "makeup"),
     Category("foundation",        228, "https://www.nykaa.com/makeup/face/face-foundation/c/228", "makeup"),
+    # Nykaa's own Korean Beauty store: the shelf the K-beauty shopper browses. Not a
+    # product category; excluded from cross-category shares in the dashboard.
+    Category("kbeauty_store",   30710, "https://www.nykaa.com/korean-beauty/c/30710", "store"),
 ]
+STORE_KEYS = {"kbeauty_store"}
+
+# Deeper signals (2026-09-16)
+TRACKED_BRANDS = ["Innisfree", "Etude", "Laneige", "Sulwhasoo", "Mamonde"]
+KEY_COMPETITORS = int(os.getenv("KEY_COMPETITORS", "10"))
+KEY_PRODUCTS_PER_BRAND = int(os.getenv("KEY_PRODUCTS_PER_BRAND", "5"))
+REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "25"))
+ASSORTMENT_WEEKDAY = int(os.getenv("ASSORTMENT_WEEKDAY", "0"))   # Monday: refresh brand assortment weekly
 
 # Nykaa's own "Korean Beauty" store category. Products listed in it carry
 # this id in category_ids — a strong K-beauty signal for brand classification.

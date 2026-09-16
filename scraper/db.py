@@ -32,7 +32,7 @@ ROW_FIELDS = (  # columns ingest_run reads from each product row
     "mrp", "price", "discount_pct", "rating", "rating_count", "in_stock",
     "is_pinned", "is_ad", "is_new_tag", "is_bestseller", "in_kbeauty_store",
     "popularity_score", "nykaa_l2", "nykaa_l3", "tags", "scraped_at",
-    "review_count", "first_review_date", "first_review_complete",
+    "review_count", "first_review_date", "first_review_complete", "has_offer", "offer_message",
 )
 
 
@@ -140,3 +140,40 @@ def fetch_country_map(client) -> dict[str, str]:
     except Exception as e:  # noqa: BLE001
         log.warning("could not load country map: %s", e)
         return {}
+
+
+def _upsert(client, table: str, rows: list[dict], on_conflict: str) -> int:
+    n = 0
+    for i in range(0, len(rows), 200):
+        chunk = rows[i:i + 200]
+        client.table(table).upsert(chunk, on_conflict=on_conflict).execute(); n += len(chunk)
+    return n
+
+
+def write_search(client, rows: list[dict]) -> int:
+    return _upsert(client, "search_snapshots", rows, "scrape_date,query,product_id") if rows else 0
+
+
+def write_assortment(client, rows: list[dict]) -> int:
+    return _upsert(client, "brand_assortment", rows, "brand,scrape_date") if rows else 0
+
+
+def write_review_history(client, hist: list[dict], cursors: list[dict]) -> int:
+    # monthly counts are additive across incremental fetches: read existing, add, upsert
+    if not hist:
+        return 0
+    pids = list({h["product_id"] for h in hist})
+    existing = client.table("review_history").select("product_id,month,reviews").in_("product_id", pids).execute().data
+    have = {(e["product_id"], e["month"]): e["reviews"] for e in existing}
+    merged = [{**h, "reviews": h["reviews"] + have.get((h["product_id"], h["month"]), 0)} for h in hist]
+    n = _upsert(client, "review_history", merged, "product_id,month")
+    if cursors:
+        _upsert(client, "review_cursor", cursors, "product_id")
+    return n
+
+
+def read_review_cursors(client) -> dict[str, dict]:
+    try:
+        return {r["product_id"]: r for r in client.table("review_cursor").select("*").limit(10000).execute().data}
+    except Exception as e:  # noqa: BLE001
+        log.warning("no review cursors: %s", e); return {}
