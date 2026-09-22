@@ -44,7 +44,7 @@ def render(ctx: dict) -> None:
               "review volume vs prior 3 months<br>key K-beauty products" if k_growth is not None else "review history still loading",
               spark=dem.get("kbeauty"), color=U.ORIGIN["kbeauty"]),
         U.kpi("K-beauty share of Korean searches", U.pct(cap.kbeauty.mean(), 0) if len(cap) else "–",
-              (f"{U.pct(cap.imitator.mean(), 0)} goes to Indian brands selling as Korean<br>{len(cap)} K-beauty search terms" if len(cap) else "search capture not yet collected")),
+              (f"unpaid results · {U.pct(cap.imitator.mean(), 0)} go to Indian brands selling as Korean<br>{len(cap)} K-beauty search terms" if len(cap) else "search capture not yet collected")),
     ])
 
     c1, c2 = st.columns([1.65, 1])
@@ -94,20 +94,23 @@ def render(ctx: dict) -> None:
     if len(cap):
         rows = []
         for _, r in cap.sort_values("kbeauty").iterrows():
+            ads = "".join(U.chip(b, {"kbeauty": "k", "local": "l", "global": "g"}.get(o, "")) for b, o in zip(r.ad_brands, r.ad_origins[:len(r.ad_brands)])) or '<span class="m">none</span>'
             rows.append([f'<span class="mono">{U.esc(r.query)}</span>',
                          U.stack([(r.kbeauty, U.ORIGIN["kbeauty"], f"K-beauty {r.kbeauty:.0%}"), (r.imitator, U.IMITATOR, f"Indian brands selling as Korean {r.imitator:.0%}"),
                                   (r.local, U.ORIGIN["local"], f"Other Local {r.local:.0%}"), (r["global"], U.ORIGIN["global"], f"Global {r['global']:.0%}"),
                                   (r.unknown, U.ORIGIN["unknown"], f"Unclassified {r.unknown:.0%}")]),
-                         U.pct(r.kbeauty), U.pct(r.imitator), U.esc(r.top_brand) + " " + U.origin_chip(r.top_origin),
-                         U.esc(r.non_k_leader or "–"), f'<span class="m">{int(r.results):,}</span>' if r.results == r.results and r.results else '<span class="m">redirect</span>'])
+                         U.pct(r.kbeauty), U.pct(r.imitator), (U.esc(r.top_brand) + " " + U.origin_chip(r.top_origin)) if r.top_brand else "–",
+                         U.esc(r.non_k_leader) if isinstance(r.non_k_leader, str) else "–", ads,
+                         f'<span class="m">{int(r.results):,}</span>' if r.results else '<span class="m">redirect</span>'])
         worst = cap.sort_values("kbeauty").iloc[0]
         U.md(U.panel("Who wins K-beauty search",
                      U.legend([("K-beauty", U.ORIGIN["kbeauty"]), ("Indian brands selling as Korean", U.IMITATOR), ("Other Local", U.ORIGIN["local"]), ("Global", U.ORIGIN["global"])])
-                     + U.table([("Search term", ""), ("Top-20 results", ""), ("K", "n"), ("Imitators", "n"), ("#1 result", ""), ("Best non-Korean", ""), ("Results", "n")], rows),
-                     detail=f"{len(cap)} terms · {pd.to_datetime(search.scrape_date.max()):%d %b}",
-                     insight=f"Korean brands hold <b>{cap.kbeauty.mean():.0%}</b> of top-20 results for Korean-intent searches on average. "
-                             f"The weakest term is <b>{U.esc(worst.query)}</b>, where K-beauty holds {worst.kbeauty:.0%} and Indian brands selling as Korean hold {worst.imitator:.0%}.",
-                     foot="Each shopper search is one demand signal Nykaa routes to products. Where imitators rank, K-beauty demand converts into Indian brands' sales."))
+                     + U.table([("Search term", ""), ("Unpaid top results", ""), ("K", "n"), ("Imitators", "n"), ("#1 unpaid", ""), ("Best non-Korean", ""), ("Ads shown to our collector", ""), ("Results", "n")], rows),
+                     detail=f"{len(cap)} terms · {pd.to_datetime(search.scrape_date.max()):%d %b} · ranking by relevance",
+                     insight=f"Among unpaid results, Korean brands hold <b>{cap.kbeauty.mean():.0%}</b> of the top positions for Korean-intent searches on average. "
+                             f"The weakest term is <b>{U.esc(worst.query)}</b>: K-beauty holds {worst.kbeauty:.0%}, Indian brands selling as Korean {worst.imitator:.0%}.",
+                     foot="Shares and #1 exclude paid AD slots. Nykaa rotates ads per visitor, so the ads you see in a browser will differ from the ones listed here; "
+                          "unpaid order is the same for everyone and matches the site. Top 20 results per term, collected daily at 07:00 IST."))
 
     if multi:
         g, l = M.movers(base, top=8)

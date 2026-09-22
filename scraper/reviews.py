@@ -43,8 +43,13 @@ async def _fetch_reviews_page(page: Page, product_id: str, page_no: int) -> tupl
     global REQUESTS_MADE
     REQUESTS_MADE += 1
     url = config.REVIEWS_URL.format(product_id=product_id, page_no=page_no)
-    status, body = await page.evaluate(
-        "async (u) => { const r = await fetch(u, {credentials:'include'}); return [r.status, await r.text()]; }", url)
+    for attempt in range(6):   # back off on 429 Too Many Requests: 15s, 30s, ...
+        status, body = await page.evaluate(
+            "async (u) => { const r = await fetch(u, {credentials:'include'}); return [r.status, await r.text()]; }", url)
+        if status != 429:
+            break
+        log.warning("reviews 429 for %s; backing off %ss", product_id, 15 * (attempt + 1))
+        await asyncio.sleep(15 * (attempt + 1))
     if status == 403 or "Access Denied" in body[:300]:
         raise BlockedError(f"reviews API 403 for {product_id} p{page_no}")
     if status != 200:

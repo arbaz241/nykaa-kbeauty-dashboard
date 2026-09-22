@@ -21,7 +21,7 @@ from playwright.async_api import async_playwright
 from . import config
 from .db import connect, read_review_cursors, write_assortment, write_review_history, write_search
 from .nykaa import BlockedError, open_browser
-from .signals import SEARCH_QUERIES, assortment, key_products, review_history, search_shelf
+from .signals import SEARCH_QUERIES, RateLimited, assortment, key_products, review_history, search_shelf
 
 log = logging.getLogger("signals")
 
@@ -87,7 +87,11 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     if not h:
                         from .db import _upsert
                         _upsert(client, "review_cursor", [c], "product_id")
-                _, _, st = await review_history(page, prods, cursors, max_products=cap, on_product=save)
+                try:
+                    _, _, st = await review_history(page, prods, cursors, max_products=cap, on_product=save)
+                except RateLimited as e:
+                    log.error("review history stopped by rate limiting (progress saved; resumes next run): %s", e)
+                    st = {"rate_limited": str(e)}
                 st["written"] = written["n"]; st["key_products"] = len(prods); stats["reviews"] = st
         finally:
             await browser.close()

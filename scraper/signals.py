@@ -36,8 +36,21 @@ REVIEWS_URL = ("https://www.nykaa.com/gateway-api/products/{product_id}/reviews"
                "?pageNo={page_no}&size=50&sort=MOST_RECENT&domain=nykaa&source=react")
 
 
-async def _fetch_json(page: Page, url: str) -> tuple[int, str]:
-    return await page.evaluate("async (u) => { const r = await fetch(u,{credentials:'include'}); return [r.status, await r.text()]; }", url)
+class RateLimited(RuntimeError):
+    """Nykaa kept answering 429 after back-off: stop this crawl, keep what was saved."""
+
+
+async def _fetch_json(page: Page, url: str, retries: int = 5) -> tuple[int, str]:
+    """In-page fetch with back-off on 429 Too Many Requests (15s, 30s, 45s…)."""
+    for attempt in range(retries + 1):
+        status, body = await page.evaluate("async (u) => { const r = await fetch(u,{credentials:'include'}); return [r.status, await r.text()]; }", url)
+        if status != 429:
+            return status, body
+        if attempt == retries:
+            raise RateLimited(f"429 after {retries} retries: {url[:90]}")
+        log.warning("429 Too Many Requests; backing off %ss", 15 * (attempt + 1))
+        await asyncio.sleep(15 * (attempt + 1))
+    return status, body
 
 
 # ------------------------------------------------------------------ search shelf
@@ -106,7 +119,7 @@ async def assortment(page: Page, brand_ids: dict[str, str], scrape_date: str) ->
 
 # ------------------------------------------------------------------ review history
 
-async def review_history(page: Page, products: list[dict], cursors: dict[str, dict], max_pages_per_product: int = 60,
+async def review_history(page: Page, products: list[dict], cursors: dict[str, dict], max_pages_per_product: int = 100,
                          max_products: int | None = None, on_product=None) -> tuple[list[dict], list[dict], dict]:
     """products: [{product_id}]; cursors: product_id -> {newest_review_id, complete}.
     Returns (history rows [{product_id, month, reviews, avg_rating}], cursor rows, stats).
@@ -119,16 +132,24 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
         known_newest = cur.get("newest_review_id")
         months: Counter = Counter(); rating_sum: dict[str, float] = defaultdict(float)
         seen: set[int] = set(); newest = known_newest; pg = 0; reached_known = False; complete = bool(cur.get("complete"))
+        reported = cur.get("reported_reviews")
         try:
             while pg < max_pages_per_product:
                 pg += 1
                 st, body = await _fetch_json(page, REVIEWS_URL.format(product_id=pid, page_no=pg)); stats["requests"] += 1
                 if st == 403:
                     raise BlockedError(f"reviews 403 for {pid}")
-                rd = (json.loads(body).get("response") or {}).get("reviewData") or []
+                if st != 200:
+                    raise RuntimeError(f"reviews HTTP {st} for {pid} p{pg}")   # never read an error as 'no more reviews'
+                payload = json.loads(body)
+                if pg == 1 and payload.get("reviewCount") is not None:
+                    reported = int(payload["reviewCount"])   # Nykaa's live count, for truncation detection
+                rd = (payload.get("response") or {}).get("reviewData") or []
                 new = [r for r in rd if int(r["id"]) not in seen]
                 if not new:
-                    complete = True; break
+                    # empty page = Nykaa has no older reviews; a full page of repeats = the endpoint's ceiling
+                    complete = not rd
+                    break
                 for r in new:
                     rid = int(r["id"]); seen.add(rid)
                     if known_newest and rid <= known_newest:
@@ -137,21 +158,22 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
                     mo = r["createdOn"][:7] + "-01"; months[mo] += 1; rating_sum[mo] += float(r.get("rating") or 0)
                 if reached_known:
                     break
-                await asyncio.sleep(config.ENRICH_DELAY_SEC)
+                await asyncio.sleep(max(config.ENRICH_DELAY_SEC, 2.5))
             else:
                 complete = False  # hit the page cap
             p_hist = [{"product_id": pid, "month": mo, "reviews": n, "avg_rating": round(rating_sum[mo] / n, 2) if n else None} for mo, n in months.items()]
             p_cur = {"product_id": pid, "newest_review_id": newest, "reviews_fetched": (cur.get("reviews_fetched") or 0) + sum(months.values()),
-                     "complete": complete or reached_known, "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+                     "complete": complete or reached_known, "reported_reviews": reported,
+                     "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
             if on_product:
                 on_product(p_hist, p_cur)   # persist per product so a crash loses at most one product
             else:
                 hist_rows.extend(p_hist); cur_rows.append(p_cur)
             stats["products"] += 1; stats["reviews"] += sum(months.values())
-        except BlockedError:
+        except (BlockedError, RateLimited):
             raise
         except Exception as e:  # noqa: BLE001
-            stats["errors"] += 1; log.warning("review history %s failed: %s", pid, e)
+            stats["errors"] += 1; log.warning("review history %s failed (nothing saved for it): %s", pid, e)
         await asyncio.sleep(config.ENRICH_DELAY_SEC)
     log.info("review history: %s", stats)
     return hist_rows, cur_rows, stats

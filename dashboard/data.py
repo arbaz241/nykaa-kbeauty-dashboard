@@ -178,7 +178,7 @@ def review_months() -> pd.DataFrame:
     so coverage starts the month after the oldest one fetched."""
     df = _df(
         """select h.product_id, h.month, h.reviews, h.avg_rating, p.brand, p.name, coalesce(b.origin,'unknown') as origin,
-                  c.reviews_fetched, d.review_count as reported_reviews,
+                  c.reviews_fetched, coalesce(c.reported_reviews, d.review_count) as reported_reviews,
                   min(h.month) over (partition by h.product_id) as oldest_month
            from review_history h join products p using (product_id)
            left join brand_classification b on b.brand = p.brand

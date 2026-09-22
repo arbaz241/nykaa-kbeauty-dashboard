@@ -15,7 +15,10 @@ def _scorecard(picked, latest, det, assort, mom, search) -> str:
     prof = {b: M.brand_profile(latest, det, b) for b in picked}
     asrt = assort.set_index("brand").total_products.to_dict() if len(assort) else {}
     momd = mom.set_index("brand").to_dict("index") if len(mom) else {}
-    sq = search.groupby("brand").agg(terms=("query", "nunique"), hits=("product_id", "size"), best=("rank", "min")).to_dict("index") if len(search) else {}
+    org = search[~search.is_ad].copy() if len(search) else search
+    if len(org):
+        org["organic_rank"] = org.groupby("query")["rank"].rank(method="first").astype(int)
+    sq = org.groupby("brand").agg(terms=("query", "nunique"), hits=("product_id", "size"), best=("organic_rank", "min")).to_dict("index") if len(org) else {}
     offers = latest.groupby("brand").has_offer.mean().to_dict() if "has_offer" in latest else {}
 
     def row(label, fn):
@@ -32,7 +35,7 @@ def _scorecard(picked, latest, det, assort, mom, search) -> str:
     row("Rating", lambda b: f'★ {prof[b]["avg_rating"]:.2f} <span class="m">· {prof[b]["ratings"]:,}</span>')
     row("Demand, last 3 mo", lambda b: (f'<span class="mono">{int(momd[b]["last3"]):,}</span> ' + U.delta_html(momd[b]["growth"] * 100 if momd[b]["growth"] == momd[b]["growth"] else None, "{:+.0f}%")
                                          + U.sparkline(momd[b]["spark"], 70, 18, U.ORIGIN.get(prof[b]["origin"], U.INK2))) if b in momd else '<span class="m">not tracked</span>')
-    row("In K-beauty searches", lambda b: f'{sq[b]["terms"]} terms <span class="m">· best #{sq[b]["best"]}</span>' if b in sq else '<span class="m">absent</span>')
+    row("In K-beauty searches", lambda b: f'{sq[b]["terms"]} terms <span class="m">· best #{sq[b]["best"]} unpaid</span>' if b in sq else '<span class="m">absent from unpaid results</span>')
     row("Sells against", lambda b: "".join(U.chip(c) for c in prof[b]["top_concerns"][:4]) or "–")
     row("Hero ingredients", lambda b: "".join(U.chip(c) for c in prof[b]["top_ingredients"][:4]) or "–")
     row("Shoppers praise", lambda b: "".join(U.chip(c, "pos") for c in prof[b]["positive_phrases"][:3]) or "–")

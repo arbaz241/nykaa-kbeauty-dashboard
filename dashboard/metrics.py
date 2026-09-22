@@ -200,7 +200,9 @@ def narrative(latest: pd.DataFrame, history: pd.DataFrame, snap: pd.DataFrame, r
 # ------------------------------------------------------------------ deeper signals
 
 def search_capture(search: pd.DataFrame) -> pd.DataFrame:
-    """Per query: share of top-20 results held by K-beauty, Local selling as Korean ('imitators'), other Local, Global."""
+    """Per query, on UNPAID results only: share held by K-beauty, Local selling as Korean ('imitators'),
+    other Local, Global. Paid AD slots rotate per visitor (a shopper and our collector see different ads),
+    so they are reported separately and never counted as earned positions."""
     if search.empty:
         return pd.DataFrame()
     d = search.copy()
@@ -209,16 +211,21 @@ def search_capture(search: pd.DataFrame) -> pd.DataFrame:
                 np.where(d.origin == "local", "local", np.where(d.origin == "global", "global", "unknown"))))
     out = []
     for q, g in d.groupby("query"):
-        n = len(g)
+        org = g[~g.is_ad].sort_values("rank").copy()
+        org["organic_rank"] = range(1, len(org) + 1)
+        ads = g[g.is_ad].sort_values("rank")
         tf = pd.to_numeric(g.total_found, errors="coerce").max()
-        row = {"query": q, "results": int(tf) if tf == tf else 0, "n": n}
-        for s in ("kbeauty", "imitator", "local", "global", "unknown"):
-            row[s] = (g.seg == s).mean()
-        row["kbeauty_top5"] = (g[g["rank"] <= 5].seg == "kbeauty").mean() if (g["rank"] <= 5).any() else np.nan
-        lead = g.sort_values("rank").iloc[0]
-        row["top_brand"] = lead.brand; row["top_origin"] = lead.origin
-        bc = g.brand.value_counts(); row["most_brand"] = bc.index[0]; row["most_n"] = int(bc.iloc[0])
-        row["non_k_leader"] = next((b for b, o in zip(g.sort_values("rank").brand, g.sort_values("rank").origin) if o != "kbeauty"), None)
+        row = {"query": q, "results": int(tf) if tf == tf else 0, "n": len(org), "ads": len(ads)}
+        for s_ in ("kbeauty", "imitator", "local", "global", "unknown"):
+            row[s_] = (org.seg == s_).mean() if len(org) else np.nan
+        top5 = org[org.organic_rank <= 5]
+        row["kbeauty_top5"] = (top5.seg == "kbeauty").mean() if len(top5) else np.nan
+        lead = org.iloc[0] if len(org) else None
+        row["top_brand"] = lead.brand if lead is not None else None
+        row["top_origin"] = lead.origin if lead is not None else "unknown"
+        row["non_k_leader"] = next((b for b, o in zip(org.brand, org.origin) if o != "kbeauty"), None)
+        row["ad_brands"] = list(dict.fromkeys(ads.brand))
+        row["ad_origins"] = list(ads.origin)
         out.append(row)
     return pd.DataFrame(out).sort_values("kbeauty", ascending=True)
 
