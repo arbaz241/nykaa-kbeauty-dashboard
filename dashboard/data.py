@@ -150,7 +150,7 @@ def default_range() -> tuple[date, date]:
 @st.cache_data(ttl=900, show_spinner=False)
 def search_latest() -> pd.DataFrame:
     df = _df(
-        """select s.scrape_date, s.query, s.rank, s.product_id, s.brand, s.name, s.price, s.rating, s.rating_count, s.is_ad, s.total_found,
+        """select s.scrape_date, s.query, s.sample, s.rank, s.product_id, s.brand, s.name, s.price, s.rating, s.rating_count, s.is_ad, s.total_found,
                   coalesce(b.origin, 'unknown') as origin, coalesce(b.k_marketing, false) as k_marketing
            from search_snapshots s left join brand_classification b on b.brand = s.brand
            where s.scrape_date = (select max(scrape_date) from search_snapshots)"""

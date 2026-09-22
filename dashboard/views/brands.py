@@ -15,7 +15,7 @@ def _scorecard(picked, latest, det, assort, mom, search) -> str:
     prof = {b: M.brand_profile(latest, det, b) for b in picked}
     asrt = assort.set_index("brand").total_products.to_dict() if len(assort) else {}
     momd = mom.set_index("brand").to_dict("index") if len(mom) else {}
-    org = search[~search.is_ad].copy() if len(search) else search
+    org = search[~search.is_ad & (search["sample"] == 1)].copy() if len(search) else search
     if len(org):
         org["organic_rank"] = org.groupby("query")["rank"].rank(method="first").astype(int)
     sq = org.groupby("brand").agg(terms=("query", "nunique"), hits=("product_id", "size"), best=("organic_rank", "min")).to_dict("index") if len(org) else {}

@@ -224,3 +224,17 @@ bestsellers only recent months are covered; the dashboard detects this (fetched 
 of Nykaa's reported review count) and only uses months each product fully covers.
 
 Backfill: `python -m scraper.signals_run --all`. Schema: `supabase/migrations/004_deeper_signals.sql`.
+
+## Search keywords, ads and review text (added 2026-09-22)
+
+- `search_suggestions`: Nykaa's popular searches plus autosuggest keywords and products for seeds
+  (Korean terms, the tracked categories, the focus brands), daily.
+- Tracked search terms = 15 fixed Korean-intent terms + up to 10 suggested keywords, top 20 each, daily.
+- Paid AD slots: a 22 Sep test showed identical ads across fresh sessions minutes apart, while the
+  US GitHub runner and a browser in Korea saw different ads. Ads vary by time and location, so the ad
+  history is "what the collector sees at 07:00 IST from a US data centre", not every shopper's view.
+  Unpaid order was identical everywhere and is what the analysis uses.
+- `review_texts`: title and body of reviews from the last ~13 months for key products, stored as the
+  review crawl reaches them, for review-theme trends.
+- Key products for review history now follow `FOCUS_BRANDS` in `scraper/config.py`
+  (Innisfree anchor + Laneige, Etude, Beauty of Joseon, SKIN1004, TIRTIR, Anua, The Face Shop, Sulwhasoo, Mamonde).

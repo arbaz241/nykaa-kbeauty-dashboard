@@ -210,10 +210,12 @@ def search_capture(search: pd.DataFrame) -> pd.DataFrame:
                 np.where((d.origin == "local") & d.k_marketing, "imitator",
                 np.where(d.origin == "local", "local", np.where(d.origin == "global", "global", "unknown"))))
     out = []
+    if "sample" not in d:
+        d["sample"] = 1
     for q, g in d.groupby("query"):
-        org = g[~g.is_ad].sort_values("rank").copy()
+        org = g[~g.is_ad & (g["sample"] == g["sample"].min())].sort_values("rank").copy()   # unpaid order is identical across samples
         org["organic_rank"] = range(1, len(org) + 1)
-        ads = g[g.is_ad].sort_values("rank")
+        ads = g[g.is_ad].sort_values(["sample", "rank"])
         tf = pd.to_numeric(g.total_found, errors="coerce").max()
         row = {"query": q, "results": int(tf) if tf == tf else 0, "n": len(org), "ads": len(ads)}
         for s_ in ("kbeauty", "imitator", "local", "global", "unknown"):

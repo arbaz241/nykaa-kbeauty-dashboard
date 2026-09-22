@@ -151,7 +151,16 @@ def _upsert(client, table: str, rows: list[dict], on_conflict: str) -> int:
 
 
 def write_search(client, rows: list[dict]) -> int:
-    return _upsert(client, "search_snapshots", rows, "scrape_date,query,product_id") if rows else 0
+    return _upsert(client, "search_snapshots", rows, "scrape_date,query,sample,product_id") if rows else 0
+
+
+def write_suggestions(client, rows: list[dict]) -> int:
+    rows = [r for r in rows if r.get("suggestion")]
+    return _upsert(client, "search_suggestions", rows, "scrape_date,seed,kind,position") if rows else 0
+
+
+def write_review_texts(client, rows: list[dict]) -> int:
+    return _upsert(client, "review_texts", rows, "review_id") if rows else 0
 
 
 def write_assortment(client, rows: list[dict]) -> int:

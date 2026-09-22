@@ -31,7 +31,14 @@ CATEGORIES: list[Category] = [
 STORE_KEYS = {"kbeauty_store"}
 
 # Deeper signals (2026-09-16)
-TRACKED_BRANDS = ["Innisfree", "Etude", "Laneige", "Sulwhasoo", "Mamonde"]
+# Owner's focus set (2026-09-22). Innisfree is the anchor. Drives review-history key products,
+# autosuggest seeds and dashboard defaults.
+FOCUS_BRANDS = ["Innisfree", "Laneige", "Etude", "Beauty of Joseon", "SKIN1004", "TIRTIR", "Anua",
+                "The Face Shop", "Sulwhasoo", "Mamonde"]
+TRACKED_BRANDS = FOCUS_BRANDS
+SEARCH_SAMPLES = int(os.getenv("SEARCH_SAMPLES", "1"))          # extra fresh-session samples showed identical ads (22 Sep test): ads vary by time and location, not per visitor
+SUGGESTED_KEYWORDS_MAX = int(os.getenv("SUGGESTED_KEYWORDS_MAX", "10"))
+REVIEW_TEXT_DAYS = int(os.getenv("REVIEW_TEXT_DAYS", "400"))     # keep review text this far back
 KEY_COMPETITORS = int(os.getenv("KEY_COMPETITORS", "10"))
 KEY_PRODUCTS_PER_BRAND = int(os.getenv("KEY_PRODUCTS_PER_BRAND", "5"))
 REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "25"))

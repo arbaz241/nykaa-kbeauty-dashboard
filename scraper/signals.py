@@ -16,7 +16,7 @@ import json
 import logging
 import re
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from playwright.async_api import Page
 
@@ -55,9 +55,10 @@ async def _fetch_json(page: Page, url: str, retries: int = 5) -> tuple[int, str]
 
 # ------------------------------------------------------------------ search shelf
 
-async def search_shelf(page: Page, queries: list[str], scraped_at: str) -> tuple[list[dict], dict]:
-    rows, stats = [], {"queries": len(queries), "ok": 0, "errors": 0}
-    for q in queries:
+async def search_shelf(page: Page, queries: list[str], scraped_at: str, samples: int = 1) -> tuple[list[dict], dict]:
+    """Top 20 results per query, loaded `samples` times: unpaid order is stable, paid AD slots rotate per load."""
+    rows, stats = [], {"queries": len(queries), "samples": samples, "ok": 0, "errors": 0}
+    for q, sample in [(q, n) for q in queries for n in range(1, samples + 1)]:
         url = "https://www.nykaa.com/search/result/?q=" + q.replace(" ", "%20")
         try:
             resp = await page.goto(url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
@@ -80,7 +81,7 @@ async def search_shelf(page: Page, queries: list[str], scraped_at: str) -> tuple
                     continue
                 seen_ids.add(pid)
                 brand = p.get("brandName"); brand = brand[0] if isinstance(brand, list) and brand else brand
-                rows.append({"scrape_date": scraped_at[:10], "query": q, "rank": i + 1, "product_id": pid,
+                rows.append({"scrape_date": scraped_at[:10], "query": q, "sample": sample, "rank": i + 1, "product_id": pid,
                              "brand": brand or "", "name": p.get("name") or p.get("title") or "", "price": p.get("price"),
                              "rating": p.get("rating"), "rating_count": p.get("ratingCount"),
                              "is_ad": "AD" in (p.get("dynamicTags") or []), "total_found": ld.get("totalFound"), "scraped_at": scraped_at})
@@ -91,6 +92,39 @@ async def search_shelf(page: Page, queries: list[str], scraped_at: str) -> tuple
             stats["errors"] += 1; log.warning("search %r failed: %s", q, e)
         await asyncio.sleep(2.0)
     log.info("search shelf: %s", stats)
+    return rows, stats
+
+
+# ------------------------------------------------------------------ autosuggest
+
+async def suggestions(page: Page, seeds: list[str], scrape_date: str) -> tuple[list[dict], dict]:
+    """Nykaa's popular-searches list plus the autosuggest keywords and products for each seed."""
+    rows, stats = [], {"seeds": len(seeds), "ok": 0, "errors": 0}
+    try:
+        st, body = await _fetch_json(page, "https://www.nykaa.com/search/trending")
+        for i, t in enumerate((json.loads(body).get("response") or {}).get("trending") or []):
+            rows.append({"scrape_date": scrape_date, "seed": "", "position": i + 1, "suggestion": t.get("q"), "kind": "popular", "product_id": None, "url": t.get("url")})
+    except Exception as e:  # noqa: BLE001
+        stats["errors"] += 1; log.warning("popular searches failed: %s", e)
+    for seed in seeds:
+        try:
+            st, body = await _fetch_json(page, "https://www.nykaa.com/api/search/suggestions/v2?q=" + seed.replace(" ", "%20").replace("&", "%26"))
+            if st == 403:
+                raise BlockedError(f"suggestions 403 for {seed!r}")
+            pos = {}
+            for grp in json.loads(body).get("suggestions") or []:
+                for sug in grp.get("suggestions") or []:
+                    kind = sug.get("type") or "query"
+                    pos[kind] = pos.get(kind, 0) + 1
+                    rows.append({"scrape_date": scrape_date, "seed": seed, "position": pos[kind], "suggestion": sug.get("q"), "kind": kind,
+                                 "product_id": str(sug.get("id")) if kind == "product" and sug.get("id") else None, "url": sug.get("url")})
+            stats["ok"] += 1
+        except BlockedError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            stats["errors"] += 1; log.warning("suggestions %r failed: %s", seed, e)
+        await asyncio.sleep(1.5)
+    log.info("suggestions: %s", stats)
     return rows, stats
 
 
@@ -130,7 +164,8 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
     for p in todo:
         pid = p["product_id"]; cur = cursors.get(pid) or {}
         known_newest = cur.get("newest_review_id")
-        months: Counter = Counter(); rating_sum: dict[str, float] = defaultdict(float)
+        months: Counter = Counter(); rating_sum: dict[str, float] = defaultdict(float); texts: list[dict] = []
+        text_cutoff = (datetime.now(timezone.utc) - timedelta(days=config.REVIEW_TEXT_DAYS)).strftime("%Y-%m-%d")
         seen: set[int] = set(); newest = known_newest; pg = 0; reached_known = False; complete = bool(cur.get("complete"))
         reported = cur.get("reported_reviews")
         try:
@@ -156,6 +191,10 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
                         reached_known = True; continue
                     newest = max(newest or 0, rid)
                     mo = r["createdOn"][:7] + "-01"; months[mo] += 1; rating_sum[mo] += float(r.get("rating") or 0)
+                    if r["createdOn"][:10] >= text_cutoff and (r.get("title") or r.get("description")):
+                        texts.append({"review_id": rid, "product_id": pid, "created_on": r["createdOn"].replace(" ", "T") + "+05:30",
+                                      "rating": int(r.get("rating") or 0) or None, "title": (r.get("title") or "")[:300],
+                                      "body": (r.get("description") or "")[:2000], "is_buyer": bool(r.get("isBuyer"))})
                 if reached_known:
                     break
                 await asyncio.sleep(max(config.ENRICH_DELAY_SEC, 2.5))
@@ -166,7 +205,7 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
                      "complete": complete or reached_known, "reported_reviews": reported,
                      "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
             if on_product:
-                on_product(p_hist, p_cur)   # persist per product so a crash loses at most one product
+                on_product(p_hist, p_cur, texts)   # persist per product so a crash loses at most one product
             else:
                 hist_rows.extend(p_hist); cur_rows.append(p_cur)
             stats["products"] += 1; stats["reviews"] += sum(months.values())

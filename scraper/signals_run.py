@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import random
 import logging
 import os
 import sys
@@ -19,9 +20,10 @@ from datetime import date, datetime, timezone
 from playwright.async_api import async_playwright
 
 from . import config
-from .db import connect, read_review_cursors, write_assortment, write_review_history, write_search
+from .db import (connect, read_review_cursors, write_assortment, write_review_history, write_review_texts,
+                 write_search, write_suggestions)
 from .nykaa import BlockedError, open_browser
-from .signals import SEARCH_QUERIES, RateLimited, assortment, key_products, review_history, search_shelf
+from .signals import SEARCH_QUERIES, RateLimited, assortment, key_products, review_history, search_shelf, suggestions
 
 log = logging.getLogger("signals")
 
@@ -42,7 +44,10 @@ def classify_search_brands(client, rows: list[dict], today: str) -> int:
     if not rows:
         return 0
     known = {r["brand"] for r in client.table("brand_classification").select("brand").limit(10000).execute().data}
-    new_rows = [{"brand": r["brand"], "product_id": r["product_id"], "name": r["name"], "in_kbeauty_store": False} for r in rows if r["brand"] and r["brand"] not in known]
+    seen_pid = set(); new_rows = []
+    for r in rows:
+        if r["brand"] and r["brand"] not in known and r["product_id"] not in seen_pid:
+            seen_pid.add(r["product_id"]); new_rows.append({"brand": r["brand"], "product_id": r["product_id"], "name": r["name"], "in_kbeauty_store": False})
     if not new_rows:
         return 0
     payload = build_brand_payload(to_rows(classify_all(new_rows, country_by_product=fetch_country_map(client))), today)
@@ -69,7 +74,36 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
             await page.goto(config.CATEGORIES[0].url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
             await page.wait_for_timeout(1500)
             if "search" in which:
-                rows, st = await search_shelf(page, SEARCH_QUERIES, scraped_at)
+                # 1. autosuggest: what Nykaa proposes as shoppers type
+                seeds = ["korean", "k beauty", "korean skin care"] + [c.key.replace("_", " ").replace("masks", "sheet mask")
+                         for c in config.CATEGORIES if c.key not in config.STORE_KEYS] + [b.lower() for b in config.FOCUS_BRANDS]
+                srows, sst = await suggestions(page, seeds, today)
+                sst["written"] = write_suggestions(client, srows); stats["suggestions"] = sst
+                # 2. keywords to track: the fixed Korean-intent set + the top suggested keywords
+                core = [q.lower() for q in SEARCH_QUERIES]
+                extra = []
+                for r in srows:
+                    kw = (r["suggestion"] or "").strip().lower()
+                    if r["kind"] in ("query", "search") and kw and kw not in core and kw not in extra and len(kw) <= 40:
+                        extra.append(kw)
+                extra = extra[:config.SUGGESTED_KEYWORDS_MAX]
+                # 3. results: core terms sampled several times (ads rotate per load), suggested terms once
+                # Ads rotate per visitor, not per page load: each sample is a fresh browser session (new cookies,
+                # new user agent), i.e. a different "shopper". Unpaid order is identical across samples.
+                rows, st = await search_shelf(page, SEARCH_QUERIES + extra, scraped_at, samples=1)
+                for n in range(2, config.SEARCH_SAMPLES + 1):
+                    sctx = await browser.new_context(user_agent=random.choice(config.USER_AGENTS), locale="en-IN", viewport={"width": 1366, "height": 900})
+                    spage = await sctx.new_page()
+                    try:
+                        await spage.goto(config.CATEGORIES[n % 7].url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
+                        await spage.wait_for_timeout(1500)
+                        srows_n, st_n = await search_shelf(spage, SEARCH_QUERIES, scraped_at, samples=1)
+                        for r in srows_n:
+                            r["sample"] = n
+                        rows += srows_n; st["ok"] += st_n["ok"]; st["errors"] += st_n["errors"]
+                    finally:
+                        await sctx.close()
+                st["suggested_terms"] = extra; st["samples"] = config.SEARCH_SAMPLES
                 st["written"] = write_search(client, rows); stats["search"] = st
                 st["brands_classified"] = classify_search_brands(client, rows, today)
             if "assortment" in which and (unlimited or now.weekday() == config.ASSORTMENT_WEEKDAY or not client.table("brand_assortment").select("brand").limit(1).execute().data):
@@ -82,11 +116,13 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                 prods.sort(key=lambda p: (p["product_id"] in cursors, (cursors.get(p["product_id"]) or {}).get("fetched_at", "")))
                 cap = None if unlimited else config.REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN
                 written = {"n": 0}
-                def save(h, c):
+                def save(h, c, texts=()):
                     written["n"] += write_review_history(client, h, [c]) if h else 0
                     if not h:
                         from .db import _upsert
                         _upsert(client, "review_cursor", [c], "product_id")
+                    if texts:
+                        write_review_texts(client, list(texts))
                 try:
                     _, _, st = await review_history(page, prods, cursors, max_products=cap, on_product=save)
                 except RateLimited as e:
