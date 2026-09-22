@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* Light, editorial-grade product UI. Tokens used by utilities as e.g. bg-surface, text-ink-2, border-line. */
+@theme {
+  --color-page: #f6f5f1;
+  --color-surface: #ffffff;
+  --color-sunken: #f1f0eb;
+  --color-ink: #121211;
+  --color-ink-2: #4f4e49;
+  --color-muted: #8a8880;
+  --color-line: #e6e4dd;
+  --color-line-2: #d9d7cf;
+  --color-good: #0b7a3b;
+  --color-bad: #c0352b;
+  --color-accent: #121211;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-display-face), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 1px 2px rgba(18, 18, 17, 0.04), 0 1px 1px rgba(18, 18, 17, 0.02);
+  --shadow-pop: 0 12px 32px -8px rgba(18, 18, 17, 0.18), 0 2px 6px rgba(18, 18, 17, 0.06);
+}
+
+html { background: var(--color-page); color: var(--color-ink); }
+body { font-family: var(--font-sans); font-feature-settings: "cv11", "ss01"; }
+.tabular { font-variant-numeric: tabular-nums; }
+::selection { background: #121211; color: #fff; }
