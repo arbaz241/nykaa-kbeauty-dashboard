@@ -20,7 +20,8 @@ create or replace view web_review_months with (security_invoker = true) as
 with h as (select h.*, min(h.month) over (partition by h.product_id) as oldest from review_history h)
 select h.product_id, h.month, h.reviews, h.avg_rating, p.brand,
        case when c.reported_reviews is not null and c.reviews_fetched < 0.95 * c.reported_reviews
-            then (h.oldest + interval '1 month')::date else date '1900-01-01' end as coverage_start
+            then (h.oldest + interval '1 month')::date else date '1900-01-01' end as coverage_start,
+       p.name, p.url
 from h
 join products p using (product_id)
 join review_cursor c using (product_id);

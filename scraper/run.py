@@ -147,7 +147,7 @@ def main() -> int:
             # deeper signals: search shelf daily, assortment weekly, review history capped
             from .signals_run import run_signals
             try:
-                stats = asyncio.run(run_signals(client, {"search", "assortment", "reviews"}))
+                stats = asyncio.run(run_signals(client, {"search", "assortment", "catalog", "reviews"}))
                 log.info("signals: %s", stats)
             except BlockedError as e:
                 log.error("BLOCKED during signals — stopped: %s", e)

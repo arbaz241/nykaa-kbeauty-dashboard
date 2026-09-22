@@ -87,3 +87,36 @@ export function brandInsights(scores: BrandScore[]): string[] {
   if (srch[0].searchTerms > 0) out.push(`${srch[0].brand} shows up in the most K-beauty searches (top 10 unpaid results for ${srch[0].searchTerms} tracked terms).`);
   return out;
 }
+
+export interface DemandLine { key: string; label: string; brand: string; spark: (number | null)[]; last3: number | null; prev3: number | null; growth: number | null; url?: string | null }
+
+/** Monthly reviews over the last 12 complete months for one product or brand, using only months each product
+ *  reliably covers. Momentum (last 3 vs prior 3) only from products that cover all 6 of those months. */
+export function demandLines(months: ReviewMonth[], by: "brand" | "product"): DemandLine[] {
+  const win = monthsWindow(12); const six = win[6];
+  const groups = new Map<string, ReviewMonth[]>();
+  for (const m of months) { const k = by === "brand" ? m.brand : m.product_id; groups.set(k, [...(groups.get(k) ?? []), m]); }
+  const out: DemandLine[] = [];
+  for (const [k, ms] of groups) {
+    const ok = ms.filter((m) => m.month >= m.coverage_start);
+    const covered = new Set(ok.filter((m) => m.coverage_start <= six).map((m) => m.product_id));
+    const byMonth = new Map<string, number>();
+    ok.filter((m) => covered.has(m.product_id)).forEach((m) => byMonth.set(m.month, (byMonth.get(m.month) ?? 0) + m.reviews));
+    const start = ok.filter((m) => covered.has(m.product_id)).reduce((a, m) => (m.coverage_start > a ? m.coverage_start : a), "1900-01-01");
+    const spark = win.map((mo) => (covered.size && mo >= start ? byMonth.get(mo) ?? 0 : null));
+    const s = (xs: (number | null)[]) => xs.reduce<number>((a, b) => a + (b ?? 0), 0);
+    const last3 = covered.size ? s(spark.slice(-3)) : null; const prev3 = covered.size ? s(spark.slice(-6, -3)) : null;
+    out.push({ key: k, label: by === "brand" ? k : ms[0].name, brand: ms[0].brand, spark, last3, prev3, growth: last3 !== null && prev3 ? (last3 - prev3) / prev3 : null, url: ms[0].url });
+  }
+  return out.sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1));
+}
+
+export function momentumWord(g: number | null, volume: number | null): string {
+  if (g === null || volume === null) return "not enough history";
+  if (volume < 30) return "low volume";
+  if (g > 0.15) return "rising fast";
+  if (g > 0.05) return "rising";
+  if (g < -0.15) return "falling fast";
+  if (g < -0.05) return "falling";
+  return "steady";
+}

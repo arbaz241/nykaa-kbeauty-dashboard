@@ -56,6 +56,24 @@ def classify_search_brands(client, rows: list[dict], today: str) -> int:
     return len(payload)
 
 
+def focus_brand_ids(client) -> dict[str, str]:
+    """Nykaa brand-page ids for the focus brands: shelf data first, then known ids for off-shelf brands."""
+    import re
+    from .catalog import KNOWN_BRAND_IDS
+    norm = lambda x: re.sub(r"[^a-z0-9]", "", x.lower())
+    have = brand_ids(client)
+    out = {}
+    for b in config.FOCUS_BRANDS:
+        hit = next(((name, i) for name, i in have.items() if norm(name) == norm(b)), None)
+        if hit:
+            out[hit[0]] = hit[1]
+        elif b in KNOWN_BRAND_IDS:
+            out[b] = KNOWN_BRAND_IDS[b]
+        else:
+            log.warning("no brand id for focus brand %s", b)
+    return out
+
+
 def brand_ids(client) -> dict[str, str]:
     rows = client.table("products").select("brand,brand_id").limit(20000).execute().data
     out: dict[str, str] = {}
@@ -109,6 +127,11 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
             if "assortment" in which and (unlimited or now.weekday() == config.ASSORTMENT_WEEKDAY or not client.table("brand_assortment").select("brand").limit(1).execute().data):
                 rows, st = await assortment(page, brand_ids(client), today)
                 st["written"] = write_assortment(client, rows); stats["assortment"] = st
+            if "catalog" in which and (unlimited or now.weekday() == config.ASSORTMENT_WEEKDAY or not client.table("brand_catalog").select("brand").limit(1).execute().data):
+                from .catalog import brand_catalog
+                from .db import write_catalog
+                rows, st = await brand_catalog(page, focus_brand_ids(client), today)
+                st["written"] = write_catalog(client, rows); stats["catalog"] = st
             if "reviews" in which:
                 prods = key_products(latest_rows(client), config.TRACKED_BRANDS, config.KEY_COMPETITORS, config.KEY_PRODUCTS_PER_BRAND)
                 cursors = read_review_cursors(client)
@@ -136,13 +159,13 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--all", action="store_true"); ap.add_argument("--only", choices=["search", "assortment", "reviews"])
+    ap.add_argument("--all", action="store_true"); ap.add_argument("--only", choices=["search", "assortment", "catalog", "reviews"])
     args = ap.parse_args()
     logging.basicConfig(level=config.LOG_LEVEL, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s", datefmt="%H:%M:%S", stream=sys.stdout)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     if not os.getenv("SUPABASE_URL"):
         log.error("SUPABASE_URL not set"); return 2
-    which = {args.only} if args.only else {"search", "assortment", "reviews"}
+    which = {args.only} if args.only else {"search", "assortment", "catalog", "reviews"}
     try:
         stats = asyncio.run(run_signals(connect(), which, unlimited=args.all))
     except BlockedError as e:

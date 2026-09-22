@@ -5,9 +5,9 @@ import { useSession } from "./AuthGate";
 
 const NAV = [
   { label: "Compare", href: "/compare/", live: true },
-  { label: "Demand", href: "#", live: false },
-  { label: "Search & Ads", href: "#", live: false },
-  { label: "Market", href: "#", live: false },
+  { label: "Demand", href: "/demand/", live: true },
+  { label: "Search & Ads", href: "/search/", live: true },
+  { label: "Market", href: "/market/", live: true },
 ];
 
 export default function Shell({ active, asOf, children }: { active: string; asOf?: string; children: React.ReactNode }) {

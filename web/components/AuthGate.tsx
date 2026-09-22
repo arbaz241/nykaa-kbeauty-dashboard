@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { ProductDrawerProvider } from "./ProductDrawer";
 
 const SessionCtx = createContext<Session | null>(null);
 export const useSession = () => useContext(SessionCtx);
@@ -19,5 +20,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (session === null) window.location.replace("/login/");
   }, [session]);
   if (!session) return <div className="grid min-h-screen place-items-center text-sm text-muted">Loading…</div>;
-  return <SessionCtx.Provider value={session}>{children}</SessionCtx.Provider>;
+  // The drawer provider wraps whole pages, so any component on a page (not only inside Shell) can open a product.
+  return <SessionCtx.Provider value={session}><ProductDrawerProvider>{children}</ProductDrawerProvider></SessionCtx.Provider>;
 }

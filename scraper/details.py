@@ -27,9 +27,16 @@ log = logging.getLogger("details")
 
 
 def missing_product_ids(client) -> list[str]:
-    have = {r["product_id"] for r in client.table("product_details").select("product_id").limit(10000).execute().data}
-    prods = client.table("products").select("product_id,last_seen_date").order("last_seen_date", desc=True).limit(10000).execute().data
-    return [p["product_id"] for p in prods if p["product_id"] not in have]
+    """Shelf products (most recently seen first), then focus-brand catalogue products, without details yet."""
+    have = {r["product_id"] for r in client.table("product_details").select("product_id").limit(20000).execute().data}
+    prods = client.table("products").select("product_id,last_seen_date").order("last_seen_date", desc=True).limit(20000).execute().data
+    ids = [p["product_id"] for p in prods if p["product_id"] not in have]
+    try:
+        cat = client.table("brand_catalog").select("product_id,catalog_rank").order("catalog_rank").limit(20000).execute().data
+        ids += [c["product_id"] for c in cat if c["product_id"] not in have and c["product_id"] not in ids]
+    except Exception as e:  # noqa: BLE001
+        log.warning("catalogue not available: %s", e)
+    return list(dict.fromkeys(ids))
 
 
 async def run_details(product_ids: list[str], max_products: int | None, client) -> dict:

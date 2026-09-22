@@ -186,3 +186,7 @@ def read_review_cursors(client) -> dict[str, dict]:
         return {r["product_id"]: r for r in client.table("review_cursor").select("*").limit(10000).execute().data}
     except Exception as e:  # noqa: BLE001
         log.warning("no review cursors: %s", e); return {}
+
+
+def write_catalog(client, rows: list[dict]) -> int:
+    return _upsert(client, "brand_catalog", rows, "scrape_date,brand,product_id") if rows else 0

@@ -4,77 +4,69 @@ import { useEffect, useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import BrandPicker from "@/components/BrandPicker";
 import PresenceMatrix from "@/components/PresenceMatrix";
-import ProductCompare, { type Pick } from "@/components/ProductCompare";
+import ProductCompare, { type CompareRow, type Pick } from "@/components/ProductCompare";
 import Scorecard from "@/components/Scorecard";
 import Segmented from "@/components/Segmented";
 import Shell from "@/components/Shell";
-import { ANCHOR_BRAND, FOCUS_BRANDS, MAX_COMPARE, SLOT_COLORS, resolveBrand } from "@/lib/brands";
-import { useAssortment, useReviewMonths, useSearch, useShelf } from "@/lib/data";
+import { SectionHead } from "@/components/ui";
+import { ANCHOR_BRAND, FOCUS_BRANDS, resolveBrand } from "@/lib/brands";
+import { useAssortment, useCatalog, useReviewMonths, useSearch, useShelf } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/format";
 import { brandInsights, brandScore } from "@/lib/metrics";
-import type { ShelfRow } from "@/lib/types";
+import { useBrandSelection } from "@/lib/selection";
 
 type Mode = "brands" | "products";
-
-function readUrl() {
-  if (typeof window === "undefined") return {} as Record<string, string>;
-  return Object.fromEntries(new URLSearchParams(window.location.search).entries());
-}
+const readUrl = () => (typeof window === "undefined" ? {} : Object.fromEntries(new URLSearchParams(window.location.search).entries())) as Record<string, string>;
 
 function ComparePage() {
-  const shelf = useShelf(); const months = useReviewMonths(); const search = useSearch(); const assort = useAssortment();
+  const shelf = useShelf(); const months = useReviewMonths(); const search = useSearch(); const assort = useAssortment(); const catalog = useCatalog();
   const rows = useMemo(() => shelf.data ?? [], [shelf.data]);
-  const known = useMemo(() => [...new Set(rows.map((r) => r.brand))], [rows]);
+  const known = useMemo(() => [...new Set([...rows.map((r) => r.brand), ...(catalog.data ?? []).map((r) => r.brand)])], [rows, catalog.data]);
   const focus = useMemo(() => FOCUS_BRANDS.map((b) => resolveBrand(b, known) ?? b), [known]);
   const allBrands = useMemo(() => {
     const c = new Map<string, number>(); rows.forEach((r) => c.set(r.brand, (c.get(r.brand) ?? 0) + 1));
     return [...c.entries()].map(([brand, slots]) => ({ brand, slots })).sort((a, b) => b.slots - a.slots);
   }, [rows]);
+  const { selected, colors, toggle } = useBrandSelection(known);
 
-  // Starting state comes from the URL (shareable links), else the anchor plus three focus brands.
   const [url] = useState(readUrl);
   const [mode, setMode] = useState<Mode>(url.mode === "products" ? "products" : "brands");
   const [catChoice, setCat] = useState<string | null>(url.cat && CATEGORIES.includes(url.cat) ? url.cat : null);
-  const [override, setOverride] = useState<Record<string, string>>({}); // `${cat}|${brand}` -> product_id
-  const [userSel, setUserSel] = useState<{ selected: string[]; slots: Record<string, number> } | null>(null);
-  const initial = useMemo(() => {
-    const fromUrl = (url.brands ?? "").split(",").filter((b) => b.trim()).map((b) => resolveBrand(b, known)).filter((b): b is string => !!b);
-    const init = (fromUrl.length ? fromUrl : ["Innisfree", "Beauty of Joseon", "Laneige", "The Face Shop"].map((b) => resolveBrand(b, known)).filter((b): b is string => !!b)).slice(0, MAX_COMPARE);
-    return { selected: init, slots: Object.fromEntries(init.map((b, i) => [b, i])) };
-  }, [url, known]);
-  const { selected, slots } = userSel ?? initial;
+  const [override, setOverride] = useState<Record<string, string>>({});
 
-  // default category: where most of the selected brands have products on the shelf
+  // every product each selected brand sells in each category: top-100 shelf first, then its wider catalogue
+  const options = useMemo(() => {
+    const out = new Map<string, CompareRow[]>();
+    for (const b of selected) for (const c of CATEGORIES) {
+      const onShelf: CompareRow[] = rows.filter((r) => r.subcategory === c && r.brand === b).sort((x, y) => x.rank - y.rank);
+      const seen = new Set(onShelf.map((r) => r.product_id));
+      const more: CompareRow[] = (catalog.data ?? []).filter((r) => r.brand === b && r.subcategories.includes(c) && !seen.has(r.product_id))
+        .map((r) => ({ ...r, subcategory: c, rank: null, origin: rows.find((x) => x.brand === b)?.origin ?? "unknown", k_marketing: false, is_ad: false, is_pinned: false,
+          first_review_date: null, review_count: null, preferences: null, description_text: null, image_url: r.best_image, scrape_date: r.scrape_date }));
+      out.set(`${c}|${b}`, [...onShelf, ...more]);
+    }
+    return out;
+  }, [selected, rows, catalog.data]);
+
   const cat = useMemo(() => catChoice ?? [...CATEGORIES].sort((a, b) =>
-    selected.filter((x) => rows.some((r) => r.subcategory === b && r.brand === x)).length -
-    selected.filter((x) => rows.some((r) => r.subcategory === a && r.brand === x)).length)[0], [catChoice, selected, rows]);
+    selected.filter((x) => (options.get(`${b}|${x}`) ?? []).some((r) => r.rank !== null)).length -
+    selected.filter((x) => (options.get(`${a}|${x}`) ?? []).some((r) => r.rank !== null)).length)[0], [catChoice, selected, options]);
 
-
-  // keep the URL shareable
   useEffect(() => {
     if (!selected.length) return;
     const p = new URLSearchParams({ mode, brands: selected.join(","), ...(mode === "products" ? { cat } : {}) });
     window.history.replaceState(null, "", `?${p.toString()}`);
   }, [mode, selected, cat]);
 
-  const colors = useMemo(() => Object.fromEntries(selected.map((b) => [b, SLOT_COLORS[slots[b] ?? 0]])), [selected, slots]);
-  function toggle(b: string) {
-    if (selected.includes(b)) { setUserSel({ selected: selected.filter((x) => x !== b), slots }); return; }
-    if (selected.length >= MAX_COMPARE) return;
-    const used = new Set(selected.map((x) => slots[x])); const free = SLOT_COLORS.findIndex((_, i) => !used.has(i));
-    setUserSel({ selected: [...selected, b], slots: { ...slots, [b]: free } });
-  }
-
   const scores = useMemo(() => selected.map((b) => brandScore(b, rows, months.data ?? [], search.data ?? [], assort.data ?? [])), [selected, rows, months.data, search.data, assort.data]);
   const insights = useMemo(() => brandInsights(scores), [scores]);
   const picks: Pick[] = useMemo(() => selected.map((b) => {
-    const options = rows.filter((r) => r.subcategory === cat && r.brand === b).sort((x, y) => x.rank - y.rank);
-    const chosen = options.find((o) => o.product_id === override[`${cat}|${b}`]) ?? options[0] ?? null;
-    return { brand: b, product: chosen, options };
-  }), [selected, rows, cat, override]);
+    const opts = options.get(`${cat}|${b}`) ?? [];
+    return { brand: b, options: opts, product: opts.find((o) => o.product_id === override[`${cat}|${b}`]) ?? opts[0] ?? null };
+  }), [selected, options, cat, override]);
 
   const asOf = rows[0] ? new Date(rows[0].scrape_date) : null;
-  const err = shelf.error || months.error || search.error || assort.error;
+  const err = shelf.error || months.error || search.error || assort.error || catalog.error;
 
   return (
     <Shell active="Compare" asOf={asOf?.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}>
@@ -96,7 +88,6 @@ function ComparePage() {
 
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">Could not load data: {String(err.message ?? err)}</div>}
       {!shelf.data && !err && <div className="mt-10 text-[14px] text-muted">Loading the latest shelf…</div>}
-
       {shelf.data && selected.length < 2 && <div className="mt-10 text-[14px] text-muted">Select at least two brands to compare.</div>}
 
       {shelf.data && selected.length >= 2 && mode === "brands" && (
@@ -121,29 +112,21 @@ function ComparePage() {
         <section className="mt-8">
           <div className="mb-5 flex flex-wrap gap-2">
             {CATEGORIES.map((c) => {
-              const present = selected.filter((b) => rows.some((r) => r.subcategory === c && r.brand === b)).length;
+              const sells = selected.filter((b) => (options.get(`${c}|${b}`) ?? []).length).length;
               return (
                 <button key={c} onClick={() => setCat(c)}
                   className={`rounded-full px-4 py-2 text-[13.5px] transition ${cat === c ? "bg-ink font-medium text-white" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>
-                  {CATEGORY_LABEL[c]}<span className={`ml-2 text-[11.5px] ${cat === c ? "text-white/70" : "text-muted"}`}>{present}/{selected.length}</span>
+                  {CATEGORY_LABEL[c]}<span className={`ml-2 text-[11.5px] ${cat === c ? "text-white/70" : "text-muted"}`}>{sells}/{selected.length}</span>
                 </button>
               );
             })}
           </div>
-          <SectionHead title={`${CATEGORY_LABEL[cat]}: product vs product`} note="Each brand's best-ranked product by default; use “change” to pick another. Everything shown comes from Nykaa's listing and product pages. Click a product to open it on Nykaa." />
-          {asOf && <ProductCompare picks={picks} colors={colors} asOf={asOf} onChoose={(b, r: ShelfRow) => setOverride({ ...override, [`${cat}|${b}`]: r.product_id })} />}
+          <SectionHead title={`${CATEGORY_LABEL[cat]}: product vs product`} note="Default: each brand's best-ranked product, else its most popular in this category. “Change” lists its full range here. Photos open Nykaa." />
+          {!catalog.data && <p className="mb-3 text-[12.5px] text-muted">Loading full brand ranges…</p>}
+          {asOf && <ProductCompare picks={picks} colors={colors} asOf={asOf} onChoose={(b, r) => setOverride({ ...override, [`${cat}|${b}`]: r.product_id })} />}
         </section>
       )}
     </Shell>
-  );
-}
-
-function SectionHead({ title, note }: { title: string; note: string }) {
-  return (
-    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-      <h2 className="font-display text-[20px] font-semibold tracking-tight">{title}</h2>
-      <p className="text-[12.5px] text-muted">{note}</p>
-    </div>
   );
 }
 

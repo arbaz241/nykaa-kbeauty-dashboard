@@ -114,8 +114,13 @@ def parse_details(resp: dict) -> dict:
 
 async def fetch_details(page: Page, product_id: str) -> dict:
     url = DETAILS_URL.format(product_id=product_id)
-    status, body = await page.evaluate(
-        "async (u) => { const r = await fetch(u, {credentials:'include'}); return [r.status, await r.text()]; }", url)
+    for attempt in range(6):   # back off on 429 Too Many Requests
+        status, body = await page.evaluate(
+            "async (u) => { const r = await fetch(u, {credentials:'include'}); return [r.status, await r.text()]; }", url)
+        if status != 429:
+            break
+        log.warning("details 429 for %s; backing off %ss", product_id, 15 * (attempt + 1))
+        await asyncio.sleep(15 * (attempt + 1))
     if status == 403 or "Access Denied" in body[:300]:
         raise BlockedError(f"details API 403 for {product_id}")
     if status != 200:
