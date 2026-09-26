@@ -153,9 +153,10 @@ async def assortment(page: Page, brand_ids: dict[str, str], scrape_date: str) ->
 
 # ------------------------------------------------------------------ review history
 
-async def review_history(page: Page, products: list[dict], cursors: dict[str, dict], max_pages_per_product: int = 100,
+async def review_history(page: Page, products: list[dict], cursors: dict[str, dict], max_pages_per_product: int = 40,
                          max_products: int | None = None, on_product=None) -> tuple[list[dict], list[dict], dict]:
     """products: [{product_id}]; cursors: product_id -> {newest_review_id, complete}.
+    Nykaa serves at most 40 review pages per product; page 41 returns HTTP 400.
     Returns (history rows [{product_id, month, reviews, avg_rating}], cursor rows, stats).
     Incremental: stop when the newest known review id is reached; full crawl when no cursor."""
     hist_rows, cur_rows = [], []
@@ -174,6 +175,11 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
                 st, body = await _fetch_json(page, REVIEWS_URL.format(product_id=pid, page_no=pg)); stats["requests"] += 1
                 if st == 403:
                     raise BlockedError(f"reviews 403 for {pid}")
+                if st == 400:
+                    # Nykaa refuses pages past its ~40-page ceiling: stop here and keep what was collected
+                    log.info("reviews page ceiling reached for %s at p%d", pid, pg)
+                    complete = False
+                    break
                 if st != 200:
                     raise RuntimeError(f"reviews HTTP {st} for {pid} p{pg}")   # never read an error as 'no more reviews'
                 payload = json.loads(body)

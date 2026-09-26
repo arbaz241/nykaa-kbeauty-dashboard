@@ -41,7 +41,7 @@ SUGGESTED_KEYWORDS_MAX = int(os.getenv("SUGGESTED_KEYWORDS_MAX", "10"))
 REVIEW_TEXT_DAYS = int(os.getenv("REVIEW_TEXT_DAYS", "400"))     # keep review text this far back
 KEY_COMPETITORS = int(os.getenv("KEY_COMPETITORS", "10"))
 KEY_PRODUCTS_PER_BRAND = int(os.getenv("KEY_PRODUCTS_PER_BRAND", "5"))
-REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "25"))
+REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "12"))   # keep the daily job inside its 60-minute budget
 ASSORTMENT_WEEKDAY = int(os.getenv("ASSORTMENT_WEEKDAY", "0"))   # Monday: refresh brand assortment weekly
 
 # Nykaa's own "Korean Beauty" store category. Products listed in it carry
