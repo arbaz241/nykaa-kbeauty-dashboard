@@ -168,7 +168,8 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     if texts:
                         write_review_texts(client, list(texts))
                 try:
-                    _, _, st = await review_history(page, prods, cursors, max_products=cap, on_product=save)
+                    _, _, st = await review_history(page, prods, cursors, max_products=cap, on_product=save,
+                                                    max_minutes=None if unlimited else config.REVIEW_HISTORY_MAX_MINUTES)
                 except RateLimited as e:
                     log.error("review history stopped by rate limiting (progress saved; resumes next run): %s", e)
                     st = {"rate_limited": str(e)}
@@ -186,7 +187,8 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                 def save_texts(texts):
                     written["n"] += write_review_texts(client, list(texts))
                 try:
-                    st = await review_texts_only(page, todo[:cap] if cap else todo, on_product=save_texts)
+                    st = await review_texts_only(page, todo[:cap] if cap else todo, on_product=save_texts,
+                                                 max_minutes=None if unlimited else config.REVIEW_TEXT_MAX_MINUTES)
                 except RateLimited as e:
                     log.error("review texts stopped by rate limiting (progress saved; resumes next run): %s", e)
                     st = {"rate_limited": str(e)}

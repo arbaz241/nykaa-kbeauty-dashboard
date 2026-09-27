@@ -54,7 +54,11 @@ KEY_COMPETITORS = int(os.getenv("KEY_COMPETITORS", "10"))
 KEY_PRODUCTS_PER_BRAND = int(os.getenv("KEY_PRODUCTS_PER_BRAND", "15"))        # anchor + core K-beauty brands
 KEY_PRODUCTS_PER_WATCH = int(os.getenv("KEY_PRODUCTS_PER_WATCH", "4"))         # smaller Korean brands
 KEY_PRODUCTS_PER_COMPETITOR = int(os.getenv("KEY_PRODUCTS_PER_COMPETITOR", "6"))  # Indian/global rivals on the anchor's shelves
-REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "14"))   # keep the daily job inside its 60-minute budget
+REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "40"))
+# Wall-clock budgets keep the daily job inside its 60-minute workflow timeout. Nykaa answers 429 to
+# roughly every other review request under load, so a product count alone cannot bound the run.
+REVIEW_HISTORY_MAX_MINUTES = float(os.getenv("REVIEW_HISTORY_MAX_MINUTES", "28"))
+REVIEW_TEXT_MAX_MINUTES = float(os.getenv("REVIEW_TEXT_MAX_MINUTES", "8"))
 REVIEW_TEXT_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_TEXT_MAX_PRODUCTS_PER_RUN", "10"))  # text-only catch-up for products crawled before text capture existed
 ASSORTMENT_WEEKDAY = int(os.getenv("ASSORTMENT_WEEKDAY", "0"))   # Monday: refresh brand assortment weekly
 

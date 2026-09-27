@@ -156,15 +156,24 @@ async def assortment(page: Page, brand_ids: dict[str, str], scrape_date: str) ->
 # ------------------------------------------------------------------ review history
 
 async def review_history(page: Page, products: list[dict], cursors: dict[str, dict], max_pages_per_product: int = 40,
-                         max_products: int | None = None, on_product=None) -> tuple[list[dict], list[dict], dict]:
+                         max_products: int | None = None, on_product=None,
+                         max_minutes: float | None = None) -> tuple[list[dict], list[dict], dict]:
     """products: [{product_id}]; cursors: product_id -> {newest_review_id, complete}.
     Nykaa serves at most 40 review pages per product; page 41 returns HTTP 400.
     Returns (history rows [{product_id, month, reviews, avg_rating}], cursor rows, stats).
-    Incremental: stop when the newest known review id is reached; full crawl when no cursor."""
+    Incremental: stop when the newest known review id is reached; full crawl when no cursor.
+    max_minutes bounds wall clock: Nykaa answers 429 to roughly every other request under load, so a
+    product count cannot keep the daily job inside its budget. Each product is saved as it finishes, so
+    stopping early loses nothing — the next run picks up the stalest products."""
     hist_rows, cur_rows = [], []
     stats = {"products": 0, "requests": 0, "reviews": 0, "errors": 0}
     todo = products if max_products is None else products[:max_products]
+    deadline = None if not max_minutes else datetime.now(timezone.utc) + timedelta(minutes=max_minutes)
     for p in todo:
+        if deadline and datetime.now(timezone.utc) >= deadline:
+            stats["out_of_time"] = len(todo) - stats["products"]
+            log.info("review history: out of time, %d products left for the next run", stats["out_of_time"])
+            break
         pid = p["product_id"]; cur = cursors.get(pid) or {}
         known_newest = cur.get("newest_review_id")
         months: Counter = Counter(); rating_sum: dict[str, float] = defaultdict(float); texts: list[dict] = []
@@ -303,12 +312,18 @@ def products_missing_text(all_key: list[dict], have_text: set[str]) -> list[dict
     return [p for p in all_key if p["product_id"] not in have_text]
 
 
-async def review_texts_only(page: Page, products: list[dict], on_product=None, max_pages_per_product: int = 20) -> dict:
+async def review_texts_only(page: Page, products: list[dict], on_product=None, max_pages_per_product: int = 20,
+                            max_minutes: float | None = None) -> dict:
     """Fetch reviews purely to store their text. Monthly counts are NOT touched (they are already stored and
     are additive, so re-counting them would double them)."""
     stats = {"products": 0, "requests": 0, "texts": 0, "errors": 0}
     cutoff = (datetime.now(timezone.utc) - timedelta(days=config.REVIEW_TEXT_DAYS)).strftime("%Y-%m-%d")
+    deadline = None if not max_minutes else datetime.now(timezone.utc) + timedelta(minutes=max_minutes)
     for p in products:
+        if deadline and datetime.now(timezone.utc) >= deadline:
+            stats["out_of_time"] = len(products) - stats["products"]
+            log.info("review texts: out of time, %d products left for the next run", stats["out_of_time"])
+            break
         pid = p["product_id"]; seen: set[int] = set(); texts: list[dict] = []
         try:
             for pg in range(1, max_pages_per_product + 1):
