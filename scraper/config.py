@@ -24,6 +24,14 @@ CATEGORIES: list[Category] = [
     Category("masks",            8400, "https://www.nykaa.com/skin/masks/masks-peels/c/8400", "skin"),
     Category("lipstick",          249, "https://www.nykaa.com/makeup/lips/lipstick/c/249", "makeup"),
     Category("foundation",        228, "https://www.nykaa.com/makeup/face/face-foundation/c/228", "makeup"),
+    # Added 2026-09-27 on the owner's brief: the routine steps K-beauty actually competes on.
+    # Toners & Mists is the third-largest Korean category (90 of the 765 catalogued Korean products)
+    # and had no rank coverage at all; Nykaa files lip tints under "Lip Stain".
+    Category("toner",            8391, "https://www.nykaa.com/skin/toners-mists/c/8391", "skin"),
+    Category("sheet_mask",       8401, "https://www.nykaa.com/skin/masks/face-masks/c/8401", "skin"),
+    Category("cleansing_balm",   8383, "https://www.nykaa.com/skin/cleansers/cleansing-balm-oil/c/8383", "skin"),
+    Category("eye_care",         8403, "https://www.nykaa.com/skin/eye-care/under-eye-cream-serums/c/8403", "skin"),
+    Category("lip_tint",          253, "https://www.nykaa.com/makeup/lips/lip-stain/c/253", "makeup"),
     # Nykaa's own Korean Beauty store: the shelf the K-beauty shopper browses. Not a
     # product category; excluded from cross-category shares in the dashboard.
     Category("kbeauty_store",   30710, "https://www.nykaa.com/korean-beauty/c/30710", "store"),

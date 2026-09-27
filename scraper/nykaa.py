@@ -190,6 +190,11 @@ async def _scrape_category_via(fetcher, page: Page, category: config.Category,
         for i, raw in enumerate(pr.products):
             rank = (page_no - 1) * config.PAGE_SIZE + i + 1
             row = normalize(raw, category, rank, scraped_at, pr.source)
+            if row["product_id"] in ("None", "", None) or not row.get("brand"):
+                # Some shelves carry non-product tiles (banners, widgets). They occupy a position
+                # but are not products: skip them, and leave the other ranks as Nykaa served them.
+                log.info("%s rank %d is not a product (banner/tile) — skipped", category.key, rank)
+                continue
             if row["product_id"] in seen:
                 log.debug("%s duplicate product %s at rank %d (skipped)", category.key, row["product_id"], rank)
                 continue

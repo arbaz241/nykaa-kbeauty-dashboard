@@ -11,8 +11,9 @@ export const compact = (v: number | null | undefined) => {
 export const signed = (v: number | null | undefined, d = 0) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(d)}%`);
 
 export const CATEGORY_LABEL: Record<string, string> = {
-  face_moisturizer: "Moisturiser", serum: "Serum", sunscreen: "Sunscreen", face_wash: "Face wash",
-  masks: "Masks & peels", lipstick: "Lipstick", foundation: "Foundation",
+  face_moisturizer: "Moisturiser", serum: "Serum & essence", sunscreen: "Sunscreen", face_wash: "Face wash",
+  toner: "Toner & mist", sheet_mask: "Sheet mask", cleansing_balm: "Cleansing balm", eye_care: "Eye care",
+  masks: "Masks & peels", lip_tint: "Lip tint", lipstick: "Lipstick", foundation: "Foundation",
 };
 export const CATEGORIES = Object.keys(CATEGORY_LABEL);
 

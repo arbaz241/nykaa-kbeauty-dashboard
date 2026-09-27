@@ -99,9 +99,9 @@ def _origin(brand: str, stats: dict, seed: dict) -> Classification:
     if stats.get("kstore", 0) > 0:
         return Classification(brand, "kbeauty", "auto", False,
                               f"{stats['kstore']}/{stats['n']} products in Nykaa Korean Beauty store", stats["n"])
-    if _K_PATTERNS.search(brand):
+    if _K_PATTERNS.search(brand or ""):
         return Classification(brand, "kbeauty", "auto", False, "brand name pattern (korea/seoul)", stats["n"])
-    if _LOCAL_PATTERNS.search(brand):
+    if _LOCAL_PATTERNS.search(brand or ""):
         return Classification(brand, "local", "auto", False, "brand name pattern (ayurveda/herbal/india)", stats["n"])
     return Classification(brand, "unknown", "auto", False, "no signal — needs owner classification", stats["n"])
 
