@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useProduct } from "@/lib/data";
+import { useProduct, useThumbnails } from "@/lib/data";
 import { CATEGORY_LABEL, compact, inr, shortName } from "@/lib/format";
 import { monthsWindow } from "@/lib/metrics";
 import LineChart from "./LineChart";
@@ -109,6 +109,8 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
             </Block>
           )}
 
+          <ImageRead productId={p.product_id} />
+
           {!!data?.aspects.length && (
             <Block title="What reviewers single out" note="Nykaa asks reviewers to tag what stood out, with a sentiment. Share of mentions that were positive, most-mentioned first.">
               <div className="space-y-2">{data.aspects.slice(0, 8).map((a) => {
@@ -140,6 +142,37 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
         </div>
       </aside>
     </div>
+  );
+}
+
+/** What this product's main image shows, as read from the image itself. */
+function ImageRead({ productId }: { productId: string }) {
+  const { data } = useThumbnails();
+  const t = data?.find((x) => x.product_id === productId);
+  if (!t || !t.shot_type) return null;
+  const bits = [
+    t.shot_type.replace("_", " "),
+    t.model_present ? "shows a person" : "no person",
+    t.text_density === "heavy" ? "heavy text on image" : t.text_density === "light" ? "light text" : "no text",
+    t.background ? `${t.background} background` : null,
+  ].filter(Boolean) as string[];
+  return (
+    <Block title="What the image says" note="Nykaa ranks partly on clicks, and the thumbnail is what a shopper decides on.">
+      <p className="text-[13.5px] text-ink-2">{t.summary}</p>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {bits.map((b) => <span key={b} className="rounded-full bg-sunken px-2.5 py-1 text-[12px] text-ink-2">{b}</span>)}
+      </div>
+      {!!t.on_image_claims?.length && (
+        <div className="mt-3">
+          <div className="text-[12px] text-muted">Printed on the image</div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {t.on_image_claims.map((c) => (
+              <span key={c} className="rounded-full px-2.5 py-1 text-[12px] text-ink-2 ring-1 ring-line">{c}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </Block>
   );
 }
 

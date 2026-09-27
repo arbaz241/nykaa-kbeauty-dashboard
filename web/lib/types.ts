@@ -64,3 +64,10 @@ export interface MarketEvent {
   brand: string | null; note: string | null;
 }
 export interface CategoryCoverage { category: string; first_date: string; last_date: string; days_tracked: number }
+export interface Thumbnail {
+  product_id: string; brand: string; name: string; image_url: string;
+  background: string | null; bg_lightness: number | null; colorfulness: number | null; edge_density: number | null;
+  dominant_colors: { hex: string; share: number }[] | null;
+  shot_type: string | null; model_present: boolean | null; text_density: string | null;
+  on_image_claims: string[] | null; packaging_style: string | null; mood: string | null; summary: string | null;
+}

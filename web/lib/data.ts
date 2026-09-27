@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { fetchAll, supabase } from "./supabase";
 import { aspectSummary } from "./metrics";
-import type { Availability, BrandShare, CategoryCoverage, Movement, MarketEvent, ProductDemand, AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewAspect, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
+import type { Availability, BrandShare, CategoryCoverage, Thumbnail, Movement, MarketEvent, ProductDemand, AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewAspect, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
 
 const opts = { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 };
 
@@ -82,6 +82,11 @@ export function useAvailability() {
 }
 export function useCategoryCoverage() {
   return useSWR("cat_coverage", () => fetchAll<CategoryCoverage>("web_category_coverage"), opts);
+}
+export function useThumbnails() {
+  return useSWR("thumbnails", async () => (await fetchAll<Thumbnail>("web_thumbnails")).map((r) => ({
+    ...r, bg_lightness: num(r.bg_lightness), colorfulness: num(r.colorfulness), edge_density: num(r.edge_density),
+  })) as Thumbnail[], opts);
 }
 export function useEvents() {
   return useSWR("events", async () => {

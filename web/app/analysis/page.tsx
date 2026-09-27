@@ -5,8 +5,9 @@ import AuthGate from "@/components/AuthGate";
 import Shell from "@/components/Shell";
 import { Card, Loading } from "@/components/ui";
 import EventLog from "@/components/EventLog";
+import Presentation from "@/components/Presentation";
 import { useOpenProduct } from "@/components/ProductDrawer";
-import { useAvailability, useBrandShares, useCatalog, useCategoryCoverage, useDemand, useMovement, useShelf } from "@/lib/data";
+import { useAvailability, useBrandShares, useCatalog, useCategoryCoverage, useDemand, useMovement, useShelf, useThumbnails } from "@/lib/data";
 import { buildFindings, portfolioGaps, threeShares, type Finding } from "@/lib/findings";
 import { heroProducts } from "@/lib/hero";
 import { ANCHOR_BRAND, FOCUS_BRANDS, resolveBrand } from "@/lib/brands";
@@ -34,6 +35,7 @@ function Analysis() {
   const availability = useAvailability();
   const catalog = useCatalog();
   const coverage = useCategoryCoverage();
+  const thumbs = useThumbnails();
 
   const known = useMemo(() => [...new Set((shelf.data ?? []).map((r) => r.brand))].sort(), [shelf.data]);
   const [anchorInput, setAnchorInput] = useState(ANCHOR_BRAND);
@@ -149,6 +151,8 @@ function Analysis() {
       )}
 
       <Heroes anchor={anchor} heroes={heroes} />
+
+      <Presentation anchor={anchor} thumbs={thumbs.data} movement={movement.data} />
 
       <PortfolioGaps anchor={anchor} gaps={gaps} loading={catalog.isLoading} />
 
