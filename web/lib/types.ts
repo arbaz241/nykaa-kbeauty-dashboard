@@ -34,3 +34,31 @@ export interface Suggestion { scrape_date: string; seed: string; position: numbe
 export interface ProductHistory { scrape_date: string; subcategory: string; product_id: string; rank: number; price: number | null; mrp: number | null; discount_pct: number | null; rating: number | null; rating_count: number | null; is_ad: boolean; is_pinned: boolean; has_offer: boolean }
 export interface ReviewAspect { id: string; displayText: string; sentimentValue: string }
 export interface ReviewText { review_id: number; product_id: string; created_on: string; rating: number | null; title: string | null; body: string | null; is_buyer: boolean | null; aspects: ReviewAspect[] | null; images: number | null; likes: number | null }
+
+/* ---- analysis layer (migration 013) ---- */
+export interface Movement {
+  product_id: string; brand: string; origin: Origin; name: string; url: string | null; category: string;
+  rank: number; price: number | null; mrp: number | null; is_ad: boolean; discount_pct: number | null;
+  rank_7d: number | null; rank_14d: number | null; gain_7d: number | null; gain_14d: number | null;
+  price_7d: number | null; price_14d: number | null; mrp_14d: number | null; same_pack: boolean | null;
+  price_change_14d: number | null; pack_changed_14d: boolean; discount_change_14d: number | null; new_since_14d: boolean;
+}
+export interface BrandShare {
+  scrape_date: string; brand: string; origin: Origin; slots: number; top20: number; best_rank: number | null;
+  share_of_shelf: number | null; search_earned: number; search_paid: number;
+  share_of_voice: number | null; paid_dependency: number | null;
+}
+export interface ProductDemand {
+  product_id: string; brand: string; category: string | null; name: string; url: string | null;
+  recent: number; prior: number; lifetime: number; first_month: string; last_month: string;
+  months_listed: number; momentum: number | null; reviews_per_month: number | null; history_complete: boolean | null;
+}
+export interface Availability {
+  brand: string; product_id: string; name: string; url: string | null; price: number | null;
+  rating_count: number | null; subcategories: string[]; scrape_date: string;
+}
+export interface MarketEvent {
+  id: number; happened_on: string; ends_on: string | null; label: string; kind: string;
+  brand: string | null; note: string | null;
+}
+export interface CategoryCoverage { category: string; first_date: string; last_date: string; days_tracked: number }

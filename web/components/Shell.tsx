@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "./AuthGate";
 
 const NAV = [
+  { label: "Analysis", href: "/analysis/", live: true },
   { label: "Compare", href: "/compare/", live: true },
   { label: "Demand", href: "/demand/", live: true },
   { label: "Search & Ads", href: "/search/", live: true },

@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { fetchAll, supabase } from "./supabase";
 import { aspectSummary } from "./metrics";
-import type { AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewAspect, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
+import type { Availability, BrandShare, CategoryCoverage, Movement, MarketEvent, ProductDemand, AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewAspect, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
 
 const opts = { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 };
 
@@ -57,6 +57,37 @@ export function useProduct(productId: string | null) {
       texts: (texts.data ?? []) as ReviewText[],
       aspects: aspectSummary((aspects.data ?? []) as { aspects: ReviewAspect[] | null }[]),
     };
+  }, opts);
+}
+
+/* ---- analysis layer ---- */
+export function useMovement() {
+  return useSWR("movement", async () => (await fetchAll<Movement>("web_movement")).map((r) => ({
+    ...r, price: num(r.price), mrp: num(r.mrp), price_14d: num(r.price_14d), mrp_14d: num(r.mrp_14d),
+    discount_pct: num(r.discount_pct), price_change_14d: num(r.price_change_14d), discount_change_14d: num(r.discount_change_14d),
+  })) as Movement[], opts);
+}
+export function useBrandShares() {
+  return useSWR("brand_shares", async () => (await fetchAll<BrandShare>("web_brand_shares")).map((r) => ({
+    ...r, share_of_shelf: num(r.share_of_shelf), share_of_voice: num(r.share_of_voice), paid_dependency: num(r.paid_dependency),
+  })) as BrandShare[], opts);
+}
+export function useDemand() {
+  return useSWR("demand_products", async () => (await fetchAll<ProductDemand>("web_product_demand")).map((r) => ({
+    ...r, momentum: num(r.momentum), reviews_per_month: num(r.reviews_per_month),
+  })) as ProductDemand[], opts);
+}
+export function useAvailability() {
+  return useSWR("availability", () => fetchAll<Availability>("web_availability"), opts);
+}
+export function useCategoryCoverage() {
+  return useSWR("cat_coverage", () => fetchAll<CategoryCoverage>("web_category_coverage"), opts);
+}
+export function useEvents() {
+  return useSWR("events", async () => {
+    const { data, error } = await supabase().from("market_events").select("*").order("happened_on", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as MarketEvent[];
   }, opts);
 }
 
