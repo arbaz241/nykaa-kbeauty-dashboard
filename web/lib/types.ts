@@ -52,6 +52,8 @@ export interface ProductDemand {
   product_id: string; brand: string; category: string | null; name: string; url: string | null;
   recent: number; prior: number; lifetime: number; first_month: string; last_month: string;
   months_listed: number; momentum: number | null; reviews_per_month: number | null; history_complete: boolean | null;
+  /** Variants share one Nykaa review pool; analysis counts a pool once. */
+  pool_id: string;
 }
 export interface Availability {
   brand: string; product_id: string; name: string; url: string | null; price: number | null;

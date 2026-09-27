@@ -35,8 +35,11 @@ interface Input {
   coverage: { category: string; days_tracked: number }[];
 }
 
-export function buildFindings({ anchor, movement, shares, demand, availability, coverage }: Input): Finding[] {
+export function buildFindings({ anchor, movement, shares, demand: demandAll, availability, coverage }: Input): Finding[] {
   const out: Finding[] = [];
+  // One row per review pool: a product and its variants serve the same reviews, so reporting both
+  // would state the same demand twice. Keep the listing with the most reviews of its own pool.
+  const demand = dedupePools(demandAll);
   // Rules that compare today against two weeks ago can only run on shelves that existed two weeks ago —
   // otherwise every product on a newly added shelf reads as a new entrant.
   const settled = new Set(coverage.filter((c) => c.days_tracked >= 15).map((c) => c.category));
@@ -278,6 +281,17 @@ export function portfolioGaps(anchor: string, rows: { brand: string; category: s
       return { label, anchorHas, rivalBrands: rivals.size, rivalProducts: inCell.length - anchorHas };
     }),
   }));
+}
+
+/** Nykaa serves one review pool per product family; keep the strongest listing of each. */
+function dedupePools(rows: ProductDemand[]): ProductDemand[] {
+  const best = new Map<string, ProductDemand>();
+  for (const r of rows) {
+    const key = r.pool_id || r.product_id;
+    const cur = best.get(key);
+    if (!cur || r.lifetime > cur.lifetime) best.set(key, r);
+  }
+  return [...best.values()];
 }
 
 const ref = (r: { product_id: string; name: string; brand: string; url?: string | null; price?: number | null }) =>

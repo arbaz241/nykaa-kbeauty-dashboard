@@ -3,10 +3,12 @@
 import { useMemo, useRef, useState } from "react";
 
 export interface Series { name: string; color: string; values: (number | null)[] }
+/** A real-world event to mark on the timeline: one index, or a span of them. */
+export interface Marker { from: number; to?: number; label: string; color: string }
 
 /** Responsive multi-line chart: one y-axis, direct end labels, hover crosshair with a read-out of every series. */
-export default function LineChart({ labels, series, height = 260, format = (v: number) => Math.round(v).toLocaleString("en-IN"), invert = false, yLabel }: {
-  labels: string[]; series: Series[]; height?: number; format?: (v: number) => string; invert?: boolean; yLabel?: string;
+export default function LineChart({ labels, series, height = 260, format = (v: number) => Math.round(v).toLocaleString("en-IN"), invert = false, yLabel, markers = [] }: {
+  labels: string[]; series: Series[]; height?: number; format?: (v: number) => string; invert?: boolean; yLabel?: string; markers?: Marker[];
 }) {
   const W = 1000; const H = height; const L = 48; const R = 150; const T = 18; const B = 28;
   const ref = useRef<SVGSVGElement>(null); const [hover, setHover] = useState<number | null>(null);
@@ -46,6 +48,17 @@ export default function LineChart({ labels, series, height = 260, format = (v: n
         ))}
         {labels.map((l, i) => (i % step === 0 || i === n - 1) && <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize={11} fill="#8a8880">{l}</text>)}
         {yLabel && <text x={4} y={11} fontSize={10.5} fill="#8a8880">{yLabel}</text>}
+        {markers.map((m, k) => {
+          const x1 = x(Math.max(0, Math.min(m.from, n - 1)));
+          const x2 = m.to === undefined ? x1 : x(Math.max(0, Math.min(m.to, n - 1)));
+          return (
+            <g key={`mk-${k}`}>
+              {x2 > x1 && <rect x={x1} y={T} width={x2 - x1} height={H - T - B} fill={m.color} fillOpacity={0.07} />}
+              <line x1={x1} x2={x1} y1={T} y2={H - B} stroke={m.color} strokeWidth={1} strokeDasharray="3 3" />
+              <title>{m.label}</title>
+            </g>
+          );
+        })}
         {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={H - B} stroke="#121211" strokeOpacity={0.25} />}
         {series.map((s) => {
           const pts = s.values.map((v, i) => (v === null ? null : [x(i), y(v)] as const));
@@ -68,6 +81,11 @@ export default function LineChart({ labels, series, height = 260, format = (v: n
         <div className="pointer-events-none absolute top-2 z-10 min-w-[170px] rounded-xl bg-surface px-3 py-2.5 text-[12px] shadow-pop ring-1 ring-line"
           style={{ left: `calc(${(x(hover) / W) * 100}% + ${x(hover) / W > 0.6 ? "-190px" : "12px"})` }}>
           <div className="mb-1.5 font-semibold">{labels[hover]}</div>
+          {markers.filter((m) => hover >= m.from && hover <= (m.to ?? m.from)).map((m) => (
+            <div key={m.label} className="mb-1.5 flex items-center gap-1.5 text-[11.5px] text-ink-2">
+              <span className="h-2 w-2 rounded-full" style={{ background: m.color }} />{m.label}
+            </div>
+          ))}
           {series.filter((s) => s.values[hover] !== null).sort((a, b) => (invert ? a.values[hover]! - b.values[hover]! : b.values[hover]! - a.values[hover]!)).map((s) => (
             <div key={s.name} className="flex items-center justify-between gap-4 tabular"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: s.color }} />{s.name}</span><b>{invert ? `#${Math.round(s.values[hover]!)}` : format(s.values[hover]!)}</b></div>
           ))}

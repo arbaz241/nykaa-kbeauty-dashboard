@@ -40,7 +40,10 @@ select a.product_id, pc.brand, pc.category, d.name, d.url,
        case when coalesce(a.prior, 0) >= 15 and coalesce(a.recent, 0) + coalesce(a.prior, 0) >= 40
             then round((a.recent::numeric - a.prior) / a.prior, 3) end as momentum,
        round(a.lifetime::numeric / nullif(a.months_listed, 0), 1) as reviews_per_month,
-       c.complete as history_complete
+       c.complete as history_complete,
+       coalesce((select min(c2.product_id) from review_cursor c2
+                 where c2.newest_review_id = c.newest_review_id and c.newest_review_id is not null),
+                a.product_id) as pool_id
 from agg a
 join product_category pc using (product_id)
 join product_dim d using (product_id)
@@ -154,3 +157,17 @@ from scrape_snapshots group by 1;
 
 grant select on web_category_coverage to authenticated;
 revoke all on web_category_coverage from anon;
+
+-- ---------------------------------------------------------------- variants that share a review pool
+-- Nykaa serves one review pool for a product and its variants (the Volcanic mask and its Mini return the
+-- same reviews), so both listings carry identical demand numbers. Products whose crawl found the same
+-- newest review belong to one pool; analysis counts a pool once.
+create or replace view web_review_pool with (security_invoker = true) as
+select c.product_id,
+       coalesce(min(c2.product_id), c.product_id) as pool_id
+from review_cursor c
+left join review_cursor c2 on c2.newest_review_id = c.newest_review_id and c.newest_review_id is not null
+group by c.product_id;
+
+grant select on web_review_pool to authenticated;
+revoke all on web_review_pool from anon;

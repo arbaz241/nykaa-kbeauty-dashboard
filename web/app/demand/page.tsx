@@ -4,12 +4,13 @@ import { Fragment, useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import BrandPicker from "@/components/BrandPicker";
 import LineChart from "@/components/LineChart";
+import { eventsInWindow } from "@/components/EventLog";
 import { useOpenProduct } from "@/components/ProductDrawer";
 import Shell from "@/components/Shell";
 import Sparkline from "@/components/Sparkline";
 import { Card, Insight, Loading, PageHead, SectionHead } from "@/components/ui";
 import { ANCHOR_BRAND, FOCUS_BRANDS, ORIGIN_LABEL, norm, resolveBrand } from "@/lib/brands";
-import { useCatalog, useReviewMonths, useShelf } from "@/lib/data";
+import { useCatalog, useEvents, useReviewMonths, useShelf } from "@/lib/data";
 import { compact, shortName } from "@/lib/format";
 import { demandLines, momentumWord, monthsWindow } from "@/lib/metrics";
 import { useBrandSelection } from "@/lib/selection";
@@ -24,7 +25,7 @@ function Change({ g, vol }: { g: number | null; vol: number | null }) {
 }
 
 function DemandPage() {
-  const months = useReviewMonths(); const shelf = useShelf(); const catalog = useCatalog();
+  const months = useReviewMonths(); const shelf = useShelf(); const catalog = useCatalog(); const events = useEvents();
   const open = useOpenProduct();
   const data = useMemo(() => months.data ?? [], [months.data]);
   const known = useMemo(() => [...new Set(data.map((m) => m.brand))], [data]);
@@ -77,7 +78,12 @@ function DemandPage() {
           <section className="mt-8">
             <SectionHead title="Monthly reviews" note={`Last 12 complete months for the selected brands. Hover for values. Period compared below: ${period}.`} />
             <Card className="p-5">
-              {sel.length ? <LineChart labels={win.map(monthLabel)} series={sel.map((b) => ({ name: b.brand, color: colors[b.brand], values: b.spark }))} height={300} yLabel="reviews per month" />
+              {sel.length ? <LineChart labels={win.map(monthLabel)} series={sel.map((b) => ({ name: b.brand, color: colors[b.brand], values: b.spark }))} height={300} yLabel="reviews per month"
+                markers={eventsInWindow(events.data, win).map((e) => ({
+                  from: Math.max(0, win.findIndex((m) => m.slice(0, 7) === e.happened_on.slice(0, 7))),
+                  to: e.ends_on ? win.findIndex((m) => m.slice(0, 7) === e.ends_on!.slice(0, 7)) : undefined,
+                  label: e.label, color: e.color,
+                })).filter((m) => m.from >= 0)} />
                 : <p className="text-[13px] text-muted">None of the selected brands has review history yet.</p>}
             </Card>
           </section>

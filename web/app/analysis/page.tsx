@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import Shell from "@/components/Shell";
 import { Card, Loading } from "@/components/ui";
+import EventLog from "@/components/EventLog";
 import { useOpenProduct } from "@/components/ProductDrawer";
 import { useAvailability, useBrandShares, useCatalog, useCategoryCoverage, useDemand, useMovement, useShelf } from "@/lib/data";
 import { buildFindings, portfolioGaps, threeShares, type Finding } from "@/lib/findings";
+import { heroProducts } from "@/lib/hero";
 import { ANCHOR_BRAND, FOCUS_BRANDS, resolveBrand } from "@/lib/brands";
 import { CATEGORY_LABEL, num } from "@/lib/format";
 
@@ -66,6 +68,11 @@ function Analysis() {
       .filter((r) => anchorCats.size === 0 || anchorCats.has(r.category));
     return portfolioGaps(anchor, rows);
   }, [anchor, catalog.data]);
+
+  const heroes = useMemo(
+    () => (movement.data && demand.data && catalog.data ? heroProducts(anchor, movement.data, demand.data, catalog.data).slice(0, 6) : []),
+    [anchor, movement.data, demand.data, catalog.data],
+  );
 
   const shown = filter === "all" ? findings : findings.filter((f) => f.tone === filter);
   const counts = {
@@ -141,7 +148,11 @@ function Analysis() {
         </div>
       )}
 
+      <Heroes anchor={anchor} heroes={heroes} />
+
       <PortfolioGaps anchor={anchor} gaps={gaps} loading={catalog.isLoading} />
+
+      <EventLog />
     </Shell>
   );
 }
@@ -209,6 +220,50 @@ function FindingRow({ f }: { f: Finding }) {
         </div>
       )}
     </div>
+  );
+}
+
+function Heroes({ anchor, heroes }: { anchor: string; heroes: ReturnType<typeof heroProducts> }) {
+  const openProduct = useOpenProduct();
+  if (!heroes.length) return null;
+  return (
+    <section className="mt-10">
+      <h2 className="font-display text-[17px] font-semibold tracking-tight">{anchor}&rsquo;s hero products, and what makes them one</h2>
+      <p className="mb-4 mt-1 max-w-[70ch] text-[13.5px] text-muted">
+        Scored on shelf position, recent demand, rating and buyer base — each measured against the median
+        product in the same category, so a hero is a hero against the market rather than against its siblings.
+      </p>
+      <div className="grid gap-2.5 md:grid-cols-2">
+        {heroes.map((h, i) => (
+          <Card key={h.product_id}>
+            <div className="flex items-start gap-3 px-5 py-4">
+              <span className="mt-0.5 font-display text-[13px] font-semibold tabular-nums text-muted">{i + 1}</span>
+              <div className="min-w-0 flex-1">
+                <button onClick={() => openProduct({ product_id: h.product_id, name: h.name, brand: h.brand, price: h.price })}
+                  className="block text-left text-[14px] font-medium leading-snug hover:underline">
+                  {h.name.replace(new RegExp(`^${anchor}\\s*`, "i"), "")}
+                </button>
+                {h.edge && (
+                  <p className="mt-1 text-[13px] text-ink-2">
+                    <span className="font-medium">{h.edge.label}</span> — {h.edge.detail}.
+                  </p>
+                )}
+                <div className="mt-2.5 grid gap-1">
+                  {h.factors.map((f) => (
+                    <div key={f.label} className="flex items-center gap-2.5">
+                      <span className="w-[104px] shrink-0 text-[11.5px] text-muted">{f.label}</span>
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-sunken">
+                        <span className="block h-full rounded-full bg-ink/70" style={{ width: `${Math.round(f.value * 100)}%` }} />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </section>
   );
 }
 
