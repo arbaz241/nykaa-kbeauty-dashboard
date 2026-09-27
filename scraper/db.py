@@ -160,7 +160,8 @@ def write_suggestions(client, rows: list[dict]) -> int:
 
 
 def write_review_texts(client, rows: list[dict]) -> int:
-    return _upsert(client, "review_texts", rows, "review_id") if rows else 0
+    # keyed per listing: Nykaa serves the same review_id for a product's variants (see migration 011)
+    return _upsert(client, "review_texts", rows, "product_id,review_id") if rows else 0
 
 
 def write_assortment(client, rows: list[dict]) -> int:
