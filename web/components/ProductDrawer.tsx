@@ -109,11 +109,28 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
             </Block>
           )}
 
+          {!!data?.aspects.length && (
+            <Block title="What reviewers single out" note="Nykaa asks reviewers to tag what stood out, with a sentiment. Share of mentions that were positive, most-mentioned first.">
+              <div className="space-y-2">{data.aspects.slice(0, 8).map((a) => {
+                const pct = Math.round((a.positive / a.total) * 100);
+                return (
+                  <div key={a.label} className="flex items-center gap-3">
+                    <div className="w-40 shrink-0 truncate text-[13px] text-ink-2" title={a.label}>{a.label}</div>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface ring-1 ring-line">
+                      <div className="h-full rounded-full bg-good" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="w-24 shrink-0 text-right text-[12px] tabular-nums text-muted">{pct}% of {a.total}</div>
+                  </div>
+                );
+              })}</div>
+            </Block>
+          )}
+
           {!!data?.texts.length && (
             <Block title="Recent reviews" note="Latest reviews collected for this product.">
               <div className="space-y-3">{data.texts.slice(0, 6).map((t) => (
                 <div key={t.review_id} className="rounded-xl bg-surface px-4 py-3 ring-1 ring-line">
-                  <div className="flex items-center justify-between text-[12px] text-muted"><span>{"★".repeat(t.rating ?? 0)}{t.is_buyer ? " · verified buyer" : ""}</span><span>{new Date(t.created_on).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
+                  <div className="flex items-center justify-between text-[12px] text-muted"><span>{"★".repeat(t.rating ?? 0)}{t.is_buyer ? " · verified buyer" : ""}{t.images ? ` · ${t.images} photo${t.images > 1 ? "s" : ""}` : ""}{t.likes ? ` · ${t.likes} found helpful` : ""}</span><span>{new Date(t.created_on).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
                   {t.title && <div className="mt-1 text-[13.5px] font-medium">{t.title}</div>}
                   {t.body && <div className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{t.body.slice(0, 280)}{t.body.length > 280 ? "…" : ""}</div>}
                 </div>

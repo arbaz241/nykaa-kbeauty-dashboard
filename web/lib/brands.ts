@@ -1,5 +1,7 @@
-/** Owner's focus set (2026-09-22). Innisfree is the anchor. Keep in sync with scraper/config.py FOCUS_BRANDS. */
-export const FOCUS_BRANDS = ["Innisfree", "Laneige", "Etude", "Beauty of Joseon", "SKIN1004", "TIRTIR", "Anua", "The Face Shop", "Sulwhasoo", "Mamonde"];
+/** Owner's Korean brand set (widened 2026-09-27). Innisfree is the anchor. Keep in sync with scraper/config.py KBEAUTY_CORE. */
+export const FOCUS_BRANDS = ["Innisfree", "Laneige", "Etude", "Beauty of Joseon", "SKIN1004", "TIRTIR", "Anua",
+  "The Face Shop", "Sulwhasoo", "Mamonde", "COSRX", "Klairs", "Dr.Althea", "Celimax", "d'Alba Piedmont",
+  "Numbuzin", "Round Lab", "Torriden", "Biodance", "Medicube", "Skinfood", "TONYMOLY"];
 export const ANCHOR_BRAND = "Innisfree";
 export const MAX_COMPARE = 5;
 

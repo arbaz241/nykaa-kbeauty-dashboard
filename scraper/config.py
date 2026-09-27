@@ -31,17 +31,31 @@ CATEGORIES: list[Category] = [
 STORE_KEYS = {"kbeauty_store"}
 
 # Deeper signals (2026-09-16)
-# Owner's focus set (2026-09-22). Innisfree is the anchor. Drives review-history key products,
-# autosuggest seeds and dashboard defaults.
-FOCUS_BRANDS = ["Innisfree", "Laneige", "Etude", "Beauty of Joseon", "SKIN1004", "TIRTIR", "Anua",
-                "The Face Shop", "Sulwhasoo", "Mamonde"]
-TRACKED_BRANDS = FOCUS_BRANDS
+# Owner's brand set. Innisfree is the anchor; everything is measured against it.
+# Tiers set how deep each brand is tracked (review history is the expensive part):
+#   ANCHOR          — the brand being defended, deepest coverage
+#   KBEAUTY_CORE    — Korean brands that compete head-on, full catalogue + deep review history
+#   KBEAUTY_WATCH   — smaller / newer Korean brands, top products only (they graduate into CORE if they grow)
+# Indian and global rivals are not listed by hand: they are whichever brands hold the most
+# shelf slots in the anchor's own categories on the day (see signals.key_products).
+ANCHOR_BRAND = "Innisfree"
+KBEAUTY_CORE = [ANCHOR_BRAND, "Laneige", "Etude", "Beauty of Joseon", "SKIN1004", "TIRTIR", "Anua",
+                "The Face Shop", "Sulwhasoo", "Mamonde", "COSRX", "Klairs", "Dr.Althea", "Celimax",
+                "d'Alba Piedmont", "Numbuzin", "Round Lab", "Torriden", "Biodance", "Medicube",
+                "Skinfood", "TONYMOLY"]
+KBEAUTY_WATCH = ["Aestura", "Arencia", "Mixsoon", "La'dor", "Rom&nd", "Illiyoon", "belif", "RYO",
+                 "mise en scene", "Parnell", "Mirabelle Korea", "Biodance", "Moira"]
+FOCUS_BRANDS = KBEAUTY_CORE          # dashboard defaults, autosuggest seeds, full catalogue collection
+TRACKED_BRANDS = list(dict.fromkeys(KBEAUTY_CORE + KBEAUTY_WATCH))
 SEARCH_SAMPLES = int(os.getenv("SEARCH_SAMPLES", "1"))          # extra fresh-session samples showed identical ads (22 Sep test): ads vary by time and location, not per visitor
 SUGGESTED_KEYWORDS_MAX = int(os.getenv("SUGGESTED_KEYWORDS_MAX", "10"))
 REVIEW_TEXT_DAYS = int(os.getenv("REVIEW_TEXT_DAYS", "400"))     # keep review text this far back
 KEY_COMPETITORS = int(os.getenv("KEY_COMPETITORS", "10"))
-KEY_PRODUCTS_PER_BRAND = int(os.getenv("KEY_PRODUCTS_PER_BRAND", "5"))
-REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "12"))   # keep the daily job inside its 60-minute budget
+KEY_PRODUCTS_PER_BRAND = int(os.getenv("KEY_PRODUCTS_PER_BRAND", "15"))        # anchor + core K-beauty brands
+KEY_PRODUCTS_PER_WATCH = int(os.getenv("KEY_PRODUCTS_PER_WATCH", "4"))         # smaller Korean brands
+KEY_PRODUCTS_PER_COMPETITOR = int(os.getenv("KEY_PRODUCTS_PER_COMPETITOR", "6"))  # Indian/global rivals on the anchor's shelves
+REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "14"))   # keep the daily job inside its 60-minute budget
+REVIEW_TEXT_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_TEXT_MAX_PRODUCTS_PER_RUN", "10"))  # text-only catch-up for products crawled before text capture existed
 ASSORTMENT_WEEKDAY = int(os.getenv("ASSORTMENT_WEEKDAY", "0"))   # Monday: refresh brand assortment weekly
 
 # Nykaa's own "Korean Beauty" store category. Products listed in it carry

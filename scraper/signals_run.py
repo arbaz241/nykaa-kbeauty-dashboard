@@ -2,7 +2,7 @@
 
     python -m scraper.signals_run                 # search shelf + (weekly) assortment + capped review history
     python -m scraper.signals_run --all           # everything, no caps (one-time backfill)
-    python -m scraper.signals_run --only search|assortment|reviews
+    python -m scraper.signals_run --only search|assortment|catalog|reviews|texts
 
 Reads the key-brand product set from Supabase (latest snapshots), writes results back.
 Also called at the end of `scraper.run` when SUPABASE_URL is set.
@@ -23,7 +23,8 @@ from . import config
 from .db import (connect, read_review_cursors, write_assortment, write_review_history, write_review_texts,
                  write_search, write_suggestions)
 from .nykaa import BlockedError, open_browser
-from .signals import SEARCH_QUERIES, RateLimited, assortment, key_products, review_history, search_shelf, suggestions
+from .signals import (SEARCH_QUERIES, RateLimited, assortment, key_products, products_missing_text, review_history,
+                      review_texts_only, search_shelf, suggestions)
 
 log = logging.getLogger("signals")
 
@@ -35,6 +36,26 @@ def latest_rows(client) -> list[dict]:
     day = d[0]["scrape_date"]
     rows = client.table("v_snapshots").select("product_id,brand,name,rank,subcategory,origin").eq("scrape_date", day).limit(5000).execute().data
     return [r for r in rows if r["subcategory"] not in config.STORE_KEYS]
+
+
+def catalog_rows(client) -> list[dict]:
+    """Latest full-catalogue snapshot for the focus brands (most of a brand's range never reaches a top-100)."""
+    d = client.table("brand_catalog").select("scrape_date").order("scrape_date", desc=True).limit(1).execute().data
+    if not d:
+        return []
+    rows = client.table("brand_catalog").select("product_id,brand,name,rating_count,subcategories").eq("scrape_date", d[0]["scrape_date"]).limit(20000).execute().data
+    return rows
+
+
+def products_with_text(client) -> set[str]:
+    """Product ids that already have at least one stored review text."""
+    out: set[str] = set(); step = 1000; start = 0
+    while True:
+        rows = client.table("review_texts").select("product_id").range(start, start + step - 1).execute().data
+        out |= {r["product_id"] for r in rows}
+        if len(rows) < step:
+            return out
+        start += step
 
 
 def classify_search_brands(client, rows: list[dict], today: str) -> int:
@@ -133,7 +154,7 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                 rows, st = await brand_catalog(page, focus_brand_ids(client), today)
                 st["written"] = write_catalog(client, rows); stats["catalog"] = st
             if "reviews" in which:
-                prods = key_products(latest_rows(client), config.TRACKED_BRANDS, config.KEY_COMPETITORS, config.KEY_PRODUCTS_PER_BRAND)
+                prods = key_products(latest_rows(client), catalog_rows(client))
                 cursors = read_review_cursors(client)
                 # never-fetched first, then stalest
                 prods.sort(key=lambda p: (p["product_id"] in cursors, (cursors.get(p["product_id"]) or {}).get("fetched_at", "")))
@@ -152,6 +173,24 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     log.error("review history stopped by rate limiting (progress saved; resumes next run): %s", e)
                     st = {"rate_limited": str(e)}
                 st["written"] = written["n"]; st["key_products"] = len(prods); stats["reviews"] = st
+            if "texts" in which:
+                # products whose monthly history was collected before review text was captured:
+                # fetch the text only, never the counts (write_review_history is additive)
+                # only products whose monthly history is already collected: for the rest, the reviews pass
+                # fetches counts and text together in one walk
+                hist = set(read_review_cursors(client))
+                todo = [p for p in products_missing_text(key_products(latest_rows(client), catalog_rows(client)), products_with_text(client))
+                        if p["product_id"] in hist]
+                cap = None if unlimited else config.REVIEW_TEXT_MAX_PRODUCTS_PER_RUN
+                written = {"n": 0}
+                def save_texts(texts):
+                    written["n"] += write_review_texts(client, list(texts))
+                try:
+                    st = await review_texts_only(page, todo[:cap] if cap else todo, on_product=save_texts)
+                except RateLimited as e:
+                    log.error("review texts stopped by rate limiting (progress saved; resumes next run): %s", e)
+                    st = {"rate_limited": str(e)}
+                st["candidates"] = len(todo); st["written"] = written["n"]; stats["texts"] = st
         finally:
             await browser.close()
     return stats
@@ -159,13 +198,16 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--all", action="store_true"); ap.add_argument("--only", choices=["search", "assortment", "catalog", "reviews"])
+    ap.add_argument("--all", action="store_true"); ap.add_argument("--only", choices=["search", "assortment", "catalog", "reviews", "texts"])
+    ap.add_argument("--max", type=int, default=None, help="cap products for --only reviews|texts")
     args = ap.parse_args()
     logging.basicConfig(level=config.LOG_LEVEL, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s", datefmt="%H:%M:%S", stream=sys.stdout)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     if not os.getenv("SUPABASE_URL"):
         log.error("SUPABASE_URL not set"); return 2
-    which = {args.only} if args.only else {"search", "assortment", "catalog", "reviews"}
+    which = {args.only} if args.only else {"search", "assortment", "catalog", "reviews", "texts"}
+    if args.max is not None:
+        config.REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = config.REVIEW_TEXT_MAX_PRODUCTS_PER_RUN = args.max
     try:
         stats = asyncio.run(run_signals(connect(), which, unlimited=args.all))
     except BlockedError as e:

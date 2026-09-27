@@ -1,5 +1,5 @@
 import { mean, median, packMl } from "./format";
-import type { AssortmentRow, ReviewMonth, SearchRow, ShelfRow } from "./types";
+import type { AssortmentRow, ReviewAspect, ReviewMonth, SearchRow, ShelfRow } from "./types";
 
 export interface BrandScore {
   brand: string; origin: string; kMarketing: boolean;
@@ -119,4 +119,23 @@ export function momentumWord(g: number | null, volume: number | null): string {
   if (g < -0.15) return "falling fast";
   if (g < -0.05) return "falling";
   return "steady";
+}
+
+/** Nykaa asks reviewers to tag what stood out ("Moisturizing Effect", "Gentle Formula") with a sentiment.
+ *  Aggregated, these say what a product is actually liked or disliked for — in shoppers' own terms. */
+export interface AspectStat { label: string; positive: number; negative: number; total: number }
+
+export function aspectSummary(rows: { aspects: ReviewAspect[] | null }[]): AspectStat[] {
+  const by = new Map<string, AspectStat>();
+  for (const r of rows) {
+    for (const a of r.aspects ?? []) {
+      const label = a.displayText?.trim();
+      if (!label) continue;
+      const stat = by.get(label) ?? { label, positive: 0, negative: 0, total: 0 };
+      if (/^neg/i.test(a.sentimentValue)) stat.negative += 1; else stat.positive += 1;
+      stat.total += 1;
+      by.set(label, stat);
+    }
+  }
+  return [...by.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
 }

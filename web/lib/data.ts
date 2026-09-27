@@ -2,7 +2,8 @@
 
 import useSWR from "swr";
 import { fetchAll, supabase } from "./supabase";
-import type { AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
+import { aspectSummary } from "./metrics";
+import type { AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewAspect, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
 
 const opts = { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 };
 
@@ -42,16 +43,19 @@ export function useSuggestions() { return useSWR("suggestions", () => fetchAll<S
 export function useProduct(productId: string | null) {
   return useSWR(productId ? ["product", productId] : null, async () => {
     const sb = supabase();
-    const [hist, months, texts] = await Promise.all([
+    const [hist, months, texts, aspects] = await Promise.all([
       sb.from("web_product_history").select("*").eq("product_id", productId!).order("scrape_date"),
       sb.from("web_review_months").select("*").eq("product_id", productId!).order("month"),
       sb.from("web_review_texts").select("*").eq("product_id", productId!).order("created_on", { ascending: false }).limit(12),
+      // aspect tags only: a wider sample, so "what reviewers single out" is not read off six reviews
+      sb.from("web_review_texts").select("aspects,rating").eq("product_id", productId!).not("aspects", "is", null).order("created_on", { ascending: false }).limit(600),
     ]);
-    for (const r of [hist, months, texts]) if (r.error) throw new Error(r.error.message);
+    for (const r of [hist, months, texts, aspects]) if (r.error) throw new Error(r.error.message);
     return {
       history: (hist.data ?? []).map((h) => ({ ...h, price: num(h.price), rating: num(h.rating) })) as ProductHistory[],
       months: (months.data ?? []) as ReviewMonth[],
       texts: (texts.data ?? []) as ReviewText[],
+      aspects: aspectSummary((aspects.data ?? []) as { aspects: ReviewAspect[] | null }[]),
     };
   }, opts);
 }

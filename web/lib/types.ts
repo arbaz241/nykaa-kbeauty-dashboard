@@ -32,4 +32,5 @@ export interface ShareDaily { scrape_date: string; subcategory: string; origin: 
 export interface BrandDaily { scrape_date: string; brand: string; origin: Origin; subcategory: string; slots: number; best_rank: number; top20: number }
 export interface Suggestion { scrape_date: string; seed: string; position: number; suggestion: string; kind: string; product_id: string | null; url: string | null }
 export interface ProductHistory { scrape_date: string; subcategory: string; product_id: string; rank: number; price: number | null; mrp: number | null; discount_pct: number | null; rating: number | null; rating_count: number | null; is_ad: boolean; is_pinned: boolean; has_offer: boolean }
-export interface ReviewText { review_id: number; product_id: string; created_on: string; rating: number | null; title: string | null; body: string | null; is_buyer: boolean | null }
+export interface ReviewAspect { id: string; displayText: string; sentimentValue: string }
+export interface ReviewText { review_id: number; product_id: string; created_on: string; rating: number | null; title: string | null; body: string | null; is_buyer: boolean | null; aspects: ReviewAspect[] | null; images: number | null; likes: number | null }

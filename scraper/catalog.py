@@ -21,7 +21,7 @@ from .signals import _fetch_json
 log = logging.getLogger("catalog")
 
 # Brands that never appear on a tracked shelf, so their id cannot come from shelf data.
-KNOWN_BRAND_IDS = {"Sulwhasoo": "13600"}
+KNOWN_BRAND_IDS = {"Sulwhasoo": "13600", "Torriden": "67106"}   # brands never seen on a tracked shelf, so no brand_id in `products`
 _CAT_IDS = {str(c.nykaa_id): c.key for c in config.CATEGORIES if c.key not in config.STORE_KEYS}
 URL = "https://www.nykaa.com/app-api/index.php/products/list?category_id={bid}&page_no={pg}&sort=popularity"
 

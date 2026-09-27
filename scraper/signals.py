@@ -25,6 +25,8 @@ from .nykaa import BlockedError, _STATE_RE
 
 log = logging.getLogger("signals")
 
+_norm = lambda s_: re.sub(r"[^a-z0-9]+", "", (s_ or "").lower())
+
 SEARCH_QUERIES = [
     # K-beauty purchase intent. Generic head terms ("sunscreen") are omitted: Nykaa
     # redirects them to the category pages we already track as shelves.
@@ -200,7 +202,9 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
                     if r["createdOn"][:10] >= text_cutoff and (r.get("title") or r.get("description")):
                         texts.append({"review_id": rid, "product_id": pid, "created_on": r["createdOn"].replace(" ", "T") + "+05:30",
                                       "rating": int(r.get("rating") or 0) or None, "title": (r.get("title") or "")[:300],
-                                      "body": (r.get("description") or "")[:2000], "is_buyer": bool(r.get("isBuyer"))})
+                                      "body": (r.get("description") or "")[:2000], "is_buyer": bool(r.get("isBuyer")),
+                                      "aspects": r.get("aspects") or None, "images": len(r.get("images") or []),
+                                      "likes": int(r.get("likeCount") or 0)})
                 if reached_known:
                     break
                 await asyncio.sleep(max(config.ENRICH_DELAY_SEC, 2.5))
@@ -226,19 +230,119 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
 
 # ------------------------------------------------------------------ key brands / products
 
-def key_products(latest_rows: list[dict], tracked: list[str], top_competitors: int = 10, per_brand: int = 5) -> list[dict]:
-    """Tracked brands + the most visible competitors; up to `per_brand` best-ranked products each."""
-    norm = lambda s: re.sub(r"[^a-z0-9]+", "", (s or "").lower())
+def key_products(latest_rows: list[dict], catalog_rows: list[dict] | None = None,
+                 core: list[str] | None = None, watch: list[str] | None = None,
+                 per_core: int | None = None, per_watch: int | None = None,
+                 per_competitor: int | None = None, competitors: int | None = None) -> list[dict]:
+    """Products to track for review history, in priority order — the daily job works down this list.
+
+      1. the anchor brand (config.ANCHOR_BRAND), deepest
+      2. the other core K-beauty brands, `per_core` products each
+      3. the Indian/global brands that actually compete with the anchor: those holding the most shelf
+         slots in the anchor's own categories today, `per_competitor` each
+      4. the smaller/newer Korean watch-list brands, `per_watch` each
+
+    Within a brand, products on today's shelves come first (best rank first), then the rest of the
+    brand's catalogue by review count, so a brand's biggest sellers are covered even when they are
+    not in a tracked top-100 today (most of Innisfree's range is off-shelf).
+    """
+    core = core or config.KBEAUTY_CORE
+    watch = watch or config.KBEAUTY_WATCH
+    per_core = per_core if per_core is not None else config.KEY_PRODUCTS_PER_BRAND
+    per_watch = per_watch if per_watch is not None else config.KEY_PRODUCTS_PER_WATCH
+    per_competitor = per_competitor if per_competitor is not None else config.KEY_PRODUCTS_PER_COMPETITOR
+    competitors = competitors if competitors is not None else config.KEY_COMPETITORS
+    catalog_rows = catalog_rows or []
+
     by_brand: dict[str, list[dict]] = defaultdict(list)
     for r in latest_rows:
-        by_brand[r["brand"]].append(r)
-    tracked_keys = {norm(t) for t in tracked}
-    ranked = sorted(by_brand.items(), key=lambda kv: (-len(kv[1]), min(x["rank"] for x in kv[1])))
-    chosen = [b for b, _ in ranked if norm(b) in tracked_keys]
-    chosen += [b for b, _ in ranked if norm(b) not in tracked_keys][:top_competitors]
-    out, seen = [], set()
-    for b in chosen:
-        for r in sorted(by_brand[b], key=lambda x: x["rank"])[:per_brand]:
-            if r["product_id"] not in seen:
-                seen.add(r["product_id"]); out.append({"product_id": r["product_id"], "brand": b, "rank": r["rank"], "name": r["name"]})
+        by_brand[r["brand"]].append({"product_id": r["product_id"], "brand": r["brand"], "name": r.get("name"),
+                                     "rank": r.get("rank") or 999, "pop": r.get("rating_count") or 0})
+    for r in catalog_rows:
+        by_brand[r["brand"]].append({"product_id": r["product_id"], "brand": r["brand"], "name": r.get("name"),
+                                     "rank": 9999, "pop": r.get("rating_count") or 0})
+
+    def resolve(name: str) -> str:
+        return next((b for b in by_brand if _norm(b) == _norm(name)), name)
+
+    def pick(brand: str, n: int) -> list[dict]:
+        seen: set[str] = set(); out = []
+        for p in sorted(by_brand.get(brand, []), key=lambda x: (x["rank"], -x["pop"])):
+            if p["product_id"] not in seen:
+                seen.add(p["product_id"]); out.append(p)
+        return out[:n]
+
+    core_r = [resolve(b) for b in core]
+    watch_r = [resolve(b) for b in watch if resolve(b) not in [resolve(c) for c in core]]
+    anchor = resolve(config.ANCHOR_BRAND)
+
+    # the anchor's own categories decide who its rivals are
+    anchor_cats = {r["subcategory"] for r in latest_rows if r["brand"] == anchor}
+    anchor_cats |= {c for r in catalog_rows if r["brand"] == anchor for c in (r.get("subcategories") or [])}
+    korean = set(core_r) | set(watch_r)
+    slots: dict[str, int] = defaultdict(int)
+    for r in latest_rows:
+        if r["subcategory"] in anchor_cats and r["brand"] not in korean:
+            slots[r["brand"]] += 1
+    rivals = [b for b, _ in sorted(slots.items(), key=lambda kv: (-kv[1], kv[0]))[:competitors]]
+
+    plan = ([(anchor, per_core)] + [(b, per_core) for b in core_r if b != anchor]
+            + [(b, per_competitor) for b in rivals] + [(b, per_watch) for b in watch_r])
+    out: list[dict] = []; taken: set[str] = set()
+    for brand, n in plan:
+        for p in pick(brand, n):
+            if p["product_id"] not in taken:
+                taken.add(p["product_id"]); out.append(p)
+    log.info("key products: %d (anchor %s, %d core, %d rivals %s, %d watch)",
+             len(out), anchor, len(core_r), len(rivals), rivals[:5], len(watch_r))
     return out
+
+
+def products_missing_text(all_key: list[dict], have_text: set[str]) -> list[dict]:
+    """Key products whose review text was never stored (history was collected before text capture existed)."""
+    return [p for p in all_key if p["product_id"] not in have_text]
+
+
+async def review_texts_only(page: Page, products: list[dict], on_product=None, max_pages_per_product: int = 20) -> dict:
+    """Fetch reviews purely to store their text. Monthly counts are NOT touched (they are already stored and
+    are additive, so re-counting them would double them)."""
+    stats = {"products": 0, "requests": 0, "texts": 0, "errors": 0}
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=config.REVIEW_TEXT_DAYS)).strftime("%Y-%m-%d")
+    for p in products:
+        pid = p["product_id"]; seen: set[int] = set(); texts: list[dict] = []
+        try:
+            for pg in range(1, max_pages_per_product + 1):
+                st, body = await _fetch_json(page, REVIEWS_URL.format(product_id=pid, page_no=pg)); stats["requests"] += 1
+                if st == 400:
+                    break
+                if st == 403:
+                    raise BlockedError(f"reviews 403 for {pid}")
+                if st != 200:
+                    raise RuntimeError(f"reviews HTTP {st} for {pid} p{pg}")
+                rd = (json.loads(body).get("response") or {}).get("reviewData") or []
+                new = [r for r in rd if int(r["id"]) not in seen]
+                if not new:
+                    break
+                stale = all(r["createdOn"][:10] < cutoff for r in new)
+                for r in new:
+                    seen.add(int(r["id"]))
+                    if r["createdOn"][:10] >= cutoff and (r.get("title") or r.get("description")):
+                        texts.append({"review_id": int(r["id"]), "product_id": pid, "created_on": r["createdOn"].replace(" ", "T") + "+05:30",
+                                      "rating": int(r.get("rating") or 0) or None, "title": (r.get("title") or "")[:300],
+                                      "body": (r.get("description") or "")[:2000], "is_buyer": bool(r.get("isBuyer")),
+                                      "aspects": r.get("aspects") or None, "images": len(r.get("images") or []),
+                                      "likes": int(r.get("likeCount") or 0)})
+                if stale:      # newest-first: once a whole page predates the text window, stop
+                    break
+                await asyncio.sleep(max(config.ENRICH_DELAY_SEC, 2.5))
+            if on_product and texts:
+                on_product(texts)
+            stats["products"] += 1; stats["texts"] += len(texts)
+            log.info("texts %s: %d reviews", pid, len(texts))
+        except (BlockedError, RateLimited):
+            raise
+        except Exception as e:  # noqa: BLE001
+            stats["errors"] += 1; log.warning("texts %s failed: %s", pid, e)
+        await asyncio.sleep(config.ENRICH_DELAY_SEC)
+    log.info("review texts: %s", stats)
+    return stats
