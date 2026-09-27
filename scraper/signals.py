@@ -228,6 +228,8 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
             else:
                 hist_rows.extend(p_hist); cur_rows.append(p_cur)
             stats["products"] += 1; stats["reviews"] += sum(months.values())
+            log.info("history %s: %d reviews over %d months%s, %d texts", pid, sum(months.values()), len(months),
+                     "" if p_cur["complete"] else " (truncated)", len(texts))
         except (BlockedError, RateLimited):
             raise
         except Exception as e:  # noqa: BLE001
