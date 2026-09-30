@@ -155,8 +155,20 @@ def write_search(client, rows: list[dict]) -> int:
 
 
 def write_suggestions(client, rows: list[dict]) -> int:
-    rows = [r for r in rows if r.get("suggestion")]
-    return _upsert(client, "search_suggestions", rows, "scrape_date,seed,kind,position") if rows else 0
+    # Postgres refuses an upsert that touches the same key twice in one statement, so the batch is
+    # deduped here as well as at the source — one bad row must never cost a whole day's suggestions.
+    seen: set[tuple] = set()
+    clean = []
+    for r in rows:
+        if not r.get("suggestion"):
+            continue
+        key = (r["scrape_date"], r["seed"], r["kind"], r["position"])
+        if key in seen:
+            continue
+        seen.add(key); clean.append(r)
+    if len(clean) != len([r for r in rows if r.get("suggestion")]):
+        log.info("suggestions: dropped %d duplicate keys before upsert", len([r for r in rows if r.get("suggestion")]) - len(clean))
+    return _upsert(client, "search_suggestions", clean, "scrape_date,seed,kind,position") if clean else 0
 
 
 def write_review_texts(client, rows: list[dict]) -> int:

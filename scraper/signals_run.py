@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import random
 import logging
 import os
@@ -104,6 +105,20 @@ def brand_ids(client) -> dict[str, str]:
     return out
 
 
+
+@contextlib.contextmanager
+def _stage(stats: dict, name: str):
+    """One collector's failure must not cost the rest of the night's data. A block is different:
+    that means Nykaa is refusing us, so it stops the whole run."""
+    try:
+        yield
+    except (BlockedError, RateLimited):
+        raise
+    except Exception as e:  # noqa: BLE001
+        stats[name] = {"failed": f"{type(e).__name__}: {e}"[:300]}
+        log.error("signals stage %r failed (the other stages continue): %s", name, e)
+
+
 async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
     now = datetime.now(timezone.utc); scraped_at = now.isoformat(timespec="seconds"); today = now.date().isoformat()
     stats: dict = {}
@@ -113,86 +128,98 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
             await page.goto(config.CATEGORIES[0].url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
             await page.wait_for_timeout(1500)
             if "search" in which:
-                # 1. autosuggest: what Nykaa proposes as shoppers type
-                seeds = ["korean", "k beauty", "korean skin care"] + [c.key.replace("_", " ").replace("masks", "sheet mask")
-                         for c in config.CATEGORIES if c.key not in config.STORE_KEYS] + [b.lower() for b in config.FOCUS_BRANDS]
-                srows, sst = await suggestions(page, seeds, today)
-                sst["written"] = write_suggestions(client, srows); stats["suggestions"] = sst
-                # 2. keywords to track: the fixed Korean-intent set + the top suggested keywords
-                core = [q.lower() for q in SEARCH_QUERIES]
-                extra = []
-                for r in srows:
-                    kw = (r["suggestion"] or "").strip().lower()
-                    if r["kind"] in ("query", "search") and kw and kw not in core and kw not in extra and len(kw) <= 40:
-                        extra.append(kw)
-                extra = extra[:config.SUGGESTED_KEYWORDS_MAX]
-                # 3. results: core terms sampled several times (ads rotate per load), suggested terms once
-                # Ads rotate per visitor, not per page load: each sample is a fresh browser session (new cookies,
-                # new user agent), i.e. a different "shopper". Unpaid order is identical across samples.
-                rows, st = await search_shelf(page, SEARCH_QUERIES + extra, scraped_at, samples=1)
-                for n in range(2, config.SEARCH_SAMPLES + 1):
-                    sctx = await browser.new_context(user_agent=random.choice(config.USER_AGENTS), locale="en-IN", viewport={"width": 1366, "height": 900})
-                    spage = await sctx.new_page()
-                    try:
-                        await spage.goto(config.CATEGORIES[n % 7].url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
-                        await spage.wait_for_timeout(1500)
-                        srows_n, st_n = await search_shelf(spage, SEARCH_QUERIES, scraped_at, samples=1)
-                        for r in srows_n:
-                            r["sample"] = n
-                        rows += srows_n; st["ok"] += st_n["ok"]; st["errors"] += st_n["errors"]
-                    finally:
-                        await sctx.close()
-                st["suggested_terms"] = extra; st["samples"] = config.SEARCH_SAMPLES
-                st["written"] = write_search(client, rows); stats["search"] = st
-                st["brands_classified"] = classify_search_brands(client, rows, today)
+                with _stage(stats, "search"):
+                    # 1. autosuggest: what Nykaa proposes as shoppers type
+                    # One seed per phrase: two shelves used to map onto "sheet mask" (masks + sheet_mask), which put
+                    # the same seed in the batch twice and made Postgres reject the whole upsert.
+                    shelf_terms = {"masks": "face mask", "sheet_mask": "sheet mask", "face_wash": "face wash",
+                                   "face_moisturizer": "moisturizer", "cleansing_balm": "cleansing balm",
+                                   "eye_care": "eye cream", "lip_tint": "lip tint", "toner": "toner"}
+                    seeds = list(dict.fromkeys(
+                        ["korean", "k beauty", "korean skin care"]
+                        + [shelf_terms.get(c.key, c.key.replace("_", " ")) for c in config.CATEGORIES if c.key not in config.STORE_KEYS]
+                        + [b.lower() for b in config.FOCUS_BRANDS]))
+                    srows, sst = await suggestions(page, seeds, today)
+                    sst["written"] = write_suggestions(client, srows); stats["suggestions"] = sst
+                    # 2. keywords to track: the fixed Korean-intent set + the top suggested keywords
+                    core = [q.lower() for q in SEARCH_QUERIES]
+                    extra = []
+                    for r in srows:
+                        kw = (r["suggestion"] or "").strip().lower()
+                        if r["kind"] in ("query", "search") and kw and kw not in core and kw not in extra and len(kw) <= 40:
+                            extra.append(kw)
+                    extra = extra[:config.SUGGESTED_KEYWORDS_MAX]
+                    # 3. results: core terms sampled several times (ads rotate per load), suggested terms once
+                    # Ads rotate per visitor, not per page load: each sample is a fresh browser session (new cookies,
+                    # new user agent), i.e. a different "shopper". Unpaid order is identical across samples.
+                    rows, st = await search_shelf(page, SEARCH_QUERIES + extra, scraped_at, samples=1)
+                    for n in range(2, config.SEARCH_SAMPLES + 1):
+                        sctx = await browser.new_context(user_agent=random.choice(config.USER_AGENTS), locale="en-IN", viewport={"width": 1366, "height": 900})
+                        spage = await sctx.new_page()
+                        try:
+                            await spage.goto(config.CATEGORIES[n % 7].url, wait_until="domcontentloaded", timeout=config.NAV_TIMEOUT_MS)
+                            await spage.wait_for_timeout(1500)
+                            srows_n, st_n = await search_shelf(spage, SEARCH_QUERIES, scraped_at, samples=1)
+                            for r in srows_n:
+                                r["sample"] = n
+                            rows += srows_n; st["ok"] += st_n["ok"]; st["errors"] += st_n["errors"]
+                        finally:
+                            await sctx.close()
+                    st["suggested_terms"] = extra; st["samples"] = config.SEARCH_SAMPLES
+                    st["written"] = write_search(client, rows); stats["search"] = st
+                    st["brands_classified"] = classify_search_brands(client, rows, today)
             if "assortment" in which and (unlimited or now.weekday() == config.ASSORTMENT_WEEKDAY or not client.table("brand_assortment").select("brand").limit(1).execute().data):
-                rows, st = await assortment(page, brand_ids(client), today)
-                st["written"] = write_assortment(client, rows); stats["assortment"] = st
+                with _stage(stats, "assortment"):
+                    rows, st = await assortment(page, brand_ids(client), today)
+                    st["written"] = write_assortment(client, rows); stats["assortment"] = st
             if "catalog" in which and (unlimited or now.weekday() == config.ASSORTMENT_WEEKDAY or not client.table("brand_catalog").select("brand").limit(1).execute().data):
-                from .catalog import brand_catalog
-                from .db import write_catalog
-                rows, st = await brand_catalog(page, focus_brand_ids(client), today)
-                st["written"] = write_catalog(client, rows); stats["catalog"] = st
+                with _stage(stats, "catalog"):
+                    from .catalog import brand_catalog
+                    from .db import write_catalog
+                    rows, st = await brand_catalog(page, focus_brand_ids(client), today)
+                    st["written"] = write_catalog(client, rows); stats["catalog"] = st
             if "reviews" in which:
-                prods = key_products(latest_rows(client), catalog_rows(client))
-                cursors = read_review_cursors(client)
-                # never-fetched first, then stalest
-                prods.sort(key=lambda p: (p["product_id"] in cursors, (cursors.get(p["product_id"]) or {}).get("fetched_at", "")))
-                cap = None if unlimited else config.REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN
-                written = {"n": 0}
-                def save(h, c, texts=()):
-                    written["n"] += write_review_history(client, h, [c]) if h else 0
-                    if not h:
-                        from .db import _upsert
-                        _upsert(client, "review_cursor", [c], "product_id")
-                    if texts:
-                        write_review_texts(client, list(texts))
-                try:
-                    _, _, st = await review_history(page, prods, cursors, max_products=cap, on_product=save,
-                                                    max_minutes=None if unlimited else config.REVIEW_HISTORY_MAX_MINUTES)
-                except RateLimited as e:
-                    log.error("review history stopped by rate limiting (progress saved; resumes next run): %s", e)
-                    st = {"rate_limited": str(e)}
-                st["written"] = written["n"]; st["key_products"] = len(prods); stats["reviews"] = st
+                with _stage(stats, "reviews"):
+                    prods = key_products(latest_rows(client), catalog_rows(client))
+                    cursors = read_review_cursors(client)
+                    # never-fetched first, then stalest
+                    prods.sort(key=lambda p: (p["product_id"] in cursors, (cursors.get(p["product_id"]) or {}).get("fetched_at", "")))
+                    cap = None if unlimited else config.REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN
+                    written = {"n": 0}
+                    def save(h, c, texts=()):
+                        written["n"] += write_review_history(client, h, [c]) if h else 0
+                        if not h:
+                            from .db import _upsert
+                            _upsert(client, "review_cursor", [c], "product_id")
+                        if texts:
+                            write_review_texts(client, list(texts))
+                    try:
+                        _, _, st = await review_history(page, prods, cursors, max_products=cap, on_product=save,
+                                                        max_minutes=None if unlimited else config.REVIEW_HISTORY_MAX_MINUTES)
+                    except RateLimited as e:
+                        log.error("review history stopped by rate limiting (progress saved; resumes next run): %s", e)
+                        st = {"rate_limited": str(e)}
+                    st["written"] = written["n"]; st["key_products"] = len(prods); stats["reviews"] = st
             if "texts" in which:
-                # products whose monthly history was collected before review text was captured:
-                # fetch the text only, never the counts (write_review_history is additive)
-                # only products whose monthly history is already collected: for the rest, the reviews pass
-                # fetches counts and text together in one walk
-                hist = set(read_review_cursors(client))
-                todo = [p for p in products_missing_text(key_products(latest_rows(client), catalog_rows(client)), products_with_text(client))
-                        if p["product_id"] in hist]
-                cap = None if unlimited else config.REVIEW_TEXT_MAX_PRODUCTS_PER_RUN
-                written = {"n": 0}
-                def save_texts(texts):
-                    written["n"] += write_review_texts(client, list(texts))
-                try:
-                    st = await review_texts_only(page, todo[:cap] if cap else todo, on_product=save_texts,
-                                                 max_minutes=None if unlimited else config.REVIEW_TEXT_MAX_MINUTES)
-                except RateLimited as e:
-                    log.error("review texts stopped by rate limiting (progress saved; resumes next run): %s", e)
-                    st = {"rate_limited": str(e)}
-                st["candidates"] = len(todo); st["written"] = written["n"]; stats["texts"] = st
+                with _stage(stats, "texts"):
+                    # products whose monthly history was collected before review text was captured:
+                    # fetch the text only, never the counts (write_review_history is additive)
+                    # only products whose monthly history is already collected: for the rest, the reviews pass
+                    # fetches counts and text together in one walk
+                    hist = set(read_review_cursors(client))
+                    todo = [p for p in products_missing_text(key_products(latest_rows(client), catalog_rows(client)), products_with_text(client))
+                            if p["product_id"] in hist]
+                    cap = None if unlimited else config.REVIEW_TEXT_MAX_PRODUCTS_PER_RUN
+                    written = {"n": 0}
+                    def save_texts(texts):
+                        written["n"] += write_review_texts(client, list(texts))
+                    try:
+                        st = await review_texts_only(page, todo[:cap] if cap else todo, on_product=save_texts,
+                                                     max_minutes=None if unlimited else config.REVIEW_TEXT_MAX_MINUTES)
+                    except RateLimited as e:
+                        log.error("review texts stopped by rate limiting (progress saved; resumes next run): %s", e)
+                        st = {"rate_limited": str(e)}
+                    st["candidates"] = len(todo); st["written"] = written["n"]; stats["texts"] = st
         finally:
             await browser.close()
     return stats
