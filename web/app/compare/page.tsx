@@ -10,7 +10,7 @@ import Segmented from "@/components/Segmented";
 import Shell from "@/components/Shell";
 import { SectionHead } from "@/components/ui";
 import { ANCHOR_BRAND, FOCUS_BRANDS, resolveBrand } from "@/lib/brands";
-import { useAssortment, useCatalog, useReviewMonths, useSearch, useShelf } from "@/lib/data";
+import { useAspectsFor, useAssortment, useCatalog, useDemand, useMovement, useReviewMonths, useSearch, useShelf } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/format";
 import { brandInsights, brandScore } from "@/lib/metrics";
 import { useBrandSelection } from "@/lib/selection";
@@ -42,7 +42,8 @@ function ComparePage() {
       const seen = new Set(onShelf.map((r) => r.product_id));
       const more: CompareRow[] = (catalog.data ?? []).filter((r) => r.brand === b && r.subcategories.includes(c) && !seen.has(r.product_id))
         .map((r) => ({ ...r, subcategory: c, rank: null, origin: rows.find((x) => x.brand === b)?.origin ?? "unknown", k_marketing: false, is_ad: false, is_pinned: false,
-          first_review_date: null, review_count: null, preferences: null, description_text: null, image_url: r.best_image, scrape_date: r.scrape_date }));
+          first_review_date: null, review_count: null, preferences: null, description_text: null, image_url: r.best_image, scrape_date: r.scrape_date,
+          is_bestseller: false, is_new_tag: false, tags: null, nykaa_l3: r.l3 }));
       out.set(`${c}|${b}`, [...onShelf, ...more]);
     }
     return out;
@@ -64,6 +65,15 @@ function ComparePage() {
     const opts = options.get(`${cat}|${b}`) ?? [];
     return { brand: b, options: opts, product: opts.find((o) => o.product_id === override[`${cat}|${b}`]) ?? opts[0] ?? null };
   }), [selected, options, cat, override]);
+
+  const pickedIds = useMemo(() => picks.map((p) => p.product?.product_id).filter((x): x is string => !!x), [picks]);
+  const aspects = useAspectsFor(mode === "products" ? pickedIds : []);
+  const demand = useDemand(); const movement = useMovement();
+  const extras = useMemo(() => ({
+    aspects: aspects.data,
+    demand: new Map((demand.data ?? []).filter((d) => pickedIds.includes(d.product_id)).map((d) => [d.product_id, d])),
+    movement: new Map((movement.data ?? []).filter((m) => m.category === cat && pickedIds.includes(m.product_id)).map((m) => [m.product_id, m])),
+  }), [aspects.data, demand.data, movement.data, pickedIds, cat]);
 
   const asOf = rows[0] ? new Date(rows[0].scrape_date) : null;
   const err = shelf.error || months.error || search.error || assort.error || catalog.error;
@@ -102,8 +112,8 @@ function ComparePage() {
             <Scorecard scores={scores} colors={colors} />
           </section>
           <section className="mt-10">
-            <SectionHead title="Where they compete" note="Top-100 listings per category, best rank and typical price. Click a category to compare its products." />
-            <PresenceMatrix shelf={rows} brands={selected} colors={colors} onPick={(c) => { setCat(c); setMode("products"); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+            <SectionHead title="Where they compete" note="Each cell: top-100 listings today, or how much the brand sells there without ranking, or nothing at all. Click a category to compare its products." />
+            <PresenceMatrix shelf={rows} catalog={catalog.data} anchor={resolveBrand(ANCHOR_BRAND, known) ?? ANCHOR_BRAND} brands={selected} colors={colors} onPick={(c) => { setCat(c); setMode("products"); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
           </section>
         </>
       )}
@@ -123,7 +133,7 @@ function ComparePage() {
           </div>
           <SectionHead title={`${CATEGORY_LABEL[cat]}: product vs product`} note="Default: each brand's best-ranked product, else its most popular in this category. “Change” lists its full range here. Photos open Nykaa." />
           {!catalog.data && <p className="mb-3 text-[12.5px] text-muted">Loading full brand ranges…</p>}
-          {asOf && <ProductCompare picks={picks} colors={colors} asOf={asOf} onChoose={(b, r) => setOverride({ ...override, [`${cat}|${b}`]: r.product_id })} />}
+          {asOf && <ProductCompare picks={picks} colors={colors} asOf={asOf} onChoose={(b, r) => setOverride({ ...override, [`${cat}|${b}`]: r.product_id })} extras={extras} />}
         </section>
       )}
     </Shell>

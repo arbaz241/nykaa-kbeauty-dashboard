@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import useSWR from "swr";
-import { useSession } from "./AuthGate";
+import { useIsAdmin, useSession } from "./AuthGate";
 import { Card } from "./ui";
 import { supabase } from "@/lib/supabase";
 import { useEvents } from "@/lib/data";
@@ -19,16 +18,6 @@ const KINDS = [
 const KIND_COLOR: Record<string, string> = {
   sale: "#eda100", launch: "#1baf7a", campaign: "#2a78d6", competitor: "#eb6834", other: "#8a8880",
 };
-
-/** Is this viewer allowed to write events? The table enforces it too — this only hides the form. */
-function useIsAdmin() {
-  const session = useSession();
-  const email = session?.user.email ?? null;
-  return useSWR(email ? ["admin", email] : null, async () => {
-    const { data } = await supabase().from("app_admins").select("email").eq("email", email!).maybeSingle();
-    return !!data;
-  }).data ?? false;
-}
 
 /** The owner's log of things that happened in the real world, so a spike has a name next to it. */
 export default function EventLog() {

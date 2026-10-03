@@ -12,6 +12,7 @@ export interface ShelfRow {
   usp_summary: string | null; usp_points: string[] | null; review_key_phrases: ReviewPhrase[] | null;
   review_splitup: Record<string, number> | null; detail_review_count: number | null; image_url: string | null;
   description_text: string | null;
+  is_bestseller: boolean; is_new_tag: boolean; tags: string | null; nykaa_l3: string | null;
 }
 
 export interface ReviewMonth { product_id: string; month: string; reviews: number; avg_rating: number | null; brand: string; coverage_start: string; name: string; url: string | null }

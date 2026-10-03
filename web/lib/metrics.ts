@@ -70,7 +70,10 @@ function mode(xs: string[]) {
   return [...c.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
-export const perMl = (r: ShelfRow) => { const ml = packMl(r.pack_size); return ml && r.price ? r.price / ml : null; };
+/** Price per ml/g. Pack size from the listing, else read from the title ("… 50ml"). */
+export const perMl = (r: Pick<ShelfRow, "pack_size" | "price" | "name">) => {
+  const ml = packMl(r.pack_size) ?? packMl(r.name); return ml && r.price ? r.price / ml : null;
+};
 
 /** Factual lead-in sentences for the selected brands. Each names the leader on one dimension. */
 export function brandInsights(scores: BrandScore[]): string[] {

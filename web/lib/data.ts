@@ -98,12 +98,41 @@ export function useEvents() {
 
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
+/** Review aspect tags for a handful of products (Compare), aggregated per product. */
+export function useAspectsFor(ids: string[]) {
+  const key = [...ids].sort();
+  return useSWR(key.length ? ["aspects_for", ...key] : null, async () => {
+    const out = new Map<string, ReturnType<typeof aspectSummary>>();
+    await Promise.all(key.map(async (id) => {
+      const { data, error } = await supabase().from("web_review_texts").select("aspects").eq("product_id", id).not("aspects", "is", null)
+        .order("created_on", { ascending: false }).limit(600);
+      if (error) throw new Error(error.message);
+      out.set(id, aspectSummary((data ?? []) as { aspects: ReviewAspect[] | null }[]));
+    }));
+    return out;
+  }, { revalidateOnFocus: false });
+}
+
+/** Names and links for products no longer on today's shelf (movers that dropped out of the top 100). */
+export function useProductNames(ids: string[]) {
+  return useSWR(ids.length ? ["product_names", ...ids] : null, async () => {
+    const out = new Map<string, { name: string; brand: string; url: string | null }>();
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await supabase().from("products").select("product_id,name,brand,url").in("product_id", ids.slice(i, i + 200));
+      if (error) throw new Error(error.message);
+      for (const r of data ?? []) out.set(r.product_id, { name: r.name, brand: r.brand, url: r.url });
+    }
+    return out;
+  }, { revalidateOnFocus: false });
+}
+
 /** Shelf rows for two specific days (for movers), fetched on demand. */
 export function useShelfDays(days: string[]) {
   return useSWR(days.length === 2 ? ["shelf_days", ...days] : null, async () => {
     const out: (ProductHistory & { name: string; brand: string })[] = [];
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await supabase().from("web_product_history").select("*").in("scrape_date", days).neq("subcategory", "kbeauty_store").range(from, from + 999);
+      const { data, error } = await supabase().from("web_product_history").select("*").in("scrape_date", days).neq("subcategory", "kbeauty_store")
+        .order("scrape_date").order("subcategory").order("rank").order("product_id").range(from, from + 999);
       if (error) throw new Error(error.message);
       out.push(...((data ?? []) as (ProductHistory & { name: string; brand: string })[]));
       if (!data || data.length < 1000) break;

@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import BrandPicker from "@/components/BrandPicker";
 import LineChart from "@/components/LineChart";
 import { useOpenProduct, type ProductRef } from "@/components/ProductDrawer";
 import Shell from "@/components/Shell";
+import Segmented from "@/components/Segmented";
 import { Card, Insight, Loading, PageHead, SectionHead, Stat } from "@/components/ui";
-import { ANCHOR_BRAND, FOCUS_BRANDS, ORIGIN_LABEL, norm, resolveBrand } from "@/lib/brands";
-import { useBrandDaily, useKoreanStore, useShareDaily, useShelf, useShelfDays } from "@/lib/data";
+import { ANCHOR_BRAND, FOCUS_BRANDS, ORIGIN_LABEL, TIER_LABEL, marketSet, norm, resolveBrand, type Tier } from "@/lib/brands";
+import { useBrandDaily, useKoreanStore, useProductNames, useShareDaily, useShelf, useShelfDays } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, compact, inr, median, shortName } from "@/lib/format";
 import { useBrandSelection } from "@/lib/selection";
 import type { ShelfRow } from "@/lib/types";
@@ -17,6 +18,16 @@ const ORIGINS = ["kbeauty", "local", "global", "unknown"] as const;
 const OC: Record<string, string> = { kbeauty: "#2a78d6", local: "#eb6834", global: "#1baf7a", unknown: "#c9c7bf" };
 const day = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 const isFocus = (b: string) => FOCUS_BRANDS.some((f) => norm(f) === norm(b));
+const STORE_URL = "https://www.nykaa.com/korean-beauty/c/30710";
+const TIER_STYLE: Record<Tier, string> = { anchor: "bg-ink text-white", kbeauty: "bg-[#e6effb] text-[#1f5fae]", watch: "bg-[#eef3fa] text-[#4a6b94]", rival: "bg-[#fdeee6] text-[#b4501f]" };
+function TierTag({ tier }: { tier: Tier | null }) {
+  return tier ? <span className={`ml-1.5 rounded px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-[0.05em] ${TIER_STYLE[tier]}`}>{TIER_LABEL[tier]}</span> : null;
+}
+const ratings = (r: { rating?: number | null; rating_count?: number | null }) =>
+  r.rating_count ? `★ ${r.rating?.toFixed(1) ?? "–"} · ${compact(r.rating_count)} ratings` : "no ratings yet";
+type Window = "7" | "14";
+interface Move { wasAd?: boolean; key: string; product_id: string; brand: string; name: string; sub: string; from: number | null; to: number | null; change: number; isAd: boolean; rating: number | null; rating_count: number | null; row?: ShelfRow; url?: string | null }
+
 const ref = (r: ShelfRow): ProductRef => ({ product_id: r.product_id, name: r.name, brand: r.brand, url: r.url, image: r.image_url, price: r.price, mrp: r.mrp, rating: r.rating, rating_count: r.rating_count, usp: r.usp_summary, phrases: r.review_key_phrases, splitup: r.review_splitup, madeIn: r.country_name });
 
 function MarketPage() {
@@ -25,7 +36,16 @@ function MarketPage() {
   const rows = useMemo(() => shelf.data ?? [], [shelf.data]);
   const days = useMemo(() => [...new Set((share.data ?? []).map((s) => s.scrape_date))].sort(), [share.data]);
   const first = days[0]; const last = days[days.length - 1];
-  const moversData = useShelfDays(first && last && first !== last ? [first, last] : []);
+  const [win, setWin] = useState<Window>("7");
+  // the latest collected day at least `win` days before the latest one
+  const past = useMemo(() => {
+    if (!last) return undefined;
+    const target = new Date(last).getTime() - Number(win) * 864e5;
+    return [...days].reverse().find((d) => new Date(d).getTime() <= target);
+  }, [days, last, win]);
+  const moversData = useShelfDays(past && last ? [past, last] : []);
+  const set = useMemo(() => marketSet(rows), [rows]);
+  const [openBrand, setOpenBrand] = useState<string | null>(null);
   const known = useMemo(() => [...new Set((bd.data ?? []).map((r) => r.brand))], [bd.data]);
   const focus = useMemo(() => FOCUS_BRANDS.map((b) => resolveBrand(b, known) ?? b).filter((b) => known.includes(b)), [known]);
   const { selected, colors, toggle } = useBrandSelection(known);
@@ -42,25 +62,72 @@ function MarketPage() {
     const v = (bd.data ?? []).filter((r) => r.brand === b && r.scrape_date === d && r.subcategory !== "kbeauty_store").reduce((a, r) => a + Number(r.slots), 0);
     return v; }) })), [selected, colors, days, bd.data]);
 
-  const launches = useMemo(() => {
+  const allLaunches = useMemo(() => {
     if (!last) return [];
     const now = new Date(last).getTime();   // ages are measured from the latest collection day
     return rows.filter((r) => r.first_review_date && now - new Date(r.first_review_date).getTime() <= 90 * 864e5)
-      .map((r) => ({ r, perDay: (r.rating_count ?? 0) / Math.max(1, (now - new Date(r.first_review_date!).getTime()) / 864e5) }))
+      .map((r) => { const age = Math.max(1, Math.round((now - new Date(r.first_review_date!).getTime()) / 864e5)); return { r, age, perDay: (r.rating_count ?? 0) / age }; })
       .sort((a, b) => b.perDay - a.perDay);
   }, [rows, last]);
+  // "catching on" needs some evidence: a launch with a handful of ratings says nothing yet
+  const launches = useMemo(() => allLaunches.filter((l) => set.has(l.r.brand) && (l.r.rating_count ?? 0) >= 10), [allLaunches, set]);
 
-  const movers = useMemo(() => {
-    const d = moversData.data ?? []; if (!d.length) return { up: [], down: [] };
-    const a = new Map(d.filter((x) => x.scrape_date === first).map((x) => [`${x.subcategory}|${x.product_id}`, x.rank]));
-    const cur = rows.map((r) => ({ r, from: a.get(`${r.subcategory}|${r.product_id}`) })).filter((x) => x.from !== undefined).map((x) => ({ ...x, change: x.from! - x.r.rank }));
-    return { up: [...cur].sort((x, y) => y.change - x.change).slice(0, 8), down: [...cur].sort((x, y) => x.change - y.change).slice(0, 8) };
-  }, [moversData.data, rows, first]);
+  // rank moves within each category's top 100, for the brands that matter; exits and entries count too,
+  // but only on shelves that were already tracked on the earlier day
+  const pastRows = useMemo(() => (moversData.data ?? []).filter((x) => x.scrape_date === past), [moversData.data, past]);
+  const exitIds = useMemo(() => {
+    const now = new Set(rows.map((r) => `${r.subcategory}|${r.product_id}`));
+    return [...new Set(pastRows.filter((x) => !now.has(`${x.subcategory}|${x.product_id}`)).map((x) => x.product_id))];
+  }, [pastRows, rows]);
+  const names = useProductNames(exitIds);
+  const moves = useMemo(() => {
+    if (!pastRows.length) return [] as Move[];
+    const before = new Map(pastRows.map((x) => [`${x.subcategory}|${x.product_id}`, x]));
+    const trackedThen = new Set(pastRows.map((x) => x.subcategory));
+    const out: Move[] = [];
+    for (const r of rows) {
+      if (!trackedThen.has(r.subcategory)) continue;
+      const b = before.get(`${r.subcategory}|${r.product_id}`);
+      out.push({ key: `${r.subcategory}|${r.product_id}`, product_id: r.product_id, brand: r.brand, name: r.name, sub: r.subcategory, from: b?.rank ?? null, to: r.rank,
+        change: (b?.rank ?? 101) - r.rank, isAd: r.is_ad, wasAd: b?.is_ad, rating: r.rating, rating_count: r.rating_count, row: r, url: r.url });
+    }
+    const nowKeys = new Set(out.map((m) => m.key));
+    for (const x of pastRows) {
+      const k = `${x.subcategory}|${x.product_id}`; const n = names.data?.get(x.product_id);
+      if (nowKeys.has(k) || !n) continue;
+      out.push({ key: k, product_id: x.product_id, brand: n.brand, name: n.name, sub: x.subcategory, from: x.rank, to: null, change: x.rank - 101,
+        isAd: false, wasAd: x.is_ad, rating: x.rating === null ? null : Number(x.rating), rating_count: x.rating_count, url: n.url });
+    }
+    return out;
+  }, [pastRows, rows, names.data]);
+  const relevant = moves.filter((m) => set.has(m.brand));
+  // a real move is a product ranked on both days; entries and exits are mostly sponsored slots coming and going
+  // or Nykaa swapping which listing of a product it shows, so they are kept apart
+  const both = relevant.filter((m) => m.from !== null && m.to !== null);
+  const up = [...both].filter((m) => m.change > 0).sort((a, b) => b.change - a.change).slice(0, 10);
+  const down = [...both].filter((m) => m.change < 0).sort((a, b) => a.change - b.change).slice(0, 10);
+  const entered = relevant.filter((m) => m.from === null).sort((a, b) => a.to! - b.to!);
+  const left = relevant.filter((m) => m.to === null).sort((a, b) => a.from! - b.from!);
+  const anchorMoves = moves.filter((m) => norm(m.brand) === norm(set.anchor)).sort((a, b) => (a.to ?? 999) - (b.to ?? 999));
 
-  const storeLeaders = useMemo(() => {
+  // the Korean Beauty store: one row per brand, ordered by how many of the store's top 100 it holds
+  const store = useMemo(() => {
     const k = kstore.data ?? []; const m = new Map<string, ShelfRow[]>(); k.forEach((r) => m.set(r.brand, [...(m.get(r.brand) ?? []), r]));
-    return [...m.entries()].map(([b, rs]) => ({ b, n: rs.length, best: Math.min(...rs.map((r) => r.rank)), price: median(rs.map((r) => r.price ?? 0)), top: rs.sort((x, y) => x.rank - y.rank)[0] })).sort((a, b) => b.n - a.n || a.best - b.best).slice(0, 10);
+    return [...m.entries()].map(([b, rs]) => {
+      const sorted = [...rs].sort((x, y) => x.rank - y.rank);
+      const rated = rs.filter((r) => r.rating_count);
+      return { b, rows: sorted, n: rs.length, top20: rs.filter((r) => r.rank <= 20).length, best: sorted[0].rank, med: median(rs.map((r) => r.rank)) ?? 0,
+        paid: rs.filter((r) => r.is_ad).length, ratingsSum: rs.reduce((a, r) => a + (r.rating_count ?? 0), 0),
+        avg: rated.length ? rated.reduce((a, r) => a + (r.rating ?? 0) * (r.rating_count ?? 0), 0) / rated.reduce((a, r) => a + (r.rating_count ?? 0), 0) : null };
+    }).sort((a, b) => b.n - a.n || a.best - b.best);
   }, [kstore.data]);
+  const storeLeaders = store;
+  const storeShown = useMemo(() => {
+    const top = store.slice(0, 12);
+    const a = store.find((s) => norm(s.b) === norm(set.anchor));
+    return a && !top.includes(a) ? [...top, a] : top;
+  }, [store, set.anchor]);
+  const anchorInStore = store.find((s) => norm(s.b) === norm(set.anchor));
 
   const ready = shelf.data && share.data && bd.data;
   return (
@@ -71,7 +138,7 @@ function MarketPage() {
           <section className="mt-8 grid gap-3 md:grid-cols-4">
             <Stat label="K-beauty share of the shelf" value={`${(kNow * 100).toFixed(1)}%`} sub={days.length > 1 ? `${kNow >= kFirst ? "▲" : "▼"} ${Math.abs((kNow - kFirst) * 100).toFixed(1)} pts since ${day(first)} · ${days.length} days tracked` : "first day of data"} />
             <Stat label="Focus brands' listings" value={String(focusSlots)} sub={`${((focusSlots / Math.max(1, rows.length)) * 100).toFixed(1)}% of all top-100 slots`} />
-            <Stat label="Launches on the shelf" value={String(launches.length)} sub={`first reviewed in the last 90 days · ${launches.filter((l) => l.r.origin === "kbeauty").length} K-beauty`} />
+            <Stat label="Launches on the shelf" value={String(allLaunches.length)} sub={`first reviewed in the last 90 days · ${allLaunches.filter((l) => l.r.origin === "kbeauty").length} K-beauty · ${launches.length} from brands in view`} />
             <Stat label="Korean store leader" value={storeLeaders[0]?.b ?? "–"} sub={storeLeaders[0] ? `${storeLeaders[0].n} of the store's top 100 · best #${storeLeaders[0].best}` : ""} />
           </section>
 
@@ -105,58 +172,152 @@ function MarketPage() {
 
           {days.length > 1 && (
             <section className="mt-10">
-              <SectionHead title="Biggest movers" note={`Rank change between ${day(first)} and ${day(last)}. Click a product for its detail.`} />
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-[20px] font-semibold tracking-tight">Biggest movers among the brands that matter</h2>
+                  <p className="mt-1 max-w-[760px] text-[12.5px] text-muted">
+                    Rank change inside each category&apos;s top 100{past ? `, ${day(past)} → ${day(last)}` : ""}. Limited to {set.anchor}, the Korean brand set, and the
+                    Indian and global brands holding the most slots in {set.anchor}&apos;s own categories today. Only products ranked on both days; entries and exits are listed separately below.
+                    Shelves added after {past ? day(past) : "that day"} are left out until they have a past to compare with.
+                  </p>
+                </div>
+                <Segmented<Window> value={win} onChange={setWin} options={[{ value: "7", label: "7 days" }, { value: "14", label: "14 days" }]} />
+              </div>
+              <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
+                <span className="mr-1 text-muted">Rivals in view:</span>
+                {set.rivals.map((r) => <span key={r.brand} className="rounded-full bg-surface px-2.5 py-0.5 ring-1 ring-line">{r.brand} <span className="text-muted">{ORIGIN_LABEL[r.origin]} · {r.slots} slots</span></span>)}
+              </div>
               <div className="grid gap-4 lg:grid-cols-2">
-                {([["Climbing", movers.up], ["Falling", movers.down]] as const).map(([title, list]) => (
+                {([["Climbing", up], ["Falling", down]] as const).map(([title, list]) => (
                   <Card key={title} className="p-4">
-                    <div className="mb-2 px-2 text-[14px] font-semibold">{title}</div>
-                    {!moversData.data ? <p className="px-2 text-[12.5px] text-muted">Loading…</p> : list.map(({ r, from, change }) => (
-                      <button key={`${r.subcategory}${r.product_id}`} onClick={() => open(ref(r))} className="grid w-full grid-cols-[1fr_auto_70px] items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-page">
-                        <span className="min-w-0"><span className="block text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-2">{r.brand} · {CATEGORY_LABEL[r.subcategory]}</span><span className="block truncate text-[13px]">{shortName(r.name, r.brand)}</span></span>
-                        <span className="text-[12.5px] text-muted tabular">#{from} → <b className="text-ink">#{r.rank}</b></span>
-                        <span className={`text-right text-[13px] font-semibold tabular ${change > 0 ? "text-good" : "text-bad"}`}>{change > 0 ? "▲" : "▼"} {Math.abs(change)}</span>
-                      </button>
-                    ))}
+                    <div className="mb-1 grid grid-cols-[1fr_96px_64px] gap-3 px-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
+                      <span>{title}</span><span className="text-right">Rank</span><span className="text-right">Places</span>
+                    </div>
+                    {!moversData.data ? <p className="px-2 text-[12.5px] text-muted">Loading…</p> : !list.length ? <p className="px-2 py-2 text-[12.5px] text-muted">No moves in this window.</p> : list.map((m) => <MoveRow key={m.key} m={m} tier={set.tier(m.brand)} onOpen={() => m.row && open(ref(m.row))} />)}
                   </Card>
                 ))}
               </div>
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                {([["Entered the top 100", entered, "Usually a sponsored slot or a new listing; ranked by today's position."], ["Left the top 100", left, "Often a sponsored slot ending, or Nykaa showing another listing of the same product."]] as const).map(([title, list, note]) => (
+                  <Card key={title} className="p-4">
+                    <div className="px-2 text-[14px] font-semibold">{title} <span className="font-normal text-muted">· {list.length}</span></div>
+                    <p className="mb-1 px-2 text-[12px] text-muted">{note}</p>
+                    {list.slice(0, 8).map((m) => (
+                      <button key={m.key} onClick={() => m.row && open(ref(m.row))} disabled={!m.row} className="grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-xl px-2 py-1.5 text-left enabled:hover:bg-page">
+                        <span className="min-w-0"><span className="block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{m.brand}<TierTag tier={set.tier(m.brand)} /> <span className="font-normal normal-case tracking-normal text-muted">· {CATEGORY_LABEL[m.sub]}</span></span>
+                          <span className="block truncate text-[12.5px]">{shortName(m.name, m.brand)}</span></span>
+                        <span className="text-right text-[12.5px] tabular">{m.to ? <b>#{m.to}</b> : <span className="text-muted">was #{m.from}</span>}
+                          {(m.isAd || m.wasAd) && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">{m.isAd ? "paid slot" : "was paid"}</span>}</span>
+                      </button>
+                    ))}
+                    {list.length > 8 && <p className="px-2 pt-1 text-[11.5px] text-muted">+{list.length - 8} more</p>}
+                  </Card>
+                ))}
+              </div>
+              <Card className="mt-4 p-4">
+                <div className="mb-1 px-2 text-[14px] font-semibold">{set.anchor} over the same {win} days</div>
+                <p className="mb-2 px-2 text-[12.5px] text-muted">Every {set.anchor} listing in a tracked top 100 today, plus any that dropped out.</p>
+                {!moversData.data ? <p className="px-2 text-[12.5px] text-muted">Loading…</p> : !anchorMoves.length ? <p className="px-2 text-[12.5px] text-muted">No {set.anchor} listing in a tracked top 100 on either day.</p>
+                  : <div className="grid gap-x-6 lg:grid-cols-2">{anchorMoves.map((m) => <MoveRow key={m.key} m={m} tier={null} onOpen={() => m.row && open(ref(m.row))} />)}</div>}
+                {rows.filter((r) => norm(r.brand) === norm(set.anchor) && !moves.some((m) => m.product_id === r.product_id && m.sub === r.subcategory)).length > 0 && (
+                  <p className="mt-2 px-2 text-[12px] text-muted">Listings on shelves added after {past ? day(past) : "that day"} are not shown here; they appear once the shelf has {win} days of history.</p>
+                )}
+              </Card>
             </section>
           )}
 
-          <section className="mt-10 grid gap-4 lg:grid-cols-[1fr_1.3fr]">
-            <div>
-              <SectionHead title="Inside Nykaa's Korean Beauty store" note="Top-100 of the storefront K-beauty shoppers browse." />
-              <Card className="p-4">
-                {storeLeaders.map((s) => (
-                  <button key={s.b} onClick={() => open(ref(s.top))} className="grid w-full grid-cols-[1fr_130px_60px] items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-page">
-                    <span className="text-[13.5px] font-medium">{s.b}{isFocus(s.b) && <span className="ml-1.5 rounded bg-sunken px-1 text-[10px] font-normal text-muted">focus</span>}</span>
-                    <span className="h-1.5 rounded-full bg-sunken"><span className="block h-1.5 rounded-full" style={{ width: `${(s.n / storeLeaders[0].n) * 100}%`, background: "#2a78d6" }} /></span>
-                    <span className="text-right text-[12.5px] tabular"><b>{s.n}</b> <span className="text-muted">#{s.best}</span></span>
-                  </button>
-                ))}
-              </Card>
+          <section className="mt-10">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-display text-[20px] font-semibold tracking-tight">Inside Nykaa&apos;s Korean Beauty store</h2>
+              <a href={STORE_URL} target="_blank" rel="noreferrer" className="text-[12.5px] text-ink-2 underline underline-offset-4 hover:text-ink">Open the store on Nykaa ↗</a>
             </div>
-            <div>
-              <SectionHead title="Launches catching on" note="First reviewed in the last 90 days and already in a top 100, ranked by ratings gained per day." />
-              <Card className="p-4">
-                {launches.slice(0, 10).map(({ r, perDay }) => (
-                  <button key={`${r.subcategory}${r.product_id}`} onClick={() => open(ref(r))} className="grid w-full grid-cols-[44px_1fr_90px_70px] items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-page">
-                    <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-lg bg-page ring-1 ring-line">
-                      {/* eslint-disable-next-line @next/next/no-img-element -- Nykaa CDN image */}
-                      {r.image_url ? <img src={r.image_url} alt="" className="h-8 w-8 object-contain" /> : null}
-                    </span>
-                    <span className="min-w-0"><span className="block text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-2">{r.brand} · {ORIGIN_LABEL[r.origin]}</span><span className="block truncate text-[13px]">{shortName(r.name, r.brand)}</span></span>
-                    <span className="text-[12px] text-muted tabular">#{r.rank} {CATEGORY_LABEL[r.subcategory]} · {inr(r.price)}</span>
-                    <span className="text-right text-[13px] tabular"><b>{perDay.toFixed(1)}</b><span className="text-[11px] text-muted">/day</span></span>
-                  </button>
-                ))}
-              </Card>
-            </div>
+            <Card className="mb-3 px-5 py-4 text-[13px] leading-relaxed text-ink-2">
+              <b className="text-ink">What this is.</b> Nykaa runs a dedicated Korean Beauty store (category 30710) that mixes every product type: serums, sunscreens, masks, makeup.
+              We read its first 100 products every morning <b className="text-ink">in the order the Nykaa app shows them</b> (its default &ldquo;popularity&rdquo; sort; the website can order them differently).
+              It is not one category&apos;s top 100. <b className="text-ink">How brands are ordered here:</b> by how many of those 100 places a brand holds, then by its best position.
+              A place can be bought: the &ldquo;paid&rdquo; column counts sponsored slots, which is often why a brand sits above one with more ratings. Click a brand to see its products.
+            </Card>
+            <Card className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-[13px]">
+                <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
+                  <th className="px-5 py-3">Brand</th><th className="px-3 py-3 text-right">Places in top 100</th><th className="px-3 py-3 text-right">In top 20</th>
+                  <th className="px-3 py-3 text-right">Best</th><th className="px-3 py-3 text-right">Typical</th><th className="px-3 py-3 text-right">Paid</th>
+                  <th className="px-3 py-3 text-right">Ratings on these products</th><th className="px-5 py-3 text-right">Avg rating</th>
+                </tr></thead>
+                <tbody>
+                  {storeShown.map((s, i) => {
+                    const isAnchor = norm(s.b) === norm(set.anchor); const isOpen = openBrand === s.b;
+                    return (
+                      <Fragment key={s.b}>
+                        <tr onClick={() => setOpenBrand(isOpen ? null : s.b)} className={`cursor-pointer border-b border-line/70 hover:bg-page ${isAnchor ? "bg-[#f3f7fd]" : ""}`}>
+                          <td className="px-5 py-2.5"><span className="mr-2 inline-block w-5 text-right text-muted tabular">{store.indexOf(s) + 1}</span><b className="font-medium">{s.b}</b><TierTag tier={set.tier(s.b)} /><span className="ml-1.5 text-muted">{isOpen ? "▾" : "▸"}</span></td>
+                          <td className="px-3 py-2.5 text-right tabular"><b>{s.n}</b></td>
+                          <td className="px-3 py-2.5 text-right tabular">{s.top20}</td>
+                          <td className="px-3 py-2.5 text-right tabular">#{s.best}</td>
+                          <td className="px-3 py-2.5 text-right tabular text-ink-2">#{Math.round(s.med)}</td>
+                          <td className="px-3 py-2.5 text-right tabular">{s.paid ? <span className="rounded bg-[#fff4d6] px-1.5 text-[#8a6100]">{s.paid}</span> : <span className="text-muted">0</span>}</td>
+                          <td className="px-3 py-2.5 text-right tabular">{compact(s.ratingsSum)}</td>
+                          <td className="px-5 py-2.5 text-right tabular">{s.avg ? `★ ${s.avg.toFixed(2)}` : "–"}</td>
+                        </tr>
+                        {isOpen && (
+                          <tr className="border-b border-line/70 bg-page/60"><td colSpan={8} className="px-5 py-3">
+                            <table className="w-full text-[12.5px]"><tbody>
+                              {s.rows.map((r) => (
+                                <tr key={r.product_id} onClick={() => open(ref(r))} className="cursor-pointer hover:bg-surface">
+                                  <td className="w-14 py-1.5 tabular text-ink-2">#{r.rank}</td>
+                                  <td className="py-1.5 pr-3">{shortName(r.name, r.brand)}{r.is_ad && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">paid</span>}</td>
+                                  <td className="py-1.5 pr-3 text-muted">{r.nykaa_l3 ?? ""}</td>
+                                  <td className="py-1.5 pr-3 text-right tabular">{ratings(r)}</td>
+                                  <td className="py-1.5 text-right tabular">{inr(r.price)}</td>
+                                </tr>
+                              ))}
+                            </tbody></table>
+                          </td></tr>
+                        )}
+                        {i === 11 && storeShown.length > 12 && <tr><td colSpan={8} className="px-5 py-1 text-center text-[11px] text-muted">…</td></tr>}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {!anchorInStore && <p className="border-t border-line px-5 py-3 text-[12.5px] text-ink-2"><b>{set.anchor}</b> holds no place in the store&apos;s top 100 today.</p>}
+            </Card>
+          </section>
+
+          <section className="mt-10">
+            <SectionHead title="Launches catching on" note={`Products from the brands above whose first review is under 90 days old, that already sit in a top 100 and have at least 10 ratings, ordered by ratings gained per day since that first review. ${allLaunches.length - launches.length} other launches are left out.`} />
+            <Card className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-[13px]">
+                <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
+                  <th className="px-5 py-3" colSpan={2}>Product</th><th className="px-3 py-3">Shelf &amp; rank</th><th className="px-3 py-3 text-right">Ratings</th>
+                  <th className="px-3 py-3 text-right">First review</th><th className="px-5 py-3 text-right">Ratings / day</th>
+                </tr></thead>
+                <tbody>
+                  {launches.slice(0, 15).map(({ r, age, perDay }) => (
+                    <tr key={`${r.subcategory}${r.product_id}`} onClick={() => open(ref(r))} className={`cursor-pointer border-b border-line/70 hover:bg-page ${norm(r.brand) === norm(set.anchor) ? "bg-[#f3f7fd]" : ""}`}>
+                      <td className="w-14 py-2 pl-5">
+                        <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-lg bg-page ring-1 ring-line">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- Nykaa CDN image */}
+                          {r.image_url ? <img src={r.image_url} alt="" className="h-8 w-8 object-contain" /> : null}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3"><span className="block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{r.brand}<TierTag tier={set.tier(r.brand)} /></span><span className="block max-w-[420px] truncate">{shortName(r.name, r.brand)}</span></td>
+                      <td className="px-3 py-2 text-ink-2">#{r.rank} {CATEGORY_LABEL[r.subcategory]}{r.is_ad && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">paid</span>}</td>
+                      <td className="px-3 py-2 text-right tabular">{(r.rating_count ?? 0).toLocaleString("en-US")} <span className="text-muted">★ {r.rating?.toFixed(1) ?? "–"}</span></td>
+                      <td className="px-3 py-2 text-right tabular text-ink-2">{new Date(r.first_review_date!).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} <span className="text-muted">· {age}d ago</span></td>
+                      <td className="px-5 py-2 text-right tabular"><b>{perDay.toFixed(1)}</b></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!launches.length && <p className="px-5 py-4 text-[12.5px] text-muted">No launches from these brands on a tracked shelf.</p>}
+              {!launches.some((l) => norm(l.r.brand) === norm(set.anchor)) && <p className="border-t border-line px-5 py-3 text-[12.5px] text-ink-2"><b>{set.anchor}</b> has no launch under 90 days old on any tracked top 100.</p>}
+            </Card>
           </section>
 
           <section className="mt-10 grid gap-3 md:grid-cols-2">
             <Insight><b>{ANCHOR_BRAND}</b> holds {rows.filter((r) => norm(r.brand) === norm(ANCHOR_BRAND)).length} top-100 listings today, best rank #{Math.min(...rows.filter((r) => norm(r.brand) === norm(ANCHOR_BRAND)).map((r) => r.rank), 999)}. Its ratings on listed products total {compact(rows.filter((r) => norm(r.brand) === norm(ANCHOR_BRAND)).reduce((a, r) => a + (r.rating_count ?? 0), 0))}.</Insight>
-            <Insight>Of the {storeLeaders.length} brands leading Nykaa&apos;s Korean store, {storeLeaders.filter((s) => isFocus(s.b)).length} are in your focus set; the store&apos;s top three brands hold {storeLeaders.slice(0, 3).reduce((a, s) => a + s.n, 0)} of its 100 slots.</Insight>
+            <Insight>Of the {Math.min(10, storeLeaders.length)} brands leading Nykaa&apos;s Korean store, {storeLeaders.slice(0, 10).filter((s) => isFocus(s.b)).length} are in your focus set; the store&apos;s top three brands hold {storeLeaders.slice(0, 3).reduce((a, s) => a + s.n, 0)} of its 100 slots.</Insight>
           </section>
         </>
       )}
@@ -166,4 +327,18 @@ function MarketPage() {
 
 export default function Page() {
   return <AuthGate><MarketPage /></AuthGate>;
+}
+
+function MoveRow({ m, tier, onOpen }: { m: Move; tier: Tier | null; onOpen: () => void }) {
+  return (
+    <button onClick={onOpen} disabled={!m.row} className="grid w-full grid-cols-[1fr_96px_64px] items-center gap-3 rounded-xl px-2 py-2 text-left enabled:hover:bg-page">
+      <span className="min-w-0">
+        <span className="block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{m.brand}<TierTag tier={tier} /> <span className="font-normal normal-case tracking-normal text-muted">· {CATEGORY_LABEL[m.sub]}</span></span>
+        <span className="block truncate text-[13px]">{shortName(m.name, m.brand)}</span>
+        <span className="block text-[11.5px] text-muted">{ratings(m)}{m.isAd && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">paid slot today</span>}</span>
+      </span>
+      <span className="text-right text-[12.5px] text-muted tabular">{m.from ? `#${m.from}` : "outside"} → <b className="text-ink">{m.to ? `#${m.to}` : "out"}</b></span>
+      <span className={`text-right text-[13px] font-semibold tabular ${m.change > 0 ? "text-good" : m.change < 0 ? "text-bad" : "text-muted"}`}>{m.change > 0 ? "▲" : m.change < 0 ? "▼" : "="} {Math.abs(m.change) || ""}</span>
+    </button>
+  );
 }

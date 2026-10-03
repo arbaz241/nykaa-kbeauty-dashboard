@@ -1,12 +1,23 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import useSWR from "swr";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { ProductDrawerProvider } from "./ProductDrawer";
 
 const SessionCtx = createContext<Session | null>(null);
 export const useSession = () => useContext(SessionCtx);
+
+/** Is this viewer an admin (app_admins)? The database enforces it on every write; this only decides what to show. */
+export function useIsAdmin() {
+  const session = useSession();
+  const email = session?.user.email?.toLowerCase() ?? null;
+  return useSWR(email ? ["admin", email] : null, async () => {
+    const { data } = await supabase().from("app_admins").select("email").eq("email", email!).maybeSingle();
+    return !!data;
+  }, { revalidateOnFocus: false }).data ?? false;
+}
 
 /** Renders children only for a signed-in user; otherwise sends them to /login/. */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
