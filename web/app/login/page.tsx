@@ -1,17 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+const TITLE = { in: "Sign in", up: "Create account", forgot: "Reset password", reset: "Choose a new password" };
+const ACTION = { in: "Sign in", up: "Create account", forgot: "Email me a reset link", reset: "Save and sign in" };
+
 export default function Login() {
-  const [mode, setMode] = useState<"in" | "up">("in");
+  // forgot: ask for a reset email; reset: arrived from that email's link, choose a new password
+  const [mode, setMode] = useState<"in" | "up" | "forgot" | "reset">("in");
   const [email, setEmail] = useState(""); const [pw, setPw] = useState("");
   const [msg, setMsg] = useState<{ kind: "err" | "ok"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    // the client reads the reset link's token from the URL and announces it as PASSWORD_RECOVERY
+    const { data: sub } = supabase().auth.onAuthStateChange((e) => { if (e === "PASSWORD_RECOVERY") setMode("reset"); });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setMsg(null);
     const auth = supabase().auth;
+    if (mode === "forgot") {
+      const { error } = await auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login/` });
+      setBusy(false);
+      setMsg(error ? { kind: "err", text: error.message } : { kind: "ok", text: "If that email has an account, a reset link is on its way. Open it on this device." });
+      return;
+    }
+    if (mode === "reset") {
+      const { error } = await auth.updateUser({ password: pw });
+      setBusy(false);
+      if (error) setMsg({ kind: "err", text: error.message }); else window.location.replace("/compare/");
+      return;
+    }
     const res = mode === "in" ? await auth.signInWithPassword({ email, password: pw }) : await auth.signUp({ email, password: pw });
     setBusy(false);
     if (res.error) {
@@ -28,21 +50,32 @@ export default function Login() {
           <span className="h-6 w-6 rounded-md bg-ink" />
           <span className="font-display text-[15px] font-semibold tracking-tight">Nykaa Market Intelligence</span>
         </div>
-        <h1 className="font-display text-3xl font-semibold tracking-tight">{mode === "in" ? "Sign in" : "Create account"}</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight">{TITLE[mode]}</h1>
         <p className="mt-2 text-sm text-ink-2">Brand and product intelligence for beauty on Nykaa India.</p>
         <form onSubmit={submit} className="mt-8 space-y-3">
-          <input type="email" required autoComplete="username" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-ink" />
-          <input type="password" required minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)}
-            className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-ink" />
+          {mode !== "reset" && (
+            <input type="email" required autoComplete="username" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-ink" />
+          )}
+          {mode !== "forgot" && (
+            <input type="password" required minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} placeholder={mode === "reset" ? "New password (8+ characters)" : "Password"} value={pw} onChange={(e) => setPw(e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-ink" />
+          )}
           <button disabled={busy} className="w-full rounded-xl bg-ink px-4 py-3 text-[15px] font-medium text-white transition hover:opacity-90 disabled:opacity-50">
-            {busy ? "…" : mode === "in" ? "Sign in" : "Create account"}
+            {busy ? "…" : ACTION[mode]}
           </button>
         </form>
         {msg && <p className={`mt-4 text-sm ${msg.kind === "err" ? "text-bad" : "text-good"}`}>{msg.text}</p>}
-        <button onClick={() => { setMode(mode === "in" ? "up" : "in"); setMsg(null); }} className="mt-6 text-sm text-ink-2 underline-offset-4 hover:underline">
-          {mode === "in" ? "No account? Create one" : "Have an account? Sign in"}
-        </button>
+        {mode !== "reset" && (
+          <div className="mt-6 flex justify-between text-sm text-ink-2">
+            <button onClick={() => { setMode(mode === "in" ? "up" : "in"); setMsg(null); }} className="underline-offset-4 hover:underline">
+              {mode === "in" ? "No account? Create one" : "Back to sign in"}
+            </button>
+            {mode === "in" && (
+              <button onClick={() => { setMode("forgot"); setMsg(null); }} className="underline-offset-4 hover:underline">Forgot password?</button>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );
