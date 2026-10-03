@@ -127,7 +127,7 @@ function Analysis() {
                 filter === t ? "bg-ink text-page ring-ink" : "bg-surface text-ink-2 ring-line hover:text-ink"
               }`}
             >
-              {t === "all" ? `All ${findings.length}` : `${t}s ${counts[t]}`}
+              {t === "all" ? `All ${findings.length}` : `${t === "watch" ? "watches" : `${t}s`} ${counts[t]}`}
             </button>
           ))}
         </div>
