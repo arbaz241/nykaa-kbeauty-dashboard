@@ -66,6 +66,12 @@ jobs:
           echo "args: $ARGS"
           python -m scraper.run $ARGS
 
+      # Fails the job (so GitHub emails the owner) when a dataset did not advance tonight, even if every
+      # step above passed: a collector can fail quietly, and a day Nykaa is not read is lost for good.
+      - name: Check data freshness
+        if: always() && github.event.inputs.mode != 'dry-run' && github.event.inputs.categories == ''
+        run: python -m scraper.freshness
+
       - name: Save review cache
         if: always() && hashFiles('data/cache/**') != ''
         uses: actions/cache/save@v4
