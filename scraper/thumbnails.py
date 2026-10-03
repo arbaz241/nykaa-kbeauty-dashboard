@@ -32,7 +32,7 @@ import httpx
 from PIL import Image, ImageFilter, ImageStat
 
 from . import config
-from .db import connect
+from .db import connect, fetch_all
 
 log = logging.getLogger("thumbnails")
 
@@ -163,7 +163,7 @@ def candidates(client, limit: int | None) -> list[dict]:
     from .signals_run import catalog_rows, latest_rows
 
     images: dict[str, str] = {}
-    for row in client.table("brand_catalog").select("product_id,image_url").limit(20000).execute().data:
+    for row in fetch_all(lambda: client.table("brand_catalog").select("product_id,image_url").order("product_id").order("scrape_date", desc=True)):
         if row.get("image_url"):
             images.setdefault(row["product_id"], row["image_url"])
     start = 0
@@ -189,7 +189,7 @@ def run(max_products: int, pixels_only: bool, refresh: bool) -> dict:
         log.warning("ANTHROPIC_API_KEY not set — running the pixel layer only")
 
     known = {r["product_id"]: r["image_hash"]
-             for r in client.table("product_thumbnails").select("product_id,image_hash").limit(20000).execute().data}
+             for r in fetch_all(lambda: client.table("product_thumbnails").select("product_id,image_hash").order("product_id"))}
     todo = candidates(client, None)
     stats = {"considered": len(todo), "analysed": 0, "unchanged": 0, "errors": 0, "vision": 0}
     rows: list[dict] = []

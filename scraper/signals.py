@@ -315,7 +315,7 @@ def products_missing_text(all_key: list[dict], have_text: set[str]) -> list[dict
 
 
 async def review_texts_only(page: Page, products: list[dict], on_product=None, max_pages_per_product: int = 20,
-                            max_minutes: float | None = None) -> dict:
+                            max_minutes: float | None = None, on_checked=None) -> dict:
     """Fetch reviews purely to store their text. Monthly counts are NOT touched (they are already stored and
     are additive, so re-counting them would double them)."""
     stats = {"products": 0, "requests": 0, "texts": 0, "errors": 0}
@@ -354,6 +354,8 @@ async def review_texts_only(page: Page, products: list[dict], on_product=None, m
                 await asyncio.sleep(max(config.ENRICH_DELAY_SEC, 2.5))
             if on_product and texts:
                 on_product(texts)
+            if on_checked:     # walked to the end of the text window: nothing more to catch up for this product
+                on_checked(pid)
             stats["products"] += 1; stats["texts"] += len(texts)
             log.info("texts %s: %d reviews", pid, len(texts))
         except (BlockedError, RateLimited):

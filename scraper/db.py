@@ -97,6 +97,20 @@ def connect():
     return create_client(url, key)
 
 
+def fetch_all(make_query, page: int = 1000) -> list[dict]:
+    """Every row a query matches. PostgREST answers at most 1,000 rows per request whatever .limit() asks for,
+    so one read of a big table is cut short without an error (on 3 Oct that hid 675 products' origin and
+    details). make_query builds a fresh, fully ordered query each call: unordered pages can overlap or skip."""
+    out: list[dict] = []
+    start = 0
+    while True:
+        rows = make_query().range(start, start + page - 1).execute().data
+        out += rows
+        if len(rows) < page:
+            return out
+        start += page
+
+
 def ingest(client, run_payload: dict, row_payload: list[dict], brand_payload: list[dict] | None = None) -> int:
     run_id = client.rpc("ingest_run", {"p_run": run_payload, "p_rows": row_payload}).execute().data
     log.info("ingest_run -> run_id=%s (%d rows)", run_id, len(row_payload))
@@ -135,7 +149,7 @@ def upsert_product_details(client, rows: list[dict]) -> int:
 def fetch_country_map(client) -> dict[str, str]:
     """product_id -> country_of_origin from product_details (empty if none yet)."""
     try:
-        data = client.table("product_details").select("product_id,country_of_origin").limit(20000).execute().data
+        data = fetch_all(lambda: client.table("product_details").select("product_id,country_of_origin").order("product_id"))
         return {d["product_id"]: d["country_of_origin"] for d in data if d.get("country_of_origin")}
     except Exception as e:  # noqa: BLE001
         log.warning("could not load country map: %s", e)
@@ -196,7 +210,7 @@ def write_review_history(client, hist: list[dict], cursors: list[dict]) -> int:
 
 def read_review_cursors(client) -> dict[str, dict]:
     try:
-        return {r["product_id"]: r for r in client.table("review_cursor").select("*").limit(10000).execute().data}
+        return {r["product_id"]: r for r in fetch_all(lambda: client.table("review_cursor").select("*").order("product_id"))}
     except Exception as e:  # noqa: BLE001
         log.warning("no review cursors: %s", e); return {}
 

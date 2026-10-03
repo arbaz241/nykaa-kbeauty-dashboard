@@ -62,6 +62,9 @@ KEY_COMPETITORS = int(os.getenv("KEY_COMPETITORS", "10"))
 KEY_PRODUCTS_PER_BRAND = int(os.getenv("KEY_PRODUCTS_PER_BRAND", "15"))        # anchor + core K-beauty brands
 KEY_PRODUCTS_PER_WATCH = int(os.getenv("KEY_PRODUCTS_PER_WATCH", "4"))         # smaller Korean brands
 KEY_PRODUCTS_PER_COMPETITOR = int(os.getenv("KEY_PRODUCTS_PER_COMPETITOR", "6"))  # Indian/global rivals on the anchor's shelves
+# Caps re-crawls only: products never crawled are limited by the minute budget alone, so a backlog of new
+# products (140 after the 27 Sep brand expansion) clears in a night or two, while the nightly refresh stays at
+# 40 and the job inside the private repo's 2,000 free Actions minutes a month.
 REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN", "40"))
 # Wall-clock budgets keep the daily job inside its 60-minute workflow timeout. Nykaa answers 429 to
 # roughly every other review request under load, so a product count alone cannot bound the run.

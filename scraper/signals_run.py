@@ -21,7 +21,7 @@ from datetime import date, datetime, timezone
 from playwright.async_api import async_playwright
 
 from . import config
-from .db import (connect, read_review_cursors, write_assortment, write_review_history, write_review_texts,
+from .db import (connect, fetch_all, read_review_cursors, write_assortment, write_review_history, write_review_texts,
                  write_search, write_suggestions)
 from .nykaa import BlockedError, open_browser
 from .signals import (SEARCH_QUERIES, RateLimited, assortment, key_products, products_missing_text, review_history,
@@ -35,7 +35,8 @@ def latest_rows(client) -> list[dict]:
     if not d:
         return []
     day = d[0]["scrape_date"]
-    rows = client.table("v_snapshots").select("product_id,brand,name,rank,subcategory,origin").eq("scrape_date", day).limit(5000).execute().data
+    rows = fetch_all(lambda: client.table("v_snapshots").select("product_id,brand,name,rank,subcategory,origin").eq("scrape_date", day)
+                     .order("subcategory").order("rank").order("product_id"))
     return [r for r in rows if r["subcategory"] not in config.STORE_KEYS]
 
 
@@ -44,19 +45,13 @@ def catalog_rows(client) -> list[dict]:
     d = client.table("brand_catalog").select("scrape_date").order("scrape_date", desc=True).limit(1).execute().data
     if not d:
         return []
-    rows = client.table("brand_catalog").select("product_id,brand,name,rating_count,subcategories").eq("scrape_date", d[0]["scrape_date"]).limit(20000).execute().data
-    return rows
+    return fetch_all(lambda: client.table("brand_catalog").select("product_id,brand,name,rating_count,subcategories")
+                     .eq("scrape_date", d[0]["scrape_date"]).order("product_id"))
 
 
 def products_with_text(client) -> set[str]:
     """Product ids that already have at least one stored review text."""
-    out: set[str] = set(); step = 1000; start = 0
-    while True:
-        rows = client.table("review_texts").select("product_id").range(start, start + step - 1).execute().data
-        out |= {r["product_id"] for r in rows}
-        if len(rows) < step:
-            return out
-        start += step
+    return {r["product_id"] for r in fetch_all(lambda: client.table("review_texts").select("product_id").order("product_id").order("review_id"))}
 
 
 def classify_search_brands(client, rows: list[dict], today: str) -> int:
@@ -65,7 +60,7 @@ def classify_search_brands(client, rows: list[dict], today: str) -> int:
     from .db import build_brand_payload, fetch_country_map
     if not rows:
         return 0
-    known = {r["brand"] for r in client.table("brand_classification").select("brand").limit(10000).execute().data}
+    known = {r["brand"] for r in fetch_all(lambda: client.table("brand_classification").select("brand").order("brand"))}
     seen_pid = set(); new_rows = []
     for r in rows:
         if r["brand"] and r["brand"] not in known and r["product_id"] not in seen_pid:
@@ -97,7 +92,7 @@ def focus_brand_ids(client) -> dict[str, str]:
 
 
 def brand_ids(client) -> dict[str, str]:
-    rows = client.table("products").select("brand,brand_id").limit(20000).execute().data
+    rows = fetch_all(lambda: client.table("products").select("brand,brand_id").order("product_id"))
     out: dict[str, str] = {}
     for r in rows:
         if r.get("brand_id") and r["brand"] not in out:
@@ -182,9 +177,10 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                 with _stage(stats, "reviews"):
                     prods = key_products(latest_rows(client), catalog_rows(client))
                     cursors = read_review_cursors(client)
-                    # never-fetched first, then stalest
+                    # never-fetched first (bounded by the minute budget only), then the stalest up to the refresh cap
                     prods.sort(key=lambda p: (p["product_id"] in cursors, (cursors.get(p["product_id"]) or {}).get("fetched_at", "")))
-                    cap = None if unlimited else config.REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN
+                    new = sum(1 for p in prods if p["product_id"] not in cursors)
+                    cap = None if unlimited else new + config.REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN
                     written = {"n": 0}
                     def save(h, c, texts=()):
                         written["n"] += write_review_history(client, h, [c]) if h else 0
@@ -206,15 +202,19 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     # fetch the text only, never the counts (write_review_history is additive)
                     # only products whose monthly history is already collected: for the rest, the reviews pass
                     # fetches counts and text together in one walk
-                    hist = set(read_review_cursors(client))
+                    # and only once: a product with no written reviews stays "missing text", and re-walking it
+                    # nightly found nothing (later reviews arrive with their text through the reviews pass)
+                    hist = read_review_cursors(client)
                     todo = [p for p in products_missing_text(key_products(latest_rows(client), catalog_rows(client)), products_with_text(client))
-                            if p["product_id"] in hist]
+                            if p["product_id"] in hist and not hist[p["product_id"]].get("text_checked_at")]
                     cap = None if unlimited else config.REVIEW_TEXT_MAX_PRODUCTS_PER_RUN
                     written = {"n": 0}
                     def save_texts(texts):
                         written["n"] += write_review_texts(client, list(texts))
+                    def checked(pid):
+                        client.table("review_cursor").update({"text_checked_at": datetime.now(timezone.utc).isoformat()}).eq("product_id", pid).execute()
                     try:
-                        st = await review_texts_only(page, todo[:cap] if cap else todo, on_product=save_texts,
+                        st = await review_texts_only(page, todo[:cap] if cap else todo, on_product=save_texts, on_checked=checked,
                                                      max_minutes=None if unlimited else config.REVIEW_TEXT_MAX_MINUTES)
                     except RateLimited as e:
                         log.error("review texts stopped by rate limiting (progress saved; resumes next run): %s", e)

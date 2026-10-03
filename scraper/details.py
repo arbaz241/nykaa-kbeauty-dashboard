@@ -19,7 +19,7 @@ import sys
 from playwright.async_api import async_playwright
 
 from . import config
-from .db import connect, upsert_product_details
+from .db import connect, fetch_all, upsert_product_details
 from .nykaa import BlockedError, open_browser
 from .product_details import cached_ids, enrich_details, rows_from_cache
 
@@ -28,11 +28,11 @@ log = logging.getLogger("details")
 
 def missing_product_ids(client) -> list[str]:
     """Shelf products (most recently seen first), then focus-brand catalogue products, without details yet."""
-    have = {r["product_id"] for r in client.table("product_details").select("product_id").limit(20000).execute().data}
-    prods = client.table("products").select("product_id,last_seen_date").order("last_seen_date", desc=True).limit(20000).execute().data
+    have = {r["product_id"] for r in fetch_all(lambda: client.table("product_details").select("product_id").order("product_id"))}
+    prods = fetch_all(lambda: client.table("products").select("product_id,last_seen_date").order("last_seen_date", desc=True).order("product_id"))
     ids = [p["product_id"] for p in prods if p["product_id"] not in have]
     try:
-        cat = client.table("brand_catalog").select("product_id,catalog_rank").order("catalog_rank").limit(20000).execute().data
+        cat = fetch_all(lambda: client.table("brand_catalog").select("product_id,catalog_rank").order("catalog_rank").order("product_id").order("scrape_date"))
         ids += [c["product_id"] for c in cat if c["product_id"] not in have and c["product_id"] not in ids]
     except Exception as e:  # noqa: BLE001
         log.warning("catalogue not available: %s", e)
