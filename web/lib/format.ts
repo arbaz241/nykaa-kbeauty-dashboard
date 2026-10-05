@@ -13,7 +13,7 @@ export const signed = (v: number | null | undefined, d = 0) => (v === null || v 
 export const CATEGORY_LABEL: Record<string, string> = {
   face_moisturizer: "Moisturiser", serum: "Serum & essence", sunscreen: "Sunscreen", face_wash: "Face wash",
   toner: "Toner & mist", sheet_mask: "Sheet mask", cleansing_balm: "Cleansing balm", eye_care: "Eye care",
-  masks: "Masks & peels", lip_tint: "Lip tint", lipstick: "Lipstick", foundation: "Foundation",
+  masks: "Masks & peels", lip_tint: "Lip tint", lip_care: "Lip care", lipstick: "Lipstick", foundation: "Foundation",
 };
 export const CATEGORIES = Object.keys(CATEGORY_LABEL);
 /** The Nykaa listing each shelf is read from (scraper/config.py CATEGORIES). */
@@ -30,6 +30,7 @@ export const CATEGORY_URL: Record<string, string> = {
   cleansing_balm: "https://www.nykaa.com/skin/cleansers/cleansing-balm-oil/c/8383",
   eye_care: "https://www.nykaa.com/skin/eye-care/under-eye-cream-serums/c/8403",
   lip_tint: "https://www.nykaa.com/makeup/lips/lip-stain/c/253",
+  lip_care: "https://www.nykaa.com/skin/lip-care/c/8408",
 };
 
 /** Drop a leading brand name from a product title. */

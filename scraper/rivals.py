@@ -7,12 +7,12 @@ Anchor products: chosen by the owner (ANCHOR_PRODUCTS), the Innisfree products t
 Five rivals per anchor product (owner's rule, 5 Oct):
   3 Korean    a) doing the same job: same category, a shared main benefit, the same product type and the same
                  defining active (a retinol ampoule's rivals contain a retinoid), price within ±40%
-                 (per ml when both sizes are known);
+                 (per ml when both sizes are known), widened to ±60% only when no Korean product fits at all;
               b) from the Korean brands doing best on Nykaa (average daily top-100 places across all shelves),
                  one product per brand, that brand's most popular matching product;
   1 Indian    the closest product of the same job from the Indian market leaders (most popular first), any price;
   1 global    the closest product of the same job from a non-Korean, non-Indian brand at a similar price
-              (±40%, widened to ±60% when nothing fits).
+              (±40%, widened to ±60% only when nothing fits).
 "Popular" = average position in the category over the last HISTORY_DAYS collected days, paid slots included
 (a product in a bought slot is still in front of shoppers), then number of ratings. Kits, sets, minis and
 refills are left out, and every rival needs MIN_RATINGS ratings.
@@ -48,10 +48,10 @@ ANCHOR_PRODUCTS = {
     "13217099": "lip_balm",           # Dewy Tint Lip Balm
 }
 KOREAN_RIVALS = 3
-PRICE_BAND = 0.40           # ±40%
-GLOBAL_WIDE_BAND = 0.60
+PRICE_BAND = 0.40           # ±40%: a rival is priced like the anchor
+WIDE_BAND = 0.60            # used only when no product at all fits ±40% (owner, 5 Oct)
 # categories whose rivals may sit on another shelf: tinted lip balms compete with lip tints
-POOL_CATEGORIES = {"lip_balm": {"lip_balm", "lip_tint"}}
+POOL_CATEGORIES = {"lip_balm": {"lip_balm", "lip_tint", "lip_care"}, "lip_care": {"lip_balm", "lip_tint", "lip_care"}}
 # Nykaa's Korean Beauty store mixes every product type; its own sub-category says which shelf a product belongs to
 STORE_L3 = {"Serums & Essence": "serum", "Toners & Mists": "toner", "Face Moisturizer & Day Cream": "face_moisturizer",
             "Night Cream": "face_moisturizer", "Face Sunscreen": "sunscreen", "Face Wash": "face_wash",
@@ -109,6 +109,7 @@ def format_of(name: str, category: str) -> str | None:
         "serum": ["pad", "mist", "toner", "lotion", "cream", "serum"],
         "lip_balm": ["lip_balm", "lip_oil", "lip_gloss", "lip_stain"],
         "lip_tint": ["lip_balm", "lip_oil", "lip_gloss", "lip_stain"],
+        "lip_care": ["lip_balm", "lip_oil", "lip_gloss", "lip_stain"],
         "eye_care": ["lash", "roller", "pad", "sheet", "stick", "serum", "gel", "cream"],
     }.get(category, ["pad", "mist", "sheet", "stick", "serum", "wash_off_mask", "toner", "lotion", "gel", "cream", "foam"])
     return next((f for f in order if re.search(FORMATS[f], n)), None)
@@ -193,7 +194,8 @@ def anchor_products(rows: list[dict]) -> list[dict]:
     by = {(p["subcategory"], p["product_id"]): p for p in rows}
     out = []
     for pid, cat in ANCHOR_PRODUCTS.items():
-        p = by.get((cat, pid))
+        # once a product reaches a tracked shelf (e.g. the lip balm on Lip care) it may sit under another key
+        p = by.get((cat, pid)) or next((r for (c, i), r in by.items() if i == pid), None)
         if p is None:
             log.warning("anchor product %s (%s) not found today", pid, cat)
             continue
@@ -234,22 +236,24 @@ def rivals_for(a: dict, rows: list[dict], anchor: str = config.ANCHOR_BRAND) -> 
             seen.add(p["product_id"]); uniq.append(p)
 
     # Korean: a) the same job at a similar price, b) from the brands doing best on Nykaa, their best matching product
-    # the price band widens in steps only until three Korean rivals are found
-    korean: list[dict] = []
-    for band in (PRICE_BAND, 0.60, 0.80):
+    # price stays within ±40%; the band widens to ±60% only when not a single Korean product fits
+    def korean_within(band):
         best_per_brand: dict[str, dict] = {}
         for p in sorted((p for p in uniq if p["korean"] and price_gap(p) <= band), key=lambda p: (closeness(p), popularity(p))):
             best_per_brand.setdefault(p["brand"], p)
-        korean = sorted(best_per_brand.values(), key=lambda p: (closeness(p), -p["brand_strength"], popularity(p)))[:KOREAN_RIVALS]
-        if len(korean) == KOREAN_RIVALS:
-            break
+        return sorted(best_per_brand.values(), key=lambda p: (closeness(p), -p["brand_strength"], popularity(p)))[:KOREAN_RIVALS]
+    korean, korean_band = korean_within(PRICE_BAND), PRICE_BAND
+    if not korean:
+        korean, korean_band = korean_within(WIDE_BAND), WIDE_BAND
     # Indian: closest product of the same job, market leaders first, any price
     indian = min((p for p in uniq if p["origin"] == "local"), key=lambda p: (closeness(p), popularity(p)), default=None)
     # global: closest product of the same job at a similar price
     def pick_global(band):
         return min((p for p in uniq if p["origin"] == "global" and price_gap(p) <= band), key=lambda p: (closeness(p), popularity(p)), default=None)
-    glob = pick_global(PRICE_BAND) or pick_global(GLOBAL_WIDE_BAND)
-    return {"korean": korean, "indian": indian, "global": glob}
+    glob, global_band = pick_global(PRICE_BAND), PRICE_BAND
+    if glob is None:
+        glob, global_band = pick_global(WIDE_BAND), WIDE_BAND
+    return {"korean": korean, "indian": indian, "global": glob, "korean_band": korean_band, "global_band": global_band}
 
 
 def comparison_set(client) -> list[dict]:

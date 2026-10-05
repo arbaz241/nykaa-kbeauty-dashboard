@@ -139,7 +139,7 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     # the same seed in the batch twice and made Postgres reject the whole upsert.
                     shelf_terms = {"masks": "face mask", "sheet_mask": "sheet mask", "face_wash": "face wash",
                                    "face_moisturizer": "moisturizer", "cleansing_balm": "cleansing balm",
-                                   "eye_care": "eye cream", "lip_tint": "lip tint", "toner": "toner"}
+                                   "eye_care": "eye cream", "lip_tint": "lip tint", "lip_care": "lip balm", "toner": "toner"}
                     seeds = list(dict.fromkeys(
                         ["korean", "k beauty", "korean skin care"]
                         + [shelf_terms.get(c.key, c.key.replace("_", " ")) for c in config.CATEGORIES if c.key not in config.STORE_KEYS]

@@ -32,6 +32,9 @@ CATEGORIES: list[Category] = [
     Category("cleansing_balm",   8383, "https://www.nykaa.com/skin/cleansers/cleansing-balm-oil/c/8383", "skin"),
     Category("eye_care",         8403, "https://www.nykaa.com/skin/eye-care/under-eye-cream-serums/c/8403", "skin"),
     Category("lip_tint",          253, "https://www.nykaa.com/makeup/lips/lip-stain/c/253", "makeup"),
+    # Lip care (balms, tinted balms, lip masks, 674 products): added 5 Oct 2026 for the Dewy Tint Lip Balm's rivals.
+    # Nykaa's own "Lip Balm" (8409) is a subset; this one also carries LANEIGE's lip balms and masks.
+    Category("lip_care",         8408, "https://www.nykaa.com/skin/lip-care/c/8408", "skin"),
     # Nykaa's own Korean Beauty store: the shelf the K-beauty shopper browses. Not a
     # product category; excluded from cross-category shares in the dashboard.
     Category("kbeauty_store",   30710, "https://www.nykaa.com/korean-beauty/c/30710", "store"),
