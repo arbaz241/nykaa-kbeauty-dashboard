@@ -57,8 +57,9 @@ jobs:
       - name: Run scraper
         id: run
         env:
-          # jitter only on the schedule, not on manual runs
-          SCRAPE_START_JITTER_SEC: ${{ github.event_name == 'schedule' && '1800' || '0' }}
+          # jitter only on the schedule, not on manual runs; 0-15 min (cut from 30 on 5 Oct: the sleep is billed
+          # against the private repo's 2,000 free Actions minutes and runs were nearing ~1,850/month)
+          SCRAPE_START_JITTER_SEC: ${{ github.event_name == 'schedule' && '900' || '0' }}
         run: |
           ARGS=""
           if [ "${{ github.event.inputs.mode }}" = "dry-run" ]; then ARGS="--no-db --no-enrich"; fi
