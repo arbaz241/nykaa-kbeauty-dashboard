@@ -6,13 +6,16 @@ Anchor products: chosen by the owner (ANCHOR_PRODUCTS), the Innisfree products t
 
 Five rivals per anchor product (owner's rule, 5 Oct):
   3 Korean    a) doing the same job: same category, a shared main benefit, the same product type and the same
-                 defining active (a retinol ampoule's rivals contain a retinoid), price within ±40%
-                 (per ml when both sizes are known), widened to ±60% only when no Korean product fits at all;
+                 defining active (a retinol ampoule's rivals contain a retinoid); shelf price within ±40% (and
+                 per ml within ±60% when both sizes are known), widened to ±60% only when nothing fits at all;
+                 a product at the same price point (shelf price within 15%) ranks first, then per-ml closeness;
               b) from the Korean brands doing best on Nykaa (average daily top-100 places across all shelves),
                  one product per brand, that brand's most popular matching product;
   1 Indian    the closest product of the same job from the Indian market leaders (most popular first), any price;
   1 global    the closest product of the same job from a non-Korean, non-Indian brand at a similar price
               (±40%, widened to ±60% only when nothing fits).
+"Same job": the rival covers at least half of the anchor's benefits, and each product's main job (the benefit
+its title leads with) is among the other's benefits. RIVAL_OVERRIDES holds the owner's manual corrections.
 "Popular" = average position in the category over the last HISTORY_DAYS collected days, paid slots included
 (a product in a bought slot is still in front of shoppers), then number of ratings. Kits, sets, minis and
 refills are left out, and every rival needs MIN_RATINGS ratings.
@@ -47,6 +50,8 @@ ANCHOR_PRODUCTS = {
     "8216954": "eye_care",            # Green Tea Hyaluronic Glow Eye and Face Ball
     "13217099": "lip_balm",           # Dewy Tint Lip Balm
 }
+# owner's corrections, applied after the rule: anchor id -> {"add": {"korean"|"indian"|"global": [ids]}, "drop": [ids]}
+RIVAL_OVERRIDES: dict[str, dict] = {}
 KOREAN_RIVALS = 3
 PRICE_BAND = 0.40           # ±40%: a rival is priced like the anchor
 WIDE_BAND = 0.60            # used only when no product at all fits ±40% (owner, 5 Oct)
@@ -115,6 +120,13 @@ def format_of(name: str, category: str) -> str | None:
     return next((f for f in order if re.search(FORMATS[f], n)), None)
 
 
+def primary_tag(name: str) -> str | None:
+    """The benefit a title leads with: its main job (\"Vitamin C ... Hydrating Serum\" is a vitamin C serum)."""
+    t = name.lower()
+    hits = [(m.start(), k) for k, pat in TAGS.items() for m in [re.search(pat, t)] if m]
+    return min(hits)[1] if hits else None
+
+
 def tags_for(text: str) -> set[str]:
     t = text.lower()
     return {k for k, pat in TAGS.items() if re.search(pat, t)}
@@ -173,6 +185,7 @@ def load(client) -> list[dict]:
         p["name_tags"] = tags_for(p["name"])
         p["tags"] = p["name_tags"] or tags_for(" ".join([*(d.get("concerns") or []), *(d.get("key_ingredients") or [])]))
         p["format"] = format_of(p["name"], p["subcategory"]) or CATEGORY_DEFAULT_FORMAT.get(p["subcategory"])
+        p["primary"] = primary_tag(p["name"]) or next(iter(sorted(p["tags"])), None)
         variant = next((v.get("pack_size") for v in (d.get("variants") or []) if v.get("price") and abs(float(v["price"]) - p["price"]) < 1), None)
         p["amount"] = pack_amount(p.get("pack_size"), variant, p["name"])
         h = hist.get((p["subcategory"], p["product_id"]), [])
@@ -204,17 +217,37 @@ def anchor_products(rows: list[dict]) -> list[dict]:
 
 
 def rivals_for(a: dict, rows: list[dict], anchor: str = config.ANCHOR_BRAND) -> dict:
-    def price_gap(p: dict) -> float:
+    # the shelf price a shopper compares comes first; per ml/g refines it when both pack sizes are known
+    def shelf_gap(p: dict) -> float:
+        return abs(p["price"] - a["price"]) / a["price"] if a["price"] > 0 else 9.0
+
+    def ml_gap(p: dict) -> float | None:
         if a["amount"] and p["amount"]:
             ap, pp = a["price"] / a["amount"], p["price"] / p["amount"]
-        else:
-            ap, pp = a["price"], p["price"]
-        return abs(pp - ap) / ap if ap > 0 else 9.0
+            return abs(pp - ap) / ap
+        return None
+
+    def price_fits(p: dict, band: float) -> bool:
+        g = ml_gap(p)      # same shelf price for a much smaller pack is not the same price point
+        return shelf_gap(p) <= band and (g is None or g <= band + 0.2)
+
+    def price_rank(p: dict) -> tuple:
+        g = ml_gap(p)
+        return (0 if shelf_gap(p) <= 0.15 else 1, g if g is not None else shelf_gap(p))
 
     def closeness(p):
-        j = len(p["tags"] & a["tags"]) / max(1, len(p["tags"] | a["tags"]))
+        # how much of the anchor's job the rival covers; a rival claiming extra benefits is not penalised
+        # (a "ceramide & rice" toner still does a ceramide toner's job)
+        # and both products' main jobs (the benefit each title leads with) must be part of the other's
+        cover = len(p["tags"] & a["tags"]) / max(1, len(a["tags"]))
         shared_signature = bool(p["tags"] & a["tags"] & SIGNATURE)
-        return 0 if j >= 0.5 or (shared_signature and j >= 0.25) else 1 if j >= 0.3 or shared_signature else 2
+        mutual = p["primary"] in a["tags"] and a["primary"] in p["tags"]
+        one_way = p["primary"] in a["tags"] or a["primary"] in p["tags"]
+        if mutual and (cover >= 0.5 or shared_signature):
+            return 0
+        if one_way and (cover >= 0.5 or shared_signature):
+            return 1
+        return 2
 
     cats = POOL_CATEGORIES.get(a["subcategory"], {a["subcategory"]})
     anchor_kit = bool(EXCLUDE_FORMAT.search(a["name"]))
@@ -239,9 +272,11 @@ def rivals_for(a: dict, rows: list[dict], anchor: str = config.ANCHOR_BRAND) -> 
     # price stays within ±40%; the band widens to ±60% only when not a single Korean product fits
     def korean_within(band):
         best_per_brand: dict[str, dict] = {}
-        for p in sorted((p for p in uniq if p["korean"] and price_gap(p) <= band), key=lambda p: (closeness(p), popularity(p))):
+        for p in sorted((p for p in uniq if p["korean"] and price_fits(p, band)), key=lambda p: (closeness(p), price_rank(p)[0], popularity(p))):
             best_per_brand.setdefault(p["brand"], p)
-        return sorted(best_per_brand.values(), key=lambda p: (closeness(p), -p["brand_strength"], popularity(p)))[:KOREAN_RIVALS]
+        # same job, then the same price point (shelf price within 15%), then the brands doing best on Nykaa,
+        # then the closer price per ml, then popularity
+        return sorted(best_per_brand.values(), key=lambda p: (closeness(p), price_rank(p)[0], -p["brand_strength"], price_rank(p)[1], popularity(p)))[:KOREAN_RIVALS]
     korean, korean_band = korean_within(PRICE_BAND), PRICE_BAND
     if not korean:
         korean, korean_band = korean_within(WIDE_BAND), WIDE_BAND
@@ -249,10 +284,20 @@ def rivals_for(a: dict, rows: list[dict], anchor: str = config.ANCHOR_BRAND) -> 
     indian = min((p for p in uniq if p["origin"] == "local"), key=lambda p: (closeness(p), popularity(p)), default=None)
     # global: closest product of the same job at a similar price
     def pick_global(band):
-        return min((p for p in uniq if p["origin"] == "global" and price_gap(p) <= band), key=lambda p: (closeness(p), popularity(p)), default=None)
+        return min((p for p in uniq if p["origin"] == "global" and price_fits(p, band)), key=lambda p: (closeness(p), price_rank(p)[0], popularity(p)), default=None)
     glob, global_band = pick_global(PRICE_BAND), PRICE_BAND
     if glob is None:
         glob, global_band = pick_global(WIDE_BAND), WIDE_BAND
+    o = RIVAL_OVERRIDES.get(a["product_id"])
+    if o:
+        by_id = {p["product_id"]: p for p in rows}
+        drop = set(o.get("drop", []))
+        korean = [p for p in korean if p["product_id"] not in drop]
+        korean = ([by_id[i] for i in o.get("add", {}).get("korean", []) if i in by_id] + korean)[:KOREAN_RIVALS]
+        if o.get("add", {}).get("indian"): indian = by_id.get(o["add"]["indian"][0], indian)
+        if o.get("add", {}).get("global"): glob = by_id.get(o["add"]["global"][0], glob)
+        if indian and indian["product_id"] in drop: indian = None
+        if glob and glob["product_id"] in drop: glob = None
     return {"korean": korean, "indian": indian, "global": glob, "korean_band": korean_band, "global_band": global_band}
 
 
