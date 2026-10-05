@@ -40,6 +40,16 @@ def latest_rows(client) -> list[dict]:
     return [r for r in rows if r["subcategory"] not in config.STORE_KEYS]
 
 
+def tracked_products(client) -> list[dict]:
+    """Products whose reviews we follow: the anchor's top products per category and their direct rivals
+    (scraper.rivals, so every USP comparison has buyer evidence), then the brand-tier selection."""
+    from .rivals import comparison_set
+    out = list(comparison_set(client))
+    seen = {p["product_id"] for p in out}
+    out += [p for p in key_products(latest_rows(client), catalog_rows(client)) if p["product_id"] not in seen]
+    return out
+
+
 def catalog_rows(client) -> list[dict]:
     """Latest full-catalogue snapshot for the focus brands (most of a brand's range never reaches a top-100)."""
     d = client.table("brand_catalog").select("scrape_date").order("scrape_date", desc=True).limit(1).execute().data
@@ -175,7 +185,7 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     st["written"] = write_catalog(client, rows); stats["catalog"] = st
             if "reviews" in which:
                 with _stage(stats, "reviews"):
-                    prods = key_products(latest_rows(client), catalog_rows(client))
+                    prods = tracked_products(client)
                     cursors = read_review_cursors(client)
                     # never-fetched first (bounded by the minute budget only), then the stalest up to the refresh cap
                     prods.sort(key=lambda p: (p["product_id"] in cursors, (cursors.get(p["product_id"]) or {}).get("fetched_at", "")))
@@ -205,7 +215,7 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     # and only once: a product with no written reviews stays "missing text", and re-walking it
                     # nightly found nothing (later reviews arrive with their text through the reviews pass)
                     hist = read_review_cursors(client)
-                    todo = [p for p in products_missing_text(key_products(latest_rows(client), catalog_rows(client)), products_with_text(client))
+                    todo = [p for p in products_missing_text(tracked_products(client), products_with_text(client))
                             if p["product_id"] in hist and not hist[p["product_id"]].get("text_checked_at")]
                     cap = None if unlimited else config.REVIEW_TEXT_MAX_PRODUCTS_PER_RUN
                     written = {"n": 0}
