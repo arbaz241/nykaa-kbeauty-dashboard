@@ -2,19 +2,20 @@
 
     python -m scraper.rivals            # print the anchor products and their rivals (no AI, no Nykaa requests)
 
-Anchor products: the anchor brand's top ANCHOR_TOP_N products in every category it sells in, one listing per
-product (sizes that share a review pool collapse to one), each product in one category only.
+Anchor products: chosen by the owner (ANCHOR_PRODUCTS), the Innisfree products that matter.
 
-Rivals of an anchor product, in order:
-  1. same category, and doing the same job: they share a benefit tag read from the name and Nykaa's
-     concern/ingredient fields (a hydrating milky toner is not compared with a glycolic exfoliating toner);
-  2. no kits, sets, combos, minis or refills unless the anchor is one;
-  3. price within PRICE_BAND of the anchor, per ml/g when both pack sizes are known, else per pack;
-  4. Korean brands first, one product per brand, most popular first: average position in the category over
-     the last HISTORY_DAYS collected days (a day off the top 100 counts as 101; paid slots count, because a
-     product holding a bought slot is still in front of shoppers), then ratings;
-  5. one market reference: the most popular non-Korean product doing the same job inside the same price band
-     (none if there is none: a half-price mass product is not a direct rival).
+Five rivals per anchor product (owner's rule, 5 Oct):
+  3 Korean    a) doing the same job: same category, a shared main benefit, the same product type and the same
+                 defining active (a retinol ampoule's rivals contain a retinoid), price within ±40%
+                 (per ml when both sizes are known);
+              b) from the Korean brands doing best on Nykaa (average daily top-100 places across all shelves),
+                 one product per brand, that brand's most popular matching product;
+  1 Indian    the closest product of the same job from the Indian market leaders (most popular first), any price;
+  1 global    the closest product of the same job from a non-Korean, non-Indian brand at a similar price
+              (±40%, widened to ±60% when nothing fits).
+"Popular" = average position in the category over the last HISTORY_DAYS collected days, paid slots included
+(a product in a bought slot is still in front of shoppers), then number of ratings. Kits, sets, minis and
+refills are left out, and every rival needs MIN_RATINGS ratings.
 """
 from __future__ import annotations
 
@@ -28,9 +29,35 @@ from .db import connect, fetch_all
 
 log = logging.getLogger("rivals")
 
-ANCHOR_TOP_N = 5
-KOREAN_RIVALS = 4
+# the owner's choice of Innisfree products to analyse (5 Oct 2026): product id -> category
+ANCHOR_PRODUCTS = {
+    "22854035": "toner",              # Green Tea Ceramide Milky Toner
+    "79599": "face_moisturizer",      # Green Tea Seed Cream
+    "79585": "face_moisturizer",      # Perfect 9 Intensive Cream EX
+    "1272752": "serum",               # Hyaluronic Acid Green Tea Seed Serum
+    "13237333": "serum",              # Retinol Cica Repair Ampoule
+    "12452460": "serum",              # Vitamin C Green Tea Brightening Serum
+    "566010": "sunscreen",            # Tone Up No Sebum Sunscreen EX
+    "15986194": "sunscreen",          # Hyaluron Moist Sunscreen
+    "18742425": "sunscreen",          # Green Tea Hyaluronic Sunscreen Serum
+    "524311": "face_wash",            # Volcanic Clusters BHA Foaming Cleanser
+    "8216952": "face_wash",           # Green Tea Amino Acid Foam Cleanser
+    "322018": "masks",                # Super Volcanic Pore Clay Mask 2X
+    "79589": "eye_care",              # Perfect 9 Repair Intensive Eye Cream
+    "8216954": "eye_care",            # Green Tea Hyaluronic Glow Eye and Face Ball
+    "13217099": "lip_balm",           # Dewy Tint Lip Balm
+}
+KOREAN_RIVALS = 3
 PRICE_BAND = 0.40           # ±40%
+GLOBAL_WIDE_BAND = 0.60
+# categories whose rivals may sit on another shelf: tinted lip balms compete with lip tints
+POOL_CATEGORIES = {"lip_balm": {"lip_balm", "lip_tint"}}
+# Nykaa's Korean Beauty store mixes every product type; its own sub-category says which shelf a product belongs to
+STORE_L3 = {"Serums & Essence": "serum", "Toners & Mists": "toner", "Face Moisturizer & Day Cream": "face_moisturizer",
+            "Night Cream": "face_moisturizer", "Face Sunscreen": "sunscreen", "Face Wash": "face_wash",
+            "Cleansing Oils & Balm": "face_wash", "Sheet Masks": "sheet_mask", "Masks & Peels": "masks", "Face Packs": "masks",
+            "Under Eye Cream & Serums": "eye_care", "Lip Tint": "lip_tint", "Lip Balm": "lip_balm", "Lip Masks": "lip_balm"}
+LIP = re.compile(r"\blip\b.*\b(balm|tint|oil|gloss|glow)|\b(lip balm|lip tint|lip oil|lip gloss|lip glow)", re.I)
 
 # benefit/job tags, matched as whole-word stems in name + concerns + key ingredients
 TAGS = {
@@ -45,15 +72,19 @@ TAGS = {
     "anti_aging": r"anti[- ]?aging|wrinkle|firm|retinol|retinal|bakuchiol|peptide|collagen|elastic|lift|perfect 9|ginseng|snail",
     "cleansing_oil": r"cleansing (oil|balm|water)|micellar|makeup remov",
     "tinted": r"tint|tone[- ]?up|bb\b|cc\b|cushion",
+    "glossy": r"gloss|glossy|shine|glass|juicy|jelly|glow",
 }
 # what the product physically is: a pad or a mist is not a toner's rival even when Nykaa files it there
 FORMATS = {
     "pad": r"\bpads?\b", "mist": r"\bmist|spray\b|thermal water|facial spray", "serum": r"serum|ampoule|booster|\boil\b",
-    "sheet": r"sheet|\bpatch", "wash_off_mask": r"clay|wash[- ]?off|peel[- ]?off|sleeping|overnight|\bpack\b",
+    "sheet": r"sheet|\bpatch|strips?\b", "wash_off_mask": r"clay|wash[- ]?off|peel[- ]?off|sleeping|overnight|\bpack\b",
     "gel": r"\bgel\b|jelly", "lotion": r"lotion|emulsion|fluid|milk\b", "cream": r"cream|balm|moisturi[sz]er",
     "stick": r"\bstick", "foam": r"foam|wash|cleanser|gel cleanser", "toner": r"toner|essence|water\b",
     "sleeping_mask": r"sleeping|overnight|night mask|sleep mask", "scrub": r"scrub|exfoliating gel|peeling gel",
     "tint": r"\btint|\bbb\b|\bcc\b|cushion", "cleansing_oil": r"cleansing (oil|balm|water)|micellar",
+    "lip_oil": r"lip oil|\boil\b", "lip_gloss": r"gloss", "lip_balm": r"balm|lip care|lip treatment|lip mask",
+    "lip_stain": r"tint|stain|water|velvet|matte|cheek|mousse",
+    "lash": r"lash|brow", "roller": r"\bball\b|roller|roll[- ]on",
 }
 # a product defined by an active or a specific job only competes with products sharing it: a retinol
 # ampoule's rivals contain a retinoid, an acne cleanser's rivals treat acne
@@ -76,6 +107,9 @@ def format_of(name: str, category: str) -> str | None:
         "masks": ["sheet", "sleeping_mask", "scrub", "wash_off_mask"],
         "sunscreen": ["stick", "tint", "serum", "gel", "lotion", "cream"],
         "serum": ["pad", "mist", "toner", "lotion", "cream", "serum"],
+        "lip_balm": ["lip_balm", "lip_oil", "lip_gloss", "lip_stain"],
+        "lip_tint": ["lip_balm", "lip_oil", "lip_gloss", "lip_stain"],
+        "eye_care": ["lash", "roller", "pad", "sheet", "stick", "serum", "gel", "cream"],
     }.get(category, ["pad", "mist", "sheet", "stick", "serum", "wash_off_mask", "toner", "lotion", "gel", "cream", "foam"])
     return next((f for f in order if re.search(FORMATS[f], n)), None)
 
@@ -105,18 +139,31 @@ def load(client) -> list[dict]:
     days = sorted({r["scrape_date"] for r in fetch_all(lambda: client.table("web_share_daily").select("scrape_date,subcategory").order("scrape_date"))})[-HISTORY_DAYS:]
     hist: dict[tuple[str, str], list] = defaultdict(list)
     shelf_days: dict[str, set] = defaultdict(set)
+    pid_brand = {r["product_id"]: r["brand"] for r in fetch_all(lambda: client.table("products").select("product_id,brand").order("product_id"))}
+    brand_places: dict[str, int] = defaultdict(int)
     for r in fetch_all(lambda: client.table("scrape_snapshots").select("scrape_date,subcategory,product_id,rank,is_ad")
                        .gte("scrape_date", days[0]).neq("subcategory", "kbeauty_store").order("scrape_date").order("subcategory").order("rank")):
         hist[(r["subcategory"], r["product_id"])].append((r["rank"], r["is_ad"]))
         shelf_days[r["subcategory"]].add(r["scrape_date"])
+        brand_places[pid_brand.get(r["product_id"], "")] += 1
+    # how well each brand does on Nykaa overall: average top-100 places a day across all tracked shelves
+    strength = {b: n / max(1, len(days)) for b, n in brand_places.items()}
     out: dict[tuple[str, str], dict] = {}
     for r in fetch_all(lambda: client.table("web_latest_shelf").select("product_id,brand,name,price,pack_size,rating_count,rank,subcategory,origin,is_ad")
                        .neq("subcategory", "kbeauty_store").order("subcategory").order("rank")):
         out[(r["subcategory"], r["product_id"])] = {**r, "price": float(r["price"] or 0)}
+    for r in fetch_all(lambda: client.table("web_latest_shelf").select("product_id,brand,name,price,pack_size,rating_count,nykaa_l3,origin")
+                       .eq("subcategory", "kbeauty_store").order("rank")):
+        cat = STORE_L3.get(r.get("nykaa_l3") or "")
+        if cat:
+            out.setdefault((cat, r["product_id"]), {**r, "subcategory": cat, "rank": None, "price": float(r["price"] or 0)})
     for r in fetch_all(lambda: client.table("web_brand_catalog").select("product_id,brand,name,price,pack_size,rating_count,subcategories,in_stock").order("brand").order("product_id")):
         if r.get("in_stock") is False:
             continue
-        for s in r["subcategories"] or []:
+        cats = list(r["subcategories"] or [])
+        if not cats and LIP.search(r["name"]):
+            cats = ["lip_balm"]           # lip balms are not on a tracked shelf; the catalogues still list them
+        for s in cats:
             out.setdefault((s, r["product_id"]), {**r, "subcategory": s, "rank": None, "origin": origin.get(r["brand"], "unknown"), "price": float(r["price"] or 0)})
     rows = []
     for p in out.values():
@@ -133,6 +180,7 @@ def load(client) -> list[dict]:
         p["avg_position"] = (sum(rk for rk, _ in h) + 101 * (n_days - len(h))) / n_days if h else None
         p["paid_days"] = sum(1 for _, ad in h if ad)
         p["korean"] = p["origin"] == "kbeauty"
+        p["brand_strength"] = strength.get(p["brand"], 0.0)
         rows.append(p)
     return rows
 
@@ -141,60 +189,67 @@ def popularity(p: dict) -> tuple:
     return (p.get("avg_position") is None, p.get("avg_position") or 0, -(p.get("rating_count") or 0))
 
 
-def anchor_products(rows: list[dict], anchor: str = config.ANCHOR_BRAND) -> list[dict]:
-    mine = [p for p in rows if _norm(p["brand"]) == _norm(anchor) and p["price"] > 0]
-    # one category per product: where it ranks, else the first category Nykaa files it under
-    first_cat: dict[str, str] = {}
-    for p in sorted(mine, key=popularity):
-        first_cat.setdefault(p["product_id"], p["subcategory"])
+def anchor_products(rows: list[dict]) -> list[dict]:
+    by = {(p["subcategory"], p["product_id"]): p for p in rows}
     out = []
-    for cat in sorted({p["subcategory"] for p in mine}):
-        seen_pool: set = set(); picked = []
-        for p in sorted((p for p in mine if p["subcategory"] == cat and first_cat[p["product_id"]] == cat), key=popularity):
-            # sizes of one product share a review pool (same ratings count) and a title; minis and kits repeat a full size
-            pool = (p.get("rating_count") or 0, _norm(p["name"])[:30])
-            if pool in seen_pool or EXCLUDE_FORMAT.search(p["name"]):
-                continue
-            seen_pool.add(pool); picked.append(p)
-            if len(picked) == ANCHOR_TOP_N:
-                break
-        out += picked
+    for pid, cat in ANCHOR_PRODUCTS.items():
+        p = by.get((cat, pid))
+        if p is None:
+            log.warning("anchor product %s (%s) not found today", pid, cat)
+            continue
+        out.append(p)
     return out
 
 
 def rivals_for(a: dict, rows: list[dict], anchor: str = config.ANCHOR_BRAND) -> dict:
-    def comparable_price(p: dict) -> bool:
+    def price_gap(p: dict) -> float:
         if a["amount"] and p["amount"]:
             ap, pp = a["price"] / a["amount"], p["price"] / p["amount"]
         else:
             ap, pp = a["price"], p["price"]
-        return ap > 0 and abs(pp - ap) / ap <= PRICE_BAND
-    anchor_kit = bool(EXCLUDE_FORMAT.search(a["name"]))
-    pool = [p for p in rows
-            if p["subcategory"] == a["subcategory"] and _norm(p["brand"]) != _norm(anchor) and p["price"] > 0
-            and (anchor_kit or not EXCLUDE_FORMAT.search(p["name"]))
-            and (p.get("rating_count") or 0) >= MIN_RATINGS
-            and (not a["format"] or not p["format"] or p["format"] == a["format"])
-            and ("eye" in a["name"].lower()) == ("eye" in p["name"].lower() or a["subcategory"] == "eye_care")
-            and (a["subcategory"] != "sunscreen" or re.search(r"spf|sun", p["name"], re.I))
-            and (a["subcategory"] == "sunscreen" or not re.search(r"\bspf|sunscreen", p["name"], re.I))
-            and (not (a["tags"] & SIGNATURE) or (p["tags"] & a["tags"] & SIGNATURE))
-            and p["tags"] & a["tags"] and comparable_price(p)]
-    # closest job first (share of benefit tags in common, in bands), then most popular
+        return abs(pp - ap) / ap if ap > 0 else 9.0
+
     def closeness(p):
         j = len(p["tags"] & a["tags"]) / max(1, len(p["tags"] | a["tags"]))
         shared_signature = bool(p["tags"] & a["tags"] & SIGNATURE)
         return 0 if j >= 0.5 or (shared_signature and j >= 0.25) else 1 if j >= 0.3 or shared_signature else 2
-    pool = [p for p in pool if closeness(p) < 2]      # under ~30% of benefits in common is a different job
-    pool.sort(key=lambda p: (closeness(p), popularity(p)))
-    korean, brands = [], set()
-    for p in pool:
-        if p["korean"] and p["brand"] not in brands:
-            korean.append(p); brands.add(p["brand"])
+
+    cats = POOL_CATEGORIES.get(a["subcategory"], {a["subcategory"]})
+    anchor_kit = bool(EXCLUDE_FORMAT.search(a["name"]))
+    same_job = [p for p in rows
+                if p["subcategory"] in cats and _norm(p["brand"]) != _norm(anchor) and p["price"] > 0
+                and (anchor_kit or not EXCLUDE_FORMAT.search(p["name"]))
+                and (p.get("rating_count") or 0) >= MIN_RATINGS
+                and (not a["format"] or not p["format"] or p["format"] == a["format"])
+                and (p["format"] != "lash" or a["format"] == "lash")
+                and ("eye" in a["name"].lower()) == ("eye" in p["name"].lower() or a["subcategory"] == "eye_care")
+                and (a["subcategory"] != "sunscreen" or re.search(r"spf|sun", p["name"], re.I))
+                and (a["subcategory"] == "sunscreen" or not re.search(r"\bspf|sunscreen", p["name"], re.I))
+                and (not (a["tags"] & SIGNATURE) or (p["tags"] & a["tags"] & SIGNATURE))
+                and p["tags"] & a["tags"] and closeness(p) < 2]
+    seen: set[str] = set()
+    uniq = []
+    for p in same_job:                   # a product listed on two shelves counts once
+        if p["product_id"] not in seen:
+            seen.add(p["product_id"]); uniq.append(p)
+
+    # Korean: a) the same job at a similar price, b) from the brands doing best on Nykaa, their best matching product
+    # the price band widens in steps only until three Korean rivals are found
+    korean: list[dict] = []
+    for band in (PRICE_BAND, 0.60, 0.80):
+        best_per_brand: dict[str, dict] = {}
+        for p in sorted((p for p in uniq if p["korean"] and price_gap(p) <= band), key=lambda p: (closeness(p), popularity(p))):
+            best_per_brand.setdefault(p["brand"], p)
+        korean = sorted(best_per_brand.values(), key=lambda p: (closeness(p), -p["brand_strength"], popularity(p)))[:KOREAN_RIVALS]
         if len(korean) == KOREAN_RIVALS:
             break
-    reference = next((p for p in pool if not p["korean"]), None)
-    return {"korean": korean, "reference": reference, "pool_size": len(pool)}
+    # Indian: closest product of the same job, market leaders first, any price
+    indian = min((p for p in uniq if p["origin"] == "local"), key=lambda p: (closeness(p), popularity(p)), default=None)
+    # global: closest product of the same job at a similar price
+    def pick_global(band):
+        return min((p for p in uniq if p["origin"] == "global" and price_gap(p) <= band), key=lambda p: (closeness(p), popularity(p)), default=None)
+    glob = pick_global(PRICE_BAND) or pick_global(GLOBAL_WIDE_BAND)
+    return {"korean": korean, "indian": indian, "global": glob}
 
 
 def comparison_set(client) -> list[dict]:
@@ -203,7 +258,7 @@ def comparison_set(client) -> list[dict]:
     out: dict[str, dict] = {}
     for a in anchor_products(rows):
         r = rivals_for(a, rows)
-        for p in [a, *r["korean"], *([r["reference"]] if r["reference"] else [])]:
+        for p in [a, *r["korean"], *[x for x in (r["indian"], r["global"]) if x]]:
             out.setdefault(p["product_id"], {"product_id": p["product_id"], "brand": p["brand"], "name": p["name"]})
     return list(out.values())
 
@@ -215,15 +270,17 @@ def main() -> int:
     rows = load(connect())
     anchors = anchor_products(rows)
     def fmt(p):
+        strength = f" | brand {p['brand_strength']:.0f}/day" if p.get("brand_strength") else ""
         per = f" (₹{p['price'] / p['amount']:.1f}/ml)" if p["amount"] else ""
         pos = f"avg #{p['avg_position']:.0f} ({p['days_in_top100']}d in top 100{', ' + str(p['paid_days']) + ' paid' if p['paid_days'] else ''})" if p.get("avg_position") else "not in top 100"
-        return f"{p['brand']} — {p['name'][:62]} | ₹{p['price']:.0f}{per} | {pos} | {p.get('rating_count') or 0} ratings | {','.join(sorted(p['tags']))}"
+        return f"{p['brand']} — {p['name'][:62]} | ₹{p['price']:.0f}{per} | {pos} | {p.get('rating_count') or 0} ratings{strength} | {','.join(sorted(p['tags']))}"
     for a in anchors:
         r = rivals_for(a, rows)
         print(f"\n[{a['subcategory']}] ANCHOR {fmt(a)}")
         for p in r["korean"]:
             print(f"    K   {fmt(p)}")
-        print(f"    REF {fmt(r['reference']) if r['reference'] else '— none in band'}")
+        print(f"    IN  {fmt(r['indian']) if r['indian'] else '— none'}")
+        print(f"    GL  {fmt(r['global']) if r['global'] else '— none'}")
     print(f"\n{len(anchors)} anchor products")
     return 0
 
