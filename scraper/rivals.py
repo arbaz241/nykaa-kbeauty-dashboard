@@ -10,7 +10,9 @@ Rivals of an anchor product, in order:
      concern/ingredient fields (a hydrating milky toner is not compared with a glycolic exfoliating toner);
   2. no kits, sets, combos, minis or refills unless the anchor is one;
   3. price within PRICE_BAND of the anchor, per ml/g when both pack sizes are known, else per pack;
-  4. Korean brands first, one product per brand, most popular first: today's category rank, then ratings;
+  4. Korean brands first, one product per brand, most popular first: average position in the category over
+     the last HISTORY_DAYS collected days (a day off the top 100 counts as 101; paid slots count, because a
+     product holding a bought slot is still in front of shoppers), then ratings;
   5. one market reference: the most popular non-Korean product doing the same job inside the same price band
      (none if there is none: a half-price mass product is not a direct rival).
 """
@@ -56,7 +58,8 @@ FORMATS = {
 # a product defined by an active or a specific job only competes with products sharing it: a retinol
 # ampoule's rivals contain a retinoid, an acne cleanser's rivals treat acne
 SIGNATURE = {"retinoid", "exfoliating", "acne", "pore_oil", "tinted", "cleansing_oil"}
-MIN_RATINGS = 50            # "popular right now" needs some buyers behind it
+MIN_RATINGS = 50
+HISTORY_DAYS = 14            # "popular right now" needs some buyers behind it
 EXCLUDE_FORMAT = re.compile(r"\b(kit|set|combo|duo|trio|mini|travel|refill|bundle|gift|routine)\b", re.I)
 
 
@@ -98,6 +101,14 @@ def load(client) -> list[dict]:
     """Every product we can place: today's shelves plus the focus brands' full catalogues."""
     origin = {r["brand"]: r["origin"] for r in fetch_all(lambda: client.table("brand_classification").select("brand,origin").order("brand"))}
     details = {r["product_id"]: r for r in fetch_all(lambda: client.table("product_details").select("product_id,concerns,key_ingredients,variants").order("product_id"))}
+    # shelf history: each product's average position per category over the recent collected days
+    days = sorted({r["scrape_date"] for r in fetch_all(lambda: client.table("web_share_daily").select("scrape_date,subcategory").order("scrape_date"))})[-HISTORY_DAYS:]
+    hist: dict[tuple[str, str], list] = defaultdict(list)
+    shelf_days: dict[str, set] = defaultdict(set)
+    for r in fetch_all(lambda: client.table("scrape_snapshots").select("scrape_date,subcategory,product_id,rank,is_ad")
+                       .gte("scrape_date", days[0]).neq("subcategory", "kbeauty_store").order("scrape_date").order("subcategory").order("rank")):
+        hist[(r["subcategory"], r["product_id"])].append((r["rank"], r["is_ad"]))
+        shelf_days[r["subcategory"]].add(r["scrape_date"])
     out: dict[tuple[str, str], dict] = {}
     for r in fetch_all(lambda: client.table("web_latest_shelf").select("product_id,brand,name,price,pack_size,rating_count,rank,subcategory,origin,is_ad")
                        .neq("subcategory", "kbeauty_store").order("subcategory").order("rank")):
@@ -116,15 +127,18 @@ def load(client) -> list[dict]:
         p["format"] = format_of(p["name"], p["subcategory"]) or CATEGORY_DEFAULT_FORMAT.get(p["subcategory"])
         variant = next((v.get("pack_size") for v in (d.get("variants") or []) if v.get("price") and abs(float(v["price"]) - p["price"]) < 1), None)
         p["amount"] = pack_amount(p.get("pack_size"), variant, p["name"])
-        if p.get("is_ad"):
-            p["rank"] = None        # a bought slot is not popularity
+        h = hist.get((p["subcategory"], p["product_id"]), [])
+        n_days = len(shelf_days.get(p["subcategory"], ())) or 1
+        p["days_in_top100"] = len(h)
+        p["avg_position"] = (sum(rk for rk, _ in h) + 101 * (n_days - len(h))) / n_days if h else None
+        p["paid_days"] = sum(1 for _, ad in h if ad)
         p["korean"] = p["origin"] == "kbeauty"
         rows.append(p)
     return rows
 
 
 def popularity(p: dict) -> tuple:
-    return (p["rank"] is None, p["rank"] or 0, -(p.get("rating_count") or 0))
+    return (p.get("avg_position") is None, p.get("avg_position") or 0, -(p.get("rating_count") or 0))
 
 
 def anchor_products(rows: list[dict], anchor: str = config.ANCHOR_BRAND) -> list[dict]:
@@ -202,7 +216,8 @@ def main() -> int:
     anchors = anchor_products(rows)
     def fmt(p):
         per = f" (₹{p['price'] / p['amount']:.1f}/ml)" if p["amount"] else ""
-        return f"{p['brand']} — {p['name'][:62]} | ₹{p['price']:.0f}{per} | {'#' + str(p['rank']) if p['rank'] else 'not top 100'} | {p.get('rating_count') or 0} ratings | {','.join(sorted(p['tags']))}"
+        pos = f"avg #{p['avg_position']:.0f} ({p['days_in_top100']}d in top 100{', ' + str(p['paid_days']) + ' paid' if p['paid_days'] else ''})" if p.get("avg_position") else "not in top 100"
+        return f"{p['brand']} — {p['name'][:62]} | ₹{p['price']:.0f}{per} | {pos} | {p.get('rating_count') or 0} ratings | {','.join(sorted(p['tags']))}"
     for a in anchors:
         r = rivals_for(a, rows)
         print(f"\n[{a['subcategory']}] ANCHOR {fmt(a)}")
