@@ -230,6 +230,31 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                         log.error("review texts stopped by rate limiting (progress saved; resumes next run): %s", e)
                         st = {"rate_limited": str(e)}
                     st["candidates"] = len(todo); st["written"] = written["n"]; stats["texts"] = st
+            if "usp-texts" in which:
+                with _stage(stats, "usp-texts"):
+                    # the USP comparison set needs review text to the analysis' depth (scraper.usp: 150 for core
+                    # brands, 30 for others); the nightly window keeps only REVIEW_TEXT_DAYS, so reach further back
+                    from collections import Counter
+                    from .rivals import comparison_set
+                    from .usp import REVIEWS_LIGHT, REVIEWS_THOROUGH, THOROUGH_BRANDS, USP_TEXT_DAYS, _norm
+                    ids = {p["product_id"] for p in comparison_set(client)}
+                    have = Counter(r["product_id"] for r in fetch_all(lambda: client.table("review_texts").select("product_id,review_id")
+                                                                       .in_("product_id", sorted(ids)).order("product_id").order("review_id")))
+                    want, todo = {}, []
+                    for p in comparison_set(client):
+                        need = REVIEWS_THOROUGH if _norm(p["brand"]) in THOROUGH_BRANDS else REVIEWS_LIGHT
+                        if have[p["product_id"]] < need:
+                            want[p["product_id"]] = need; todo.append(p)
+                    log.info("usp texts: %d of %d comparison products short of their review depth", len(todo), len(ids))
+                    written = {"n": 0}
+                    def save_usp_texts(texts):
+                        written["n"] += write_review_texts(client, list(texts))
+                    try:
+                        st = await review_texts_only(page, todo, on_product=save_usp_texts, text_days=USP_TEXT_DAYS, want=want)
+                    except RateLimited as e:
+                        log.error("usp texts stopped by rate limiting (progress saved; re-run to continue): %s", e)
+                        st = {"rate_limited": str(e)}
+                    st["candidates"] = len(todo); st["written"] = written["n"]; stats["usp-texts"] = st
         finally:
             await browser.close()
     return stats
@@ -237,7 +262,7 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--all", action="store_true"); ap.add_argument("--only", choices=["search", "assortment", "catalog", "reviews", "texts"])
+    ap.add_argument("--all", action="store_true"); ap.add_argument("--only", choices=["search", "assortment", "catalog", "reviews", "texts", "usp-texts"])
     ap.add_argument("--max", type=int, default=None, help="cap products for --only reviews|texts")
     args = ap.parse_args()
     logging.basicConfig(level=config.LOG_LEVEL, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s", datefmt="%H:%M:%S", stream=sys.stdout)

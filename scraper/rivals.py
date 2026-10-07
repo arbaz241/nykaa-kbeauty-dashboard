@@ -1,6 +1,7 @@
 """Who each anchor product actually competes with: the comparison set for USP analysis.
 
     python -m scraper.rivals            # print the anchor products and their rivals (no AI, no Nykaa requests)
+    python -m scraper.rivals --doc docs/innisfree-rivals-<date>.md   # the owner-facing list
 
 Anchor products: chosen by the owner (ANCHOR_PRODUCTS), the Innisfree products that matter.
 
@@ -51,7 +52,12 @@ ANCHOR_PRODUCTS = {
     "13217099": "lip_balm",           # Dewy Tint Lip Balm
 }
 # owner's corrections, applied after the rule: anchor id -> {"add": {"korean"|"indian"|"global": [ids]}, "drop": [ids]}
-RIVAL_OVERRIDES: dict[str, dict] = {}
+RIVAL_OVERRIDES: dict[str, dict] = {
+    # Dewy Tint Lip Balm: tinted balms whose titles don't say "tint" (sold in shades), so the rule can't see them
+    # (proposed 8 Oct, awaiting owner's check)
+    "13217099": {"add": {"korean": ["19857961", "15227381"],   # Rom&nd Glasting Melting Lip Balm, LANEIGE Lip Glowy Balm
+                         "global": ["20199543"]}},             # e.l.f. Glow Reviver Melting Lip Balm
+}
 KOREAN_RIVALS = 3
 PRICE_BAND = 0.40           # ±40%: a rival is priced like the anchor
 WIDE_BAND = 0.60            # used only when no product at all fits ±40% (owner, 5 Oct)
@@ -290,7 +296,10 @@ def rivals_for(a: dict, rows: list[dict], anchor: str = config.ANCHOR_BRAND) -> 
         glob, global_band = pick_global(WIDE_BAND), WIDE_BAND
     o = RIVAL_OVERRIDES.get(a["product_id"])
     if o:
-        by_id = {p["product_id"]: p for p in rows}
+        by_id: dict[str, dict] = {}
+        for p in rows:                   # a product on a shelf and in a catalogue: keep the copy with shelf history
+            if p["product_id"] not in by_id or (p.get("avg_position") and not by_id[p["product_id"]].get("avg_position")):
+                by_id[p["product_id"]] = p
         drop = set(o.get("drop", []))
         korean = [p for p in korean if p["product_id"] not in drop]
         korean = ([by_id[i] for i in o.get("add", {}).get("korean", []) if i in by_id] + korean)[:KOREAN_RIVALS]
@@ -312,11 +321,76 @@ def comparison_set(client) -> list[dict]:
     return list(out.values())
 
 
+DOC_SECTIONS = {"toner": "Toner", "face_moisturizer": "Moisturiser", "serum": "Serum & essence", "sunscreen": "Sunscreen",
+                "face_wash": "Face wash", "masks": "Masks", "eye_care": "Eye care", "lip_balm": "Lip"}
+DOC_INTRO = """**Per Innisfree product: 3 K-beauty + 1 Indian + 1 global rival.**
+
+1. **Same job**: same category and product type, the rival covers at least half of the Innisfree product's benefits, and each product's main job (the benefit its name leads with) is part of the other's. Products defined by an active (retinol, salicylic acid, clay) or a tint only compete with products sharing it.
+2. **Price**: the shelf price shoppers see comes first: within ±40% of Innisfree's; a product within 15% (same price point) ranks first. Price per ml refines it when both pack sizes are known. The band widens to ±60% only when no product at all fits.
+3. **K-beauty**: then the Korean brands doing best on Nykaa (average daily top-100 places across all shelves), one product per brand, its most popular matching product. Fewer than 3 are shown when fewer exist.
+4. **Indian**: the closest same-job product from the Indian market leaders, any price.
+5. **Global**: the closest same-job product from a brand from another country at a similar price.
+6. **Manual corrections** (marked ✋) are pairings the rule can't see, set in `RIVAL_OVERRIDES`.
+
+Popularity = average position in the category over the last 14 days (paid slots included), then ratings. Rivals need 50+ ratings; kits, sets, minis and refills are excluded.
+
+Shown: shelf price (per ml) · *avg position (days in top 100, paid days)* · ratings · brand's daily top-100 places · reviews ✅ collected / ⏳ not yet."""
+
+
+def write_doc(client, rows: list[dict], path: str) -> None:
+    """The owner-facing rival list (docs/innisfree-rivals-<date>.md)."""
+    from datetime import date
+    from .db import read_review_cursors
+    crawled = set(read_review_cursors(client))
+    anchors = anchor_products(rows)
+
+    def line(p, a=None):
+        per = f" (₹{p['price'] / p['amount']:.1f}/ml)" if p["amount"] else ""
+        vs = f" · {(p['price'] - a['price']) / a['price']:+.0%} vs Innisfree" if a else ""
+        pos = (f"avg #{p['avg_position']:.0f} ({p['days_in_top100']}d{', ' + str(p['paid_days']) + ' paid' if p['paid_days'] else ''})"
+               if p.get("avg_position") else "not in top 100")
+        return (f"{p['brand']} — {p['name'][:90]} · ₹{p['price']:.0f}{per}{vs} · {pos} · {p.get('rating_count') or 0:,} ratings"
+                f" · brand {p['brand_strength']:.0f}/day · {'✅' if p['product_id'] in crawled else '⏳'}")
+
+    body, ids, todo = [], set(), set()
+    for cat, title in DOC_SECTIONS.items():
+        group = [a for a in anchors if ANCHOR_PRODUCTS[a["product_id"]] == cat]
+        if not group:
+            continue
+        body.append(f"\n\n## {title}")
+        for a in group:
+            r = rivals_for(a, rows)
+            added = {i for k in ("korean", "indian", "global") for i in RIVAL_OVERRIDES.get(a["product_id"], {}).get("add", {}).get(k, [])}
+            hand = lambda p: " ✋" if p["product_id"] in added else ""
+            body.append(f"\n### {line(a)}")
+            for i, p in enumerate(r["korean"], 1):
+                body.append(f"- **K-beauty {i}:**{hand(p)} {line(p, a)}")
+            if len(r["korean"]) < KOREAN_RIVALS:
+                n = len(r["korean"])
+                band = f"±{r['korean_band']:.0%}"
+                body.append(f"- *{'No' if not n else n} Korean product{'' if n == 1 else 's'} doing the same job within {band} of the price in the data we collect.*")
+            body.append(f"- **Indian:**{hand(r['indian'])} {line(r['indian'], a)}" if r["indian"] else "- **Indian:** none doing the same job")
+            body.append(f"- **Global:**{hand(r['global'])} {line(r['global'], a)}" if r["global"]
+                        else "- **Global:** none doing the same job within ±60% of the price")
+            for p in [a, *r["korean"], *[x for x in (r["indian"], r["global"]) if x]]:
+                ids.add(p["product_id"])
+                if p["product_id"] not in crawled:
+                    todo.add(p["product_id"])
+    head = (f"# Innisfree products and their direct rivals ({date.today():%-d %b %Y})\n\n{DOC_INTRO}\n\n"
+            f"**{len(anchors)} Innisfree products · {len(ids)} products in total · reviews still to collect for {len(todo)}.**")
+    with open(path, "w") as f:
+        f.write(head + "\n".join(body) + "\n")
+
+
 def main() -> int:
     from dotenv import load_dotenv
     load_dotenv()
     logging.basicConfig(level=logging.WARNING)
-    rows = load(connect())
+    client = connect()
+    rows = load(client)
+    if len(sys.argv) > 2 and sys.argv[1] == "--doc":
+        write_doc(client, rows, sys.argv[2])
+        return 0
     anchors = anchor_products(rows)
     def fmt(p):
         strength = f" | brand {p['brand_strength']:.0f}/day" if p.get("brand_strength") else ""

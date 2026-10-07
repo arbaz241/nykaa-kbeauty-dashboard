@@ -32,6 +32,8 @@ const ORDER: Record<string, string[]> = {
   web_availability: ["brand", "product_id"],
   web_category_coverage: ["category"],
   web_thumbnails: ["product_id"],
+  web_usp_products: ["product_id"],
+  web_usp_comparisons: ["anchor_product_id"],
   brand_classification: ["brand"],
 };
 

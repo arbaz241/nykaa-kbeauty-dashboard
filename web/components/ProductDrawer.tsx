@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useProduct, useThumbnails } from "@/lib/data";
 import { CATEGORY_LABEL, compact, inr, shortName } from "@/lib/format";
 import { monthsWindow } from "@/lib/metrics";
+import { VERDICT, useUspProducts } from "@/lib/usp";
 import LineChart from "./LineChart";
 
 /** Minimal info a caller already has; the drawer fetches history on demand. */
@@ -109,6 +110,8 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
             </Block>
           )}
 
+          <UspRead productId={p.product_id} />
+
           <ImageRead productId={p.product_id} />
 
           {!!data?.aspects.length && (
@@ -142,6 +145,31 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
         </div>
       </aside>
     </div>
+  );
+}
+
+/** What the listing sells itself on, read from its whole gallery, page and reviews (USP page). */
+function UspRead({ productId }: { productId: string }) {
+  const { data } = useUspProducts();
+  const u = data?.find((x) => x.product_id === productId);
+  if (!u) return null;
+  const a = u.analysis;
+  const v = VERDICT[a.review_check.usp_verdict];
+  return (
+    <Block title="What it sells itself on" note={`Read from all ${u.images ?? ""} photos in its Nykaa gallery, its page and ${a.review_check.reviews_considered} reviews.`}>
+      <p className="text-[14px] font-medium leading-snug">{a.main_usp.statement}</p>
+      <p className={`mt-1 text-[12.5px] font-medium ${v.tone}`}>{v.label}<span className="font-normal text-muted"> · proof {a.proof_strength.rating}</span></p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {[...a.key_benefits].sort((x, y) => y.emphasis - x.emphasis).slice(0, 5).map((b) => (
+          <span key={b.benefit} className="rounded-full px-2.5 py-1 text-[12px] text-ink-2 ring-1 ring-line">{b.benefit}</span>
+        ))}
+      </div>
+      {!!a.hero_ingredients.length && <p className="mt-3 text-[12.5px] text-ink-2"><span className="text-muted">Hero ingredients: </span>{a.hero_ingredients.map((h) => h.ingredient).join(", ")}</p>}
+      <p className="mt-1 text-[12.5px] text-ink-2"><span className="text-muted">For: </span>{a.target_consumer.summary}</p>
+      {!!a.review_check.valued_but_not_advertised.length && (
+        <p className="mt-1 text-[12.5px] text-ink-2"><span className="text-muted">Buyers also value: </span>{a.review_check.valued_but_not_advertised.map((x) => x.theme).join(" · ")}</p>
+      )}
+    </Block>
   );
 }
 

@@ -315,11 +315,13 @@ def products_missing_text(all_key: list[dict], have_text: set[str]) -> list[dict
 
 
 async def review_texts_only(page: Page, products: list[dict], on_product=None, max_pages_per_product: int = 20,
-                            max_minutes: float | None = None, on_checked=None) -> dict:
+                            max_minutes: float | None = None, on_checked=None, text_days: int | None = None,
+                            want: dict[str, int] | None = None) -> dict:
     """Fetch reviews purely to store their text. Monthly counts are NOT touched (they are already stored and
-    are additive, so re-counting them would double them)."""
+    are additive, so re-counting them would double them). `want` stops a product once that many texts are
+    collected (newest first); `text_days` reaches further back than the nightly REVIEW_TEXT_DAYS window."""
     stats = {"products": 0, "requests": 0, "texts": 0, "errors": 0}
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=config.REVIEW_TEXT_DAYS)).strftime("%Y-%m-%d")
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=text_days or config.REVIEW_TEXT_DAYS)).strftime("%Y-%m-%d")
     deadline = None if not max_minutes else datetime.now(timezone.utc) + timedelta(minutes=max_minutes)
     for p in products:
         if deadline and datetime.now(timezone.utc) >= deadline:
@@ -350,6 +352,8 @@ async def review_texts_only(page: Page, products: list[dict], on_product=None, m
                                       "aspects": r.get("aspects") or None, "images": len(r.get("images") or []),
                                       "likes": int(r.get("likeCount") or 0)})
                 if stale:      # newest-first: once a whole page predates the text window, stop
+                    break
+                if want and len(texts) >= want.get(pid, 0):
                     break
                 await asyncio.sleep(max(config.ENRICH_DELAY_SEC, 2.5))
             if on_product and texts:

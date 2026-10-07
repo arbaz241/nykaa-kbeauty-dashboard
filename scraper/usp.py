@@ -2,6 +2,7 @@
 what its buyers actually say, then compared with its direct rivals.
 
     python -m scraper.usp pilot --spec data/usp/pilot.json     # gallery fetch -> stage A -> stage B -> report
+    python -m scraper.usp run [--dry-run] [--budget 5]         # every anchor product vs its rivals -> Supabase (017)
 
 Stage A (one request per product): every gallery image (up to MAX_IMAGES, resized by Nykaa's CDN),
 the product page text, and a sample of its reviews with the review-tag counts. Returns the main USP,
@@ -44,6 +45,12 @@ IMAGE_SIDE = 800                           # Nykaa's CDN resizes on request; sma
 THOROUGH_BRANDS = {"innisfree", "laneige", "beautyofjoseon", "thefaceshop", "etude", "cosrx", "anua", "tirtir", "skin1004"}
 REVIEWS_THOROUGH, REVIEWS_LIGHT = 150, 30
 MIN_REVIEWS_TO_JUDGE = 20
+GALLERY_MAX_AGE_DAYS = 7                   # gallery links are re-read weekly; the photo fingerprint decides re-analysis
+MONTHLY_BUDGET_USD = float(os.getenv("USP_MONTHLY_BUDGET_USD", "3"))
+# spend estimate per request, from the 5 Oct pilot ($0.05/product at high effort, $0.07/comparison), rounded up
+EST_PRODUCT = {"high": 0.06, "medium": 0.035}
+EST_COMPARISON = 0.08
+USP_TEXT_DAYS = 3 * 365                    # review text reaches 3 years back for the comparison set (signals_run --only usp-texts)
 OUT = Path(config.DATA_DIR) / "usp"
 GALLERY_DIR = Path(config.DATA_DIR) / "cache" / "galleries"
 
@@ -64,7 +71,7 @@ async def fetch_galleries(product_ids: list[str]) -> dict[str, list[str]]:
     todo = []
     for pid in product_ids:
         f = GALLERY_DIR / f"{pid}.json"
-        if f.exists():
+        if f.exists() and time.time() - f.stat().st_mtime < GALLERY_MAX_AGE_DAYS * 86400:
             out[pid] = json.loads(f.read_text())["images"]
         else:
             todo.append(pid)
@@ -208,7 +215,7 @@ SCHEMA_A = _obj({
 })
 
 
-def stage_a_request(p: dict, images: list[tuple[str, bytes]], text: dict, reviews: dict) -> dict:
+def stage_a_request(p: dict, images: list[tuple[str, bytes]], text: dict, reviews: dict, effort: str = "high") -> dict:
     content: list[dict] = []
     for i, (mt, data) in enumerate(images, 1):
         content.append({"type": "text", "text": f"Image {i}"})
@@ -225,7 +232,7 @@ def stage_a_request(p: dict, images: list[tuple[str, bytes]], text: dict, review
                     + "\n".join(f"- [{r['rating']}★, {r['date']}, {r['likes']} likes] {r['text']}" for r in reviews["sample"])})
     content.append({"type": "text", "text": "Analyse this listing as instructed and return the JSON."})
     return {"model": MODEL, "max_tokens": 16000, "system": SYSTEM_A, "messages": [{"role": "user", "content": content}],
-            "output_config": {"effort": "high", "format": {"type": "json_schema", "schema": SCHEMA_A}}}
+            "output_config": {"effort": effort, "format": {"type": "json_schema", "schema": SCHEMA_A}}}
 
 
 # ------------------------------------------------------------------ stage B
@@ -265,7 +272,8 @@ def stage_b_request(group: dict, analyses: dict[str, dict], products: dict[str, 
         p = products.get(pid)
         if not a or not p:
             continue
-        items.append({"product": f"{p['brand']} {p['name']}", "is_anchor": _norm(p["brand"]) == _norm(config.ANCHOR_BRAND), "origin": p.get("origin"),
+        items.append({"product": f"{p['brand']} {p['name']}", "is_anchor": _norm(p["brand"]) == _norm(config.ANCHOR_BRAND),
+                      "role": (group.get("roles") or {}).get(pid, "anchor"), "origin": p.get("origin"),
                       "price_inr": p.get("price"), "nykaa_rank": p.get("rank") or "not in top 100", "rating": p.get("rating"), "ratings_count": p.get("rating_count"),
                       "paid_slot_today": p.get("is_ad"), "analysis": {k: a[k] for k in ("main_usp", "key_benefits", "hero_ingredients", "target_consumer", "trust_and_safety_claims", "emotional_and_brand_angle", "proof_strength", "review_check", "one_line_summary")}})
     msg = f"GROUP: {group['label']}\nANCHOR: {config.ANCHOR_BRAND}\n\n" + json.dumps(items, ensure_ascii=False, indent=1) + "\n\nCompare as instructed and return the JSON."
@@ -355,14 +363,136 @@ def pilot(spec_path: Path) -> int:
     return 0
 
 
+# ------------------------------------------------------------------ production run
+
+def month_spend(client) -> float:
+    start = datetime.now(timezone.utc).strftime("%Y-%m-01")
+    return sum(float(r["cost_usd"]) for r in client.table("usp_spend").select("cost_usd").gte("spent_at", start).execute().data)
+
+
+def record_spend(client, stage: str, requests: int, cost: float) -> None:
+    client.table("usp_spend").insert({"stage": stage, "requests": requests, "cost_usd": round(cost, 4)}).execute()
+
+
+def product_facts(client, pid: str, row: dict) -> dict:
+    """Shelf facts for the prompt: today's shelf row when the product is on one, else its catalogue row."""
+    from .rivals import DOC_SECTIONS
+    s = client.table("web_latest_shelf").select("product_id,brand,name,price,mrp,rank,rating,rating_count,is_ad,origin") \
+        .eq("product_id", pid).eq("subcategory", row["subcategory"]).limit(1).execute().data
+    if not s:
+        s = client.table("web_brand_catalog").select("product_id,brand,name,price,mrp,rating,rating_count").eq("product_id", pid).limit(1).execute().data
+    p = {**(s[0] if s else {}), "product_id": pid, "brand": row["brand"], "name": row["name"], "origin": row.get("origin")}
+    p.setdefault("price", row.get("price")); p.setdefault("rating_count", row.get("rating_count"))
+    p["category_label"] = DOC_SECTIONS.get(row["subcategory"], row["subcategory"].replace("_", " "))
+    return p
+
+
+def run(budget: float, force: bool = False, dry_run: bool = False) -> int:
+    """One comparison per anchor product (it + its rivals from scraper.rivals). Products are analysed only when
+    new or when their gallery changed; comparisons re-run when a member changed or the rival set did."""
+    from dotenv import load_dotenv
+    load_dotenv()
+    from . import rivals as R
+    client = connect()
+    rows = R.load(client)
+    groups, members = [], {}
+    for a in R.anchor_products(rows):
+        r = R.rivals_for(a, rows)
+        roles = {p["product_id"]: f"korean_rival_{i}" for i, p in enumerate(r["korean"], 1)}
+        if r["indian"]: roles[r["indian"]["product_id"]] = "indian_leader"
+        if r["global"]: roles[r["global"]["product_id"]] = "global_rival"
+        ids = [a["product_id"], *roles]
+        groups.append({"anchor": a["product_id"], "products": ids, "roles": roles, "category": R.ANCHOR_PRODUCTS[a["product_id"]],
+                       "label": f"{R.DOC_SECTIONS.get(a['subcategory'], a['subcategory'])}: {a['name'][:80]} vs its direct rivals"})
+        for p in [a, *r["korean"], *[x for x in (r["indian"], r["global"]) if x]]:
+            members.setdefault(p["product_id"], p)
+    stored = {r["product_id"]: r for r in client.table("usp_analyses").select("product_id,gallery_fingerprint,model,analysis").execute().data}
+    stored_cmp = {r["anchor_product_id"]: r for r in client.table("usp_comparisons").select("anchor_product_id,products").execute().data}
+    products = {pid: product_facts(client, pid, row) for pid, row in members.items()}
+    log.info("%d comparisons, %d products", len(groups), len(products))
+
+    galleries = asyncio.run(fetch_galleries(list(products)))
+    req_a, meta = {}, {}
+    for pid, p in products.items():
+        if not galleries.get(pid):
+            log.error("%s %s: no gallery, left out", p["brand"], p["name"][:40]); continue
+        imgs = download_images(galleries[pid])
+        fp = gallery_fingerprint(imgs)
+        old = stored.get(pid)
+        if old and old["gallery_fingerprint"] == fp and old["model"] == MODEL and not force:
+            continue
+        effort = "high" if _norm(p["brand"]) in THOROUGH_BRANDS else "medium"
+        rv = reviews_for(client, pid, p["brand"])
+        req_a[f"a_{pid}"] = stage_a_request(p, imgs, page_text(client, pid), rv, effort)
+        meta[pid] = {"images": len(imgs), "gallery_fingerprint": fp, "reviews_sampled": len(rv["sample"]),
+                     "reviews_stored": rv["stored_reviews"], "effort": effort}
+        log.info("%-16s %-44s %2d images, %3d of %4d reviews, %s", p["brand"][:16], p["name"][:44], len(imgs), len(rv["sample"]), rv["stored_reviews"], effort)
+
+    changed = {k[2:] for k in req_a}
+    todo_b = [g for g in groups if force or g["anchor"] not in stored_cmp or set(g["products"]) & changed
+              or stored_cmp[g["anchor"]]["products"] != g["products"]]
+    est = sum(EST_PRODUCT[m["effort"]] for m in meta.values()) + EST_COMPARISON * len(todo_b)
+    spent = month_spend(client)
+    log.info("to analyse: %d products, %d comparisons, estimated $%.2f; spent this month $%.2f of $%.2f",
+             len(req_a), len(todo_b), est, spent, budget)
+    if dry_run:
+        return 0
+    if spent + est > budget:
+        log.error("budget guard: $%.2f spent + $%.2f estimated exceeds the $%.2f monthly budget; nothing sent", spent, est, budget)
+        return 3
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    analyses = {pid: r["analysis"] for pid, r in stored.items()}
+    if req_a:
+        res_a, cost_a = run_batch(req_a)
+        record_spend(client, "products", len(req_a), cost_a)
+        n_ok = 0
+        for k, v in res_a.items():
+            pid = k[2:]; analyses[pid] = v; n_ok += 1
+            client.table("usp_analyses").upsert({"product_id": pid, "analysis": v, "model": MODEL, "cost_usd": round(cost_a / max(1, len(res_a)), 4),
+                                                 "analysed_at": datetime.now(timezone.utc).isoformat(),
+                                                 **{f: meta[pid][f] for f in ("gallery_fingerprint", "images", "reviews_sampled", "reviews_stored", "effort")}},
+                                                on_conflict="product_id").execute()
+        log.info("products: %d/%d analysed, $%.3f", n_ok, len(req_a), cost_a)
+        spent += cost_a
+    todo_b = [g for g in todo_b if g["anchor"] in analyses]
+    est_b = EST_COMPARISON * len(todo_b)
+    if todo_b and spent + est_b > budget:
+        log.error("budget guard: comparisons ($%.2f) would pass the $%.2f budget; products saved, comparisons left for next run", est_b, budget)
+        return 3
+    if todo_b:
+        res_b, cost_b = run_batch({f"b_{g['anchor']}": stage_b_request(g, analyses, products) for g in todo_b})
+        record_spend(client, "comparisons", len(todo_b), cost_b)
+        for g in todo_b:
+            c = res_b.get(f"b_{g['anchor']}")
+            if c:
+                client.table("usp_comparisons").upsert({"anchor_product_id": g["anchor"], "category": g["category"], "products": g["products"], "roles": g["roles"],
+                                                        "comparison": c, "model": MODEL, "cost_usd": round(cost_b / max(1, len(res_b)), 4),
+                                                        "analysed_at": datetime.now(timezone.utc).isoformat()},
+                                                       on_conflict="anchor_product_id").execute()
+        log.info("comparisons: %d/%d, $%.3f", len(res_b), len(todo_b), cost_b)
+        spent += cost_b
+    (OUT / f"run-{datetime.now():%Y-%m-%d}.json").write_text(json.dumps(
+        {"run_at": datetime.now(timezone.utc).isoformat(), "model": MODEL, "month_spend_usd": round(spent, 4), "groups": groups,
+         "products": {pid: {**products[pid], **meta.get(pid, {}), "analysis": analyses.get(pid)} for pid in products}},
+        ensure_ascii=False, indent=1, default=str))
+    log.info("done: spent this month $%.3f", spent)
+    return 0
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s", datefmt="%H:%M:%S", stream=sys.stdout)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["pilot"])
-    ap.add_argument("--spec", type=Path, required=True)
+    ap.add_argument("cmd", choices=["pilot", "run"])
+    ap.add_argument("--spec", type=Path, help="pilot: the products and groups to analyse")
+    ap.add_argument("--budget", type=float, default=MONTHLY_BUDGET_USD, help="this month's spending limit in $ (default USP_MONTHLY_BUDGET_USD)")
+    ap.add_argument("--force", action="store_true", help="re-analyse everything, changed or not")
+    ap.add_argument("--dry-run", action="store_true", help="fetch inputs and print the estimate; send nothing")
     a = ap.parse_args()
-    return pilot(a.spec)
+    if a.cmd == "pilot":
+        return pilot(a.spec)
+    return run(a.budget, force=a.force, dry_run=a.dry_run)
 
 
 if __name__ == "__main__":
