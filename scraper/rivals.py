@@ -61,6 +61,9 @@ RIVAL_OVERRIDES: dict[str, dict] = {
     # Green Tea Hyaluronic Sunscreen Serum: The Face Shop's Rice Water Bright sunscreen, its new launch against
     # Innisfree's (owner, 8 Oct), in place of the same brand's oil-free one
     "18742425": {"add": {"korean": ["25413510"]}, "drop": ["20771490"]},
+    # Volcanic BHA cleanser: the Korean pore/BHA cleansers shoppers weigh it against, at +60% (owner, 8 Oct),
+    # beside COSRX, the only one within ±40%
+    "524311": {"add": {"korean": ["20736557", "6951198"]}},   # Anua Heartleaf Quercetinol Pore Deep, Beauty of Joseon Green Plum
 }
 KOREAN_RIVALS = 3
 PRICE_BAND = 0.40           # ±40%: a rival is priced like the anchor
