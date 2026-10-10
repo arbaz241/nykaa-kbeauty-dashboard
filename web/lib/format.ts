@@ -40,12 +40,27 @@ export function shortName(name: string, brand: string) {
   return n || name;
 }
 
-/** '50ml' -> 50, '100 g' -> 100, '1.7 oz' -> 50.3 */
+/** Pack size in ml or g: '50ml' -> 50, '100 g' / '100gm' / '100 gms' -> 100, '1.7 fl oz' -> 50.3, '1 L' / '1 ltr' -> 1000,
+ *  '0.5 kg' -> 500. Pieces ('5 pcs', '10 sheets') have no ml and return null: see packPieces. */
 export function packMl(pack: string | null | undefined): number | null {
-  const m = pack?.match(/(\d+(?:\.\d+)?)\s*(ml|g|gm|gms|oz|l)\b/i);
+  const m = pack?.match(/(\d+(?:\.\d+)?)\s*(ml|millilitre|g|gm|gms|gram|grams|gr|fl\.?\s*oz|oz|l|ltr|litre|liter|kg)\b/i);
   if (!m) return null;
-  const v = parseFloat(m[1]); const u = m[2].toLowerCase();
-  return u === "l" ? v * 1000 : u === "oz" ? v * 29.57 : v;
+  const v = parseFloat(m[1]); const u = m[2].toLowerCase().replace(/[\s.]/g, "");
+  if (!v) return null;
+  return ["l", "ltr", "litre", "liter", "kg"].includes(u) ? v * 1000 : u === "oz" || u === "floz" ? v * 29.57 : v;
+}
+/** '5 pcs' / 'Pack of 10 sheets' -> 5 / 10 (sheet masks and pads are priced per piece, not per 100 ml). */
+export function packPieces(pack: string | null | undefined): number | null {
+  const m = pack?.match(/(\d+)\s*(pcs|pc|pieces|sheets?|pads?|units?|n)\b/i);
+  return m ? parseInt(m[1], 10) || null : null;
+}
+
+/** First clause of a long AI phrase, for a one-line first view (the full text is one click away). */
+export function clause(text: string | null | undefined, maxWords = 10): string {
+  if (!text) return "";
+  const first = text.split(/;|:\s| \(| — | – |, (?=[a-z])|\. /)[0].trim().replace(/^['"‘“]|['"’”]$/g, "");
+  const w = first.split(/\s+/);
+  return w.length <= maxWords ? first : `${w.slice(0, maxWords).join(" ").replace(/[,;:]$/, "")}…`;
 }
 
 export const median = (xs: number[]) => {

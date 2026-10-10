@@ -20,6 +20,10 @@ export interface Criterion<T> {
   bar?: boolean;
   /** custom cell (e.g. a sparkline) instead of the value text; shading and LEAD still apply */
   cell?: (x: T) => React.ReactNode;
+  /** when the value is genuinely absent: the reason, shown instead of a dash (null = value present) */
+  missing?: (x: T) => string | null;
+  /** plain-language strength/gap wording: "<up> 3 of 4 rivals" */
+  up?: string; down?: string;
 }
 
 /** Within 5% (or 3 rank places) counts as on par. */

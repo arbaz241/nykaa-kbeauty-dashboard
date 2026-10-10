@@ -2,11 +2,14 @@
 
 import { Fragment } from "react";
 import { TONE_CLASS, tone, type Criterion } from "@/lib/compete";
+import { Missing } from "./Detail";
 
 export interface GridCol { key: string; head: React.ReactNode; anchor?: boolean }
-export interface ExtraRow<T> { label: string; help?: string; render: (x: T) => React.ReactNode; has?: (x: T) => boolean;
+export interface ExtraRow<T> { label: React.ReactNode; help?: string; render: (x: T) => React.ReactNode; has?: (x: T) => boolean;
+  /** why a cell has no value (shown instead of a dash) */
+  missing?: (x: T) => string;
   /** place right after this criterion (by key) instead of at the end */
-  after?: string }
+  after?: string; key?: string }
 
 /** Criteria down the side, one column per brand or product. Each rival cell is shaded by how the anchor
  *  compares with it on that row (green: anchor ahead, red: anchor behind, grey: on par). */
@@ -22,11 +25,11 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
   const grid = { gridTemplateColumns: `${labelWidth}px repeat(${cols.length}, minmax(150px, 1fr))` };
   const live = items.filter((x): x is T => x !== null);
   const extraRow = (r: ExtraRow<T>) => (
-    <div key={r.label} className="grid border-b border-line last:border-0" style={grid}>
+    <div key={String(r.key ?? r.label)} className="grid border-b border-line last:border-0" style={grid}>
       <div className="px-4 py-2.5 text-[12.5px] text-ink-2" title={r.help}>{r.label}</div>
       {items.map((x, i) => (
         <div key={i} className={`border-l border-line px-3 py-2.5 ${i === ai ? "bg-page/70" : ""}`}>
-          {!x ? <span className="text-[12px] text-muted">—</span> : r.has && !r.has(x) ? <span className="text-[11.5px] text-muted">–</span> : r.render(x)}
+          {!x ? <Missing>Not available</Missing> : r.has && !r.has(x) ? <Missing>{r.missing?.(x) ?? "No data collected"}</Missing> : r.render(x)}
         </div>
       ))}
     </div>
@@ -57,10 +60,12 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
               <div className="grid items-center border-b border-line last:border-0" style={grid}>
                 <div className="px-4 py-2.5 text-[12.5px] text-ink-2" title={cr.help}>{cr.label}</div>
                 {items.map((x, i) => {
-                  if (!x) return <div key={i} className="border-l border-line px-3 py-2.5 text-[12px] text-muted">—</div>;
+                  if (!x) return <div key={i} className="border-l border-line px-3 py-2.5"><Missing>Not available</Missing></div>;
                   const v = cr.value(x);
                   const t = i === ai ? null : tone(a, v, cr.better, kind);
                   const sub = cr.sub?.(x);
+                  const why = cr.missing?.(x);
+                  if (why) return <div key={i} className={`border-l border-line px-3 py-2.5 ${i === ai ? "bg-page/70" : ""}`}><Missing>{why}</Missing></div>;
                   return (
                     <div key={i} className={`border-l border-line px-3 py-2 ${i === ai ? "bg-page/70" : ""}`}>
                       <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[13px] font-semibold tabular ${t ? TONE_CLASS[t] : ""}`}>{cr.cell ? cr.cell(x) : cr.show(x)}</span>
@@ -89,5 +94,5 @@ function Key({ cls, t }: { cls: string; t: string }) {
 /** Small rounded tag. */
 export function Chip({ children, tone: t, title }: { children: React.ReactNode; tone?: "good" | "bad" | "plain"; title?: string }) {
   const cls = t === "good" ? "bg-[#eaf6ee] text-good" : t === "bad" ? "bg-[#fbecea] text-bad" : t === "plain" ? "text-ink-2 ring-1 ring-line" : "bg-sunken text-ink-2";
-  return <span title={title} className={`inline-block rounded-full px-2 py-0.5 text-[11.5px] leading-snug ${cls}`}>{children}</span>;
+  return <span title={title} className={`inline-block max-w-full whitespace-normal break-words rounded-full px-2 py-0.5 text-[11.5px] leading-snug ${cls}`}>{children}</span>;
 }
