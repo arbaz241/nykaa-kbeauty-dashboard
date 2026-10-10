@@ -55,6 +55,16 @@ export function packPieces(pack: string | null | undefined): number | null {
   return m ? parseInt(m[1], 10) || null : null;
 }
 
+/** Sheet masks are compared per sheet: '5 pcs', 'Pack of 4', 'Set of 2' -> that count; a single sachet (20–60 ml/g) -> 1;
+ *  a large pack with only a weight ('250 ml') -> weight ÷ 25 ml per sheet, flagged as an estimate. */
+export const PER_SHEET = new Set(["sheet_mask"]);
+export function sheetCount(pack: string | null | undefined, name: string): { n: number; est: boolean } {
+  const n = packPieces(pack) ?? Number(name.match(/\b(?:pack|set|box) of (\d+)/i)?.[1] ?? 0);
+  if (n) return { n, est: false };
+  const ml = packMl(pack) ?? packMl(name);
+  return ml && ml > 60 ? { n: Math.max(1, Math.round(ml / 25)), est: true } : { n: 1, est: false };
+}
+
 /** First clause of a long AI phrase, for a one-line first view (the full text is one click away). */
 export function clause(text: string | null | undefined, maxWords = 10): string {
   if (!text) return "";

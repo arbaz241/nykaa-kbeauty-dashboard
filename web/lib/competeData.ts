@@ -2,7 +2,7 @@
  *  shape per product and per brand (docs/restructure-v2-plan.md §2 inventory). Pure functions, no fetching. */
 
 import { norm } from "./brands";
-import { clause, packMl, packPieces, shortName } from "./format";
+import { PER_SHEET, clause, packMl, packPieces, sheetCount, shortName } from "./format";
 import type { Variant } from "./data";
 import { reviewThemes, themeFor, type ReviewLite, type ReviewThemes } from "./reviewThemes";
 import type { Lvl } from "@/components/Detail";
@@ -32,6 +32,8 @@ export interface ProductFacts {
   formulation: string | null; madeIn: string | null; since: string | null; phrases: ReviewPhrase[];
   usp?: UspProduct; thumb?: Thumbnail; aspects?: AspectStat[];
   /** MRP per 100 ml/g at the size closest to the category's standard size (or the listed size) */
+  /** the price every product is compared on: MRP per 100 ml/g, or per sheet for sheet masks */
+  unit: number | null; unitNote: string | null;
   mrpPer100: number | null; perPiece: number | null; sizeUsed: { ml: number; mrp: number; how: "matched" | "listed" } | null; per100Why: string | null;
   sizes: { pack: string; ml: number | null; mrp: number | null; price: number | null }[];
   themes: ReviewThemes | null;
@@ -111,7 +113,7 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
     formulation: sh?.formulation ?? c?.formulation ?? null, madeIn: sh?.country_name ?? c?.country_name ?? null, since: sh?.first_review_date ?? null,
     phrases: sh?.review_key_phrases ?? c?.review_key_phrases ?? [],
     usp: u, thumb: s.thumbs.get(pid), aspects: s.aspects?.get(pid), groupRead,
-    ...sizing(pack, name, mrp ?? price, s.variants?.get(pid), s.stdMl),
+    ...unitPrice(sizing(pack, name, mrp ?? price, s.variants?.get(pid), s.stdMl), PER_SHEET.has(s.cat), pack, name, mrp ?? price),
     themes: s.reviews?.has(pid) ? reviewThemes(s.reviews.get(pid)!) : null,
     proof: proofLevel(u), echo: echoLevel(u, s.reviews?.get(pid)),
     whoFor: whoFor(u, sh?.skin_types ?? c?.skin_types ?? [], sh?.concerns ?? c?.concerns ?? []),
@@ -119,7 +121,15 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
   };
 }
 
-/* ---------------------------------------------------------------- price per 100 ml on MRP */
+/* ---------------------------------------------------------------- price per 100 ml (or per sheet) on MRP */
+
+function unitPrice<T extends { mrpPer100: number | null; sizeUsed: { ml: number; how: string } | null; per100Why: string | null }>(sz: T, perSheet: boolean, pack: string | null, name: string, mrp: number | null) {
+  if (perSheet) {
+    const c = sheetCount(pack, name);
+    return { ...sz, unit: mrp ? mrp / c.n : null, unitNote: `${c.n} sheet${c.n === 1 ? "" : "s"}${c.est ? " (estimated from pack weight)" : ""}`, per100Why: mrp ? null : "MRP not shown" };
+  }
+  return { ...sz, unit: sz.mrpPer100, unitNote: sz.sizeUsed ? `at ${sz.sizeUsed.ml} ml/g${sz.sizeUsed.how === "matched" ? " (closest size)" : ""}` : null };
+}
 
 const MINI = 15;
 /** The most common full-size pack in a category's top 100 (rounded to 5 ml/g): the size products are compared at. */

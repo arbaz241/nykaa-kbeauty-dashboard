@@ -7,6 +7,7 @@ import { Card } from "@/components/ui";
 import { TONE_CLASS, TONE_WORD, tone, type Criterion, type Standing } from "@/lib/compete";
 import { ROLE_LABEL, shortTitle, type ProductFacts, type ProductOption } from "@/lib/competeData";
 import { CATEGORY_LABEL, compact, inr, signed } from "@/lib/format";
+import type { Bench } from "@/lib/price";
 import type { UspComparison } from "@/lib/usp";
 
 /* ---------------------------------------------------------------- product measures, one set per section */
@@ -78,9 +79,6 @@ function evidence(c: Criterion<ProductFacts>, a: ProductFacts, rivals: ProductFa
   };
 }
 
-/* ---------------------------------------------------------------- price benchmark (shared with the price section) */
-
-export interface Bench { median: number; min: number; max: number; n: number; std: number | null }
 
 /* ---------------------------------------------------------------- §1 verdict, strengths and gaps */
 
@@ -103,9 +101,11 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
   const most = (s?: Standing) => (s ? (s.ahead > s.behind ? "ahead" : s.behind > s.ahead ? "behind" : null) : null);
 
   // price: position, not a win or a loss
-  const diff = a.mrpPer100 && bench ? a.mrpPer100 / bench.median - 1 : null;
-  const pricePhrase = diff === null ? null : Math.abs(diff) < 0.05 ? "priced in line with its category" : `priced ${Math.round(Math.abs(diff) * 100)}% ${diff > 0 ? "above" : "below"} its category`;
-  const cheaper = rivals.filter((r) => r.mrpPer100 && a.mrpPer100 && r.mrpPer100 < a.mrpPer100 * 0.95).length;
+  const unit = bench?.unit ?? (cat === "sheet_mask" ? "sheet" : "100 ml/g");
+  const diff = a.unit && bench ? a.unit / bench.value - 1 : null;
+  const leader = bench ? `${bench.leader.brand}'s ${shortTitle(bench.leader.name, bench.leader.brand)}` : "";
+  const pricePhrase = diff === null ? null : Math.abs(diff) < 0.05 ? `priced in line with the K-beauty leader (${leader})` : `priced ${Math.round(Math.abs(diff) * 100)}% ${diff > 0 ? "above" : "below"} the K-beauty leader (${leader})`;
+  const cheaper = rivals.filter((r) => r.unit && a.unit && r.unit < a.unit * 0.95).length;
   const ps = a.proof.level ? LEVEL_SCORE[a.proof.level] : null; const es = a.echo.level ? LEVEL_SCORE[a.echo.level] : null;
   const unique = hero?.comparison.anchor_position.unique_to_anchor.length ?? 0;
   const msgScore = ps !== null && es !== null ? ps + es : null;
@@ -116,7 +116,7 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
 
   const dims: Dim[] = [
     { id: "price", label: "Price", href: "#price",
-      point: a.mrp ? <>MRP <b>{inr(a.mrp)}</b>{a.mrpPer100 ? <> · {rupee100(a.mrpPer100)}/100 ml</> : null}{bench ? <> vs category median {rupee100(bench.median)}</> : null}; {cheaper} of {rivals.length} rivals cost less per 100 ml</> : <>MRP not shown on Nykaa</> },
+      point: a.mrp ? <>MRP <b>{inr(a.mrp)}</b>{a.unit ? <> · {rupee100(a.unit)} per {unit}</> : null}{bench ? <> vs {rupee100(bench.value)} for the K-beauty leader</> : null}; {cheaper} of {rivals.length} rivals cost less</> : <>MRP not shown on Nykaa</> },
     { id: "message", label: "Message", href: "#message",
       tone: msgScore === null ? undefined : msgScore >= 5 ? "good" : msgScore <= 3 ? "bad" : undefined,
       good: es === 3 ? "a message buyers repeat" : "a well-proven message",

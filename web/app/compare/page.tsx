@@ -16,7 +16,7 @@ import { HERO_ORDER, brandFacts, productFacts, productOptions, searchCounts, she
 import { useReviewsFor, useVariants, useAssortment, useCatalog, useDemand, useLastPrices, useMovement, useReviewMonths, useSearch, useShelf, useThumbnails } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/format";
 import { monthsWindow } from "@/lib/metrics";
-import { categoryBenchmark } from "@/lib/price";
+import { kBeautyBenchmark } from "@/lib/price";
 import type { ReviewMonth } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
 
@@ -89,7 +89,7 @@ function CompetitivePage() {
   const ids = useMemo(() => productIds.map((p) => p.pid), [productIds]);
   const reviews = useReviewsFor(ids); const variants = useVariants(ids);
   const stdMl = useMemo(() => standardSize(rows, cat), [rows, cat]);
-  const bench = useMemo(() => categoryBenchmark(rows, cat, stdMl), [rows, cat, stdMl]);
+  const bench = useMemo(() => kBeautyBenchmark(rows, cat, anchor, stdMl), [rows, cat, anchor, stdMl]);
   const lastPrices = useLastPrices(useMemo(() => ids.filter((id) => !rows.some((r) => r.product_id === id) && !cat0.some((r) => r.product_id === id)), [ids, rows, cat0]));
   const win = useMemo(() => monthsWindow(12), []);
   const monthsBy = useMemo(() => { const m = new Map<string, ReviewMonth[]>(); (months.data ?? []).forEach((r) => m.set(r.product_id, [...(m.get(r.product_id) ?? []), r])); return m; }, [months.data]);
@@ -144,7 +144,7 @@ function CompetitivePage() {
           {view === "product" ? (<>
             <SectionNav key="p" items={PRODUCT_NAV} />
             <Summary hero={hero} products={products} bench={bench} cat={cat} />
-            <PriceSection products={products} colors={colors} bench={bench} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
+            <PriceSection products={products} colors={colors} bench={bench} std={stdMl} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
             <Message hero={hero} products={products} colors={colors} />
             <Buyers products={products} colors={colors} loading={reviews.isLoading} />
             <Visibility products={products} colors={colors} cat={cat} />

@@ -1,4 +1,4 @@
-import { packMl } from "./format";
+import { PER_SHEET, packMl, sheetCount } from "./format";
 import type { CatalogRow, ShelfRow } from "./types";
 
 /** Brand price benchmark: like-for-like, on a fixed basket of core skincare categories, on MRP (the list price;
@@ -93,16 +93,43 @@ export function withAnchor(prices: Omit<BasketPrice, "vsAnchor" | "shared">[], a
   });
 }
 
-/** Category benchmark for one product comparison: median MRP per 100 ml/g of today's top-100 products in the category,
- *  full sizes only and packs between half and double the category's usual size, so sizes are like for like. */
-export function categoryBenchmark(shelf: ShelfRow[], cat: string, std: number | null) {
-  const seen = new Set<string>(); const per: number[] = [];
-  for (const r of shelf) {
-    if (r.subcategory !== cat || seen.has(r.product_id) || exclusion(r)) continue;
-    const ml = packMl(r.pack_size) ?? packMl(r.name); const p = r.mrp ?? r.price;
-    if (!ml || !p || ml < MINI_ML || (std && (ml < std / 2 || ml > std * 2))) continue;
-    seen.add(r.product_id); per.push((p / ml) * 100);
+export interface Bench {
+  /** the K-beauty leader's MRP per unit: what every product is compared against */
+  value: number; unit: "100 ml/g" | "sheet";
+  leader: { product_id: string; brand: string; name: string; url: string | null; reviews: number; mrp: number; size: string };
+  /** context only: median and range of comparable products in today's top 100 */
+  median: number | null; min: number | null; max: number | null; n: number;
+}
+
+/** MRP per unit of one shelf listing on the category's basis (per 100 ml/g, or per sheet for sheet masks). */
+export function shelfUnit(r: ShelfRow, perSheet: boolean, std: number | null): { value: number; size: string } | null {
+  const p = r.mrp ?? r.price; if (!p || exclusion(r)) return null;
+  if (perSheet) {
+    if (/patch/i.test(r.name)) return null; // acne patches share the shelf but are not masks
+    const c = sheetCount(r.pack_size, r.name); return { value: p / c.n, size: `${c.n} sheet${c.n === 1 ? "" : "s"}${c.est ? " (est.)" : ""}` };
   }
-  if (per.length < 3) return null;
-  return { median: med(per)!, min: Math.min(...per), max: Math.max(...per), n: per.length, std };
+  const ml = packMl(r.pack_size) ?? packMl(r.name);
+  if (!ml || ml < MINI_ML || (std && (ml < std / 2 || ml > std * 2))) return null;
+  return { value: (p / ml) * 100, size: `${ml} ml/g` };
+}
+
+/** Benchmark (owner, 10 Oct): the K-beauty leader of the category, i.e. the K-beauty product in today's top 100 with the most
+ *  reviews, Innisfree's own excluded; the category median stays as context. */
+export function kBeautyBenchmark(shelf: ShelfRow[], cat: string, anchor: string, std: number | null): Bench | null {
+  const perSheet = PER_SHEET.has(cat);
+  const seen = new Set<string>(); const vals: number[] = [];
+  let lead: Bench["leader"] | null = null; let leadVal = 0;
+  for (const r of shelf) {
+    if (r.subcategory !== cat || seen.has(r.product_id)) continue;
+    seen.add(r.product_id);
+    const u = shelfUnit(r, perSheet, std); if (!u) continue;
+    vals.push(u.value);
+    const reviews = r.review_count ?? r.rating_count ?? 0;
+    if (r.origin === "kbeauty" && r.brand !== anchor && (!lead || reviews > lead.reviews)) {
+      lead = { product_id: r.product_id, brand: r.brand, name: r.name, url: r.url, reviews, mrp: (r.mrp ?? r.price)!, size: u.size }; leadVal = u.value;
+    }
+  }
+  if (!lead) return null;
+  return { value: leadVal, unit: perSheet ? "sheet" : "100 ml/g", leader: lead, median: vals.length >= 3 ? med(vals) : null,
+    min: vals.length ? Math.min(...vals) : null, max: vals.length ? Math.max(...vals) : null, n: vals.length };
 }
