@@ -5,6 +5,7 @@ import AuthGate from "@/components/AuthGate";
 import { ProductScorecard, Summary } from "@/components/compete/Overview";
 import { Battlecards, Proposition } from "@/components/compete/Proposition";
 import { Reception, Shelf } from "@/components/compete/Reception";
+import { Brands, PriceBasket, WhereCompete } from "@/components/compete/Brands";
 import { SectionNav, type NavItem } from "@/components/Report";
 import Shell from "@/components/Shell";
 import { Card, Loading } from "@/components/ui";
@@ -30,6 +31,9 @@ const NAV: NavItem[] = [
   { id: "rivals", label: "Rival by rival" },
   { id: "reception", label: "What buyers say" },
   { id: "shelf", label: "Shelf presentation" },
+  { id: "brands", label: "Brands" },
+  { id: "compete", label: "Where they compete" },
+  { id: "price", label: "Price" },
 ];
 
 function CompetitivePage() {
@@ -61,6 +65,10 @@ function CompetitivePage() {
     const base = brandOverride ?? heroBrands ?? [anchor, ...DEFAULT_RIVALS.map((b) => resolveBrand(b, known)).filter((b): b is string => !!b)];
     return [anchor, ...base.filter((b) => b !== anchor)].slice(0, 6);
   }, [brandOverride, heroBrands, anchor, known]);
+  const toggleBrand = (b: string) => {
+    if (b === anchor) return;
+    setBrandOverride(brands.includes(b) ? brands.filter((x) => x !== b) : brands.length >= 6 ? brands : [...brands, b]);
+  };
   const colors = useMemo(() => Object.fromEntries(brands.map((b, i) => [b, i === 0 ? "#121211" : SLOT_COLORS[(i - 1) % SLOT_COLORS.length]])), [brands]);
 
   // products in view: the hero and its analysed rivals, else each brand's best-ranked product here
@@ -124,6 +132,11 @@ function CompetitivePage() {
           {hero && <Battlecards hero={hero} products={products} colors={colors} />}
           <Reception hero={hero} products={products} colors={colors} loading={aspects.isLoading} />
           <Shelf products={products} colors={colors} />
+          <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isHeroSet={!brandOverride}
+            onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
+          <WhereCompete facts={bfacts} anchor={anchor} rows={rows} catalog={cat0} uspBy={uspBy} comps={uspC.data ?? []} colors={colors} brands={brands}
+            onPickCat={(c) => { setCat(c); setHeroPick(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+          <PriceBasket facts={bfacts} anchor={anchor} />
         </>
       )}
     </Shell>

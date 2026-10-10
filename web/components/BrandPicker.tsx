@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { ANCHOR_BRAND, MAX_COMPARE, norm } from "@/lib/brands";
 
 /** Focus brands as toggle chips, plus a type-to-add search for any other brand on the shelf. */
-export default function BrandPicker({ focus, all, selected, colors, onToggle }: {
-  focus: string[]; all: { brand: string; slots: number }[]; selected: string[]; colors: Record<string, string>; onToggle: (b: string) => void;
+export default function BrandPicker({ focus, all, selected, colors, onToggle, max = MAX_COMPARE }: {
+  focus: string[]; all: { brand: string; slots: number }[]; selected: string[]; colors: Record<string, string>; onToggle: (b: string) => void; max?: number;
 }) {
   const [q, setQ] = useState(""); const [open, setOpen] = useState(false);
   const matches = useMemo(() => {
@@ -13,12 +13,12 @@ export default function BrandPicker({ focus, all, selected, colors, onToggle }: 
     return all.filter((a) => !focus.includes(a.brand) && (!k || norm(a.brand).includes(k))).slice(0, 8);
   }, [q, all, focus]);
   const extra = selected.filter((b) => !focus.includes(b));
-  const full = selected.length >= MAX_COMPARE;
+  const full = selected.length >= max;
 
   const Chip = ({ b, removable = false }: { b: string; removable?: boolean }) => {
     const on = selected.includes(b); const c = colors[b];
     return (
-      <button onClick={() => onToggle(b)} disabled={!on && full} title={!on && full ? `Up to ${MAX_COMPARE} brands` : undefined}
+      <button onClick={() => onToggle(b)} disabled={!on && full} title={!on && full ? `Up to ${max} brands` : undefined}
         className={`group inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] transition ${on ? "bg-surface font-medium text-ink shadow-card ring-1" : "text-ink-2 ring-1 ring-line hover:bg-surface hover:text-ink disabled:opacity-40 disabled:hover:bg-transparent"}`}
         style={on ? { boxShadow: `inset 0 0 0 1.5px ${c}` } : undefined}>
         <span className="h-2 w-2 rounded-full" style={{ background: on ? c : "#d9d7cf" }} />
@@ -47,7 +47,7 @@ export default function BrandPicker({ focus, all, selected, colors, onToggle }: 
           </div>
         )}
       </div>
-      <span className="ml-1 text-[12px] text-muted">{selected.length}/{MAX_COMPARE} selected</span>
+      <span className="ml-1 text-[12px] text-muted">{selected.length}/{max} selected</span>
     </div>
   );
 }
