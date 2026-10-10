@@ -15,11 +15,11 @@ import type { UspComparison } from "@/lib/usp";
 export const PRODUCT_CRITERIA: Criterion<ProductFacts>[] = [
   { key: "price", label: "Price", help: "Selling price today", better: null, value: (p) => p.price, show: (p) => inr(p.price),
     sub: (p) => [p.mrp && p.price && p.mrp > p.price ? `MRP ${inr(p.mrp)}` : null, p.priceNote].filter(Boolean).join(" · ") || null },
-  { key: "per100", label: "Price per 100 ml/g", help: "Where the pack size is known", better: null, value: (p) => p.perHundred, show: (p) => (p.perHundred ? `₹${Math.round(p.perHundred)}` : "–"), sub: (p) => p.pack },
+  { key: "per100", label: "Price per 100 ml/g", help: "Where the pack size is known", better: null, value: (p) => p.perHundred, show: (p) => (p.perHundred ? `₹${Math.round(p.perHundred).toLocaleString("en-IN")}` : "–"), sub: (p) => p.pack },
   { key: "discount", label: "Discount", help: "% off MRP today", better: null, value: (p) => p.discount, show: (p) => (p.discount ? `${Math.round(p.discount)}%` : "none") },
   { key: "rank", label: "Shelf rank", help: "Position in this category's top 100 today (1 = top)", better: "low", value: (p) => p.rank ?? 101, show: (p) => (p.rank ? `#${p.rank}` : "Not in top 100"), sub: (p) => (p.paid ? "paid slot" : null) },
   { key: "rank7", label: "Rank 7 days ago", help: "Movement over the last week", better: null, value: (p) => p.rank7, show: (p) => (p.rank7 ? `#${p.rank7}` : "–"),
-    sub: (p) => (p.gain7 ? `${p.gain7 > 0 ? "▲" : "▼"} ${Math.abs(p.gain7)} places${p.rank14 ? ` · 14 d ago #${p.rank14}` : ""}` : p.rank14 ? `14 d ago #${p.rank14}` : null) },
+    sub: (p) => (p.gain7 ? `${p.gain7 > 0 ? "▲" : "▼"} ${Math.abs(p.gain7)} place${Math.abs(p.gain7) === 1 ? "" : "s"}${p.rank14 ? ` · 14 d ago #${p.rank14}` : ""}` : p.rank14 ? `14 d ago #${p.rank14}` : null) },
   { key: "rating", label: "Rating", help: "Nykaa star rating", better: "high", value: (p) => p.rating, show: (p) => (p.rating ? `★ ${p.rating.toFixed(1)}` : "–") },
   { key: "ratings", label: "Ratings", help: "Number of star ratings (lifetime popularity)", better: "high", value: (p) => p.ratings, show: (p) => compact(p.ratings), bar: true,
     sub: (p) => (p.reviewsTotal ? `${compact(p.reviewsTotal)} written reviews` : null) },
@@ -54,7 +54,8 @@ export function Summary({ hero, products, brands, anchor, cat }: { hero: UspComp
   const priceFinding = a?.price ? (() => {
     const below = rivals.filter((r) => r.price !== null && r.price > a.price! * 1.05).length;
     const above = rivals.filter((r) => r.price !== null && r.price < a.price! * 0.95).length;
-    return <>At <b>{inr(a.price)}</b>, {name} is cheaper than {below} and pricier than {above} of its {rivals.length} rivals. Innisfree&rsquo;s core basket ({inr(ab?.basket.overall)}) is pricier than {cheaperBrands} of {rb.length} rival brands.</>;
+    const pos = above === rivals.length ? "the priciest in the group" : below === rivals.length ? "the cheapest in the group" : `cheaper than ${below} and pricier than ${above} of its ${rivals.length} rivals`;
+    return <>At <b>{inr(a.price)}</b>, {name} is {pos}. Innisfree&rsquo;s core basket ({inr(ab?.basket.overall)}) is pricier than {cheaperBrands} of {rb.length} rival brands.</>;
   })() : <>Innisfree&rsquo;s core basket costs {inr(ab?.basket.overall)}, pricier than {cheaperBrands} of {rb.length} rival brands.</>;
   const bestRival = [...rivals].filter((r) => r.rank).sort((x, y) => x.rank! - y.rank!)[0];
   const visFinding = a ? <>{a.rank ? <>#{a.rank} in {CATEGORY_LABEL[cat]}</> : <>Not in the {CATEGORY_LABEL[cat]} top 100</>}; {rivals.filter((r) => r.rank && (!a.rank || r.rank < a.rank)).length} of {rivals.length} rivals rank higher{bestRival ? <> (best: {bestRival.brand} #{bestRival.rank}{bestRival.paid ? ", paid slot" : ""})</> : null}.</> : null;

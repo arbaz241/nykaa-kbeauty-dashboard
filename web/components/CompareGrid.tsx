@@ -47,7 +47,9 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
           const kind = cr.key.includes("rank") ? "rank" : "ratio";
           const a = anchor ? cr.value(anchor) : null;
           const vals = items.map((x) => (x ? cr.value(x) : null)).filter((v): v is number => v !== null);
-          const best = cr.better && vals.length > 1 ? (cr.better === "high" ? Math.max(...vals) : Math.min(...vals)) : null;
+          const top = cr.better && vals.length > 1 ? (cr.better === "high" ? Math.max(...vals) : Math.min(...vals)) : null;
+          // LEAD only for a clear leader: not when several share the best value (e.g. everyone at 0)
+          const best = top !== null && vals.filter((v) => v === top).length === 1 ? top : null;
           const max = vals.length ? Math.max(...vals.map(Math.abs)) : 0;
           return (
             <Fragment key={cr.key}>
