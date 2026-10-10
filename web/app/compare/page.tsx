@@ -217,7 +217,10 @@ function BrandView({ facts, anchor, cat, colors, brands, known, rows, catalog, h
   const rivals = facts.filter((f) => f.brand !== anchor);
   const cheaper = rivals.filter((f) => f.basket.vsAnchor !== null && f.basket.vsAnchor < 0.95).length;
   const dearer = rivals.filter((f) => f.basket.vsAnchor !== null && f.basket.vsAnchor > 1.05).length;
-  const line = `Against ${rivals.length} rival brand${rivals.length === 1 ? "" : "s"}: ${dearer} price above Innisfree, ${cheaper} below${strong[0] ? `; Innisfree leads on ${strong[0].label.toLowerCase()}` : ""}${weak[0] ? `, trails on ${weak[0].label.toLowerCase()}` : ""}.`;
+  const priced = rivals.filter((f) => f.basket.vsAnchor !== null).length;
+  const pricePart = !priced ? "No rival has a comparable basket price"
+    : `Innisfree is pricier than ${cheaper} of ${priced} rival brand${priced === 1 ? "" : "s"}${dearer ? ` and cheaper than ${dearer}` : ""}${priced - cheaper - dearer ? ` (${priced - cheaper - dearer} about the same)` : ""}`;
+  const line = `${pricePart}${strong[0] ? `. It leads on ${strong[0].label.toLowerCase()}` : ""}${weak[0] ? `${strong[0] ? "," : ". It"} trails on ${weak[0].label.toLowerCase()}` : ""}.`;
 
   const cats = [...SKINCARE, ...CATEGORIES.filter((c) => !SKINCARE.includes(c))].filter((c) => SKINCARE.includes(c) || brands.some((b) => productOptions(b, c, rows, catalog).length));
   const cols: GridCol[] = facts.map((f) => ({ key: f.brand, anchor: f.brand === anchor, head: <BrandHead f={f} color={colors[f.brand]} /> }));
