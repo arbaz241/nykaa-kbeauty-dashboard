@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { fetchAll, supabase } from "./supabase";
 import { aspectSummary } from "./metrics";
+import type { ReviewLite } from "./reviewThemes";
 import type { Availability, BrandShare, CategoryCoverage, Thumbnail, Movement, MarketEvent, ProductDemand, AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewAspect, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
 
 const opts = { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 };
@@ -124,18 +125,29 @@ export function useEvents() {
 
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
-/** Review aspect tags for a handful of products (Compare), aggregated per product. */
-export function useAspectsFor(ids: string[]) {
-  const key = [...ids].sort();
-  return useSWR(key.length ? ["aspects_for", ...key] : null, async () => {
-    const out = new Map<string, ReturnType<typeof aspectSummary>>();
+/** Recent review text, stars and Nykaa's tags for a handful of products (Competitive Analysis review themes). */
+export function useReviewsFor(ids: string[]) {
+  const key = [...new Set(ids)].sort();
+  return useSWR(key.length ? ["reviews_for", ...key] : null, async () => {
+    const out = new Map<string, ReviewLite[]>();
     await Promise.all(key.map(async (id) => {
-      const { data, error } = await supabase().from("web_review_texts").select("aspects").eq("product_id", id).not("aspects", "is", null)
+      const { data, error } = await supabase().from("web_review_texts").select("rating,title,body,aspects").eq("product_id", id)
         .order("created_on", { ascending: false }).limit(600);
       if (error) throw new Error(error.message);
-      out.set(id, aspectSummary((data ?? []) as { aspects: ReviewAspect[] | null }[]));
+      out.set(id, (data ?? []) as ReviewLite[]);
     }));
     return out;
+  }, { revalidateOnFocus: false });
+}
+
+export interface Variant { sku?: string; pack_size: string | null; mrp: number | null; price: number | null; in_stock?: boolean }
+/** Every size a product is sold in, from its product page (products with several sizes have no single pack size). */
+export function useVariants(ids: string[]) {
+  const key = [...new Set(ids)].sort();
+  return useSWR(key.length ? ["variants", ...key] : null, async () => {
+    const { data, error } = await supabase().from("product_details").select("product_id,variants").in("product_id", key);
+    if (error) throw new Error(error.message);
+    return new Map((data ?? []).map((r) => [r.product_id as string, ((r.variants ?? []) as Variant[]).map((v) => ({ ...v, mrp: num(v.mrp), price: num(v.price) }))]));
   }, { revalidateOnFocus: false });
 }
 

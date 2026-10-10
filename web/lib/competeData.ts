@@ -2,7 +2,10 @@
  *  shape per product and per brand (docs/restructure-v2-plan.md §2 inventory). Pure functions, no fetching. */
 
 import { norm } from "./brands";
-import { packMl, shortName } from "./format";
+import { clause, packMl, packPieces, shortName } from "./format";
+import type { Variant } from "./data";
+import { reviewThemes, themeFor, type ReviewLite, type ReviewThemes } from "./reviewThemes";
+import type { Lvl } from "@/components/Detail";
 import { brandScore, type AspectStat, type BrandScore } from "./metrics";
 import { basketPrice, categoryPrice, withAnchor, type BasketPrice } from "./price";
 import type { AssortmentRow, CatalogRow, Movement, ProductDemand, ReviewMonth, ReviewPhrase, SearchRow, ShelfRow, Thumbnail } from "./types";
@@ -28,6 +31,13 @@ export interface ProductFacts {
   whatItIs: string | null; claims: string[]; concerns: string[]; ingredients: string[]; skinTypes: string[];
   formulation: string | null; madeIn: string | null; since: string | null; phrases: ReviewPhrase[];
   usp?: UspProduct; thumb?: Thumbnail; aspects?: AspectStat[];
+  /** MRP per 100 ml/g at the size closest to the category's standard size (or the listed size) */
+  mrpPer100: number | null; perPiece: number | null; sizeUsed: { ml: number; mrp: number; how: "matched" | "listed" } | null; per100Why: string | null;
+  sizes: { pack: string; ml: number | null; mrp: number | null; price: number | null }[];
+  themes: ReviewThemes | null;
+  proof: { level: Lvl | null; reasons: string[] }; echo: { level: Lvl | null; reasons: string[]; none: string };
+  whoFor: { skin: string[]; concerns: string[]; age: string | null; use: string | null };
+  promise: string | null;
   /** this product's line in the USP group read (angle, credibility, whether buyers echo it) */
   groupRead?: UspComparison["comparison"]["products"][number];
 }
@@ -69,7 +79,7 @@ export function productSpark(months: ReviewMonth[], win: string[]) {
 export interface Sources {
   cat: string; rows: ShelfRow[]; catalog: CatalogRow[]; demand: Map<string, ProductDemand>; movement: Movement[];
   months: Map<string, ReviewMonth[]>; win: string[]; search: Map<string, number>; thumbs: Map<string, Thumbnail>;
-  usp: Map<string, UspProduct>; aspects?: Map<string, AspectStat[]>; lastPrices?: Map<string, { price: number | null; mrp: number | null; scrape_date: string }>;
+  usp: Map<string, UspProduct>; aspects?: Map<string, AspectStat[]>; reviews?: Map<string, ReviewLite[]>; variants?: Map<string, Variant[]>; stdMl: number | null; lastPrices?: Map<string, { price: number | null; mrp: number | null; scrape_date: string }>;
   hero: UspComparison | null;
 }
 
@@ -101,6 +111,105 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
     formulation: sh?.formulation ?? c?.formulation ?? null, madeIn: sh?.country_name ?? c?.country_name ?? null, since: sh?.first_review_date ?? null,
     phrases: sh?.review_key_phrases ?? c?.review_key_phrases ?? [],
     usp: u, thumb: s.thumbs.get(pid), aspects: s.aspects?.get(pid), groupRead,
+    ...sizing(pack, name, mrp ?? price, s.variants?.get(pid), s.stdMl),
+    themes: s.reviews?.has(pid) ? reviewThemes(s.reviews.get(pid)!) : null,
+    proof: proofLevel(u), echo: echoLevel(u, s.reviews?.get(pid)),
+    whoFor: whoFor(u, sh?.skin_types ?? c?.skin_types ?? [], sh?.concerns ?? c?.concerns ?? []),
+    promise: u ? clause(u.analysis.main_usp.brand_words || u.analysis.main_usp.statement, 12) : null,
+  };
+}
+
+/* ---------------------------------------------------------------- price per 100 ml on MRP */
+
+const MINI = 15;
+/** The most common full-size pack in a category's top 100 (rounded to 5 ml/g): the size products are compared at. */
+export function standardSize(rows: ShelfRow[], cat: string): number | null {
+  const m = new Map<number, number>();
+  rows.filter((r) => r.subcategory === cat).forEach((r) => { const ml = packMl(r.pack_size) ?? packMl(r.name); if (ml && ml >= MINI) { const k = Math.round(ml / 5) * 5; m.set(k, (m.get(k) ?? 0) + 1); } });
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? null;
+}
+
+function sizing(pack: string | null, name: string, listedMrp: number | null, variants: Variant[] | undefined, std: number | null) {
+  const sizes = (variants ?? []).filter((v) => v.pack_size).map((v) => ({ pack: v.pack_size!, ml: packMl(v.pack_size), mrp: v.mrp, price: v.price }))
+    .filter((v, i, xs) => xs.findIndex((y) => y.pack === v.pack && y.mrp === v.mrp) === i).sort((a, b) => (a.ml ?? 0) - (b.ml ?? 0));
+  const full = sizes.filter((v) => v.ml && v.ml >= MINI && v.mrp);
+  let sizeUsed: { ml: number; mrp: number; how: "matched" | "listed" } | null = null;
+  if (full.length > 1 && std) {
+    const best = [...full].sort((a, b) => Math.abs(Math.log(a.ml! / std)) - Math.abs(Math.log(b.ml! / std)))[0];
+    sizeUsed = { ml: best.ml!, mrp: best.mrp!, how: "matched" };
+  } else {
+    // one size: the listed pack, else the variant whose MRP is the listed MRP, else the size in the name
+    const ml = packMl(pack) ?? full.find((v) => v.mrp === listedMrp)?.ml ?? (full.length === 1 ? full[0].ml : null) ?? packMl(name);
+    const mrp = full.length === 1 && !packMl(pack) ? full[0].mrp : listedMrp;
+    if (ml && mrp) sizeUsed = { ml, mrp, how: "listed" };
+  }
+  const pieces = packPieces(pack) ?? packPieces(name);
+  const per100Why = sizeUsed ? null : pieces ? null : !listedMrp ? "MRP not shown" : "Pack size not listed on Nykaa";
+  return {
+    sizes: sizes.length ? sizes : pack ? [{ pack, ml: packMl(pack), mrp: listedMrp, price: null }] : [],
+    sizeUsed, mrpPer100: sizeUsed ? (sizeUsed.mrp / sizeUsed.ml) * 100 : null,
+    perPiece: !sizeUsed && pieces && listedMrp ? listedMrp / pieces : null, per100Why,
+  };
+}
+
+/* ---------------------------------------------------------------- levels (one scale: strong / moderate / weak) */
+
+const sentences = (t: string) => t.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+
+function proofLevel(u: UspProduct | undefined): { level: Lvl | null; reasons: string[] } {
+  if (!u) return { level: null, reasons: [] };
+  const a = u.analysis;
+  const types = new Map<string, number>(); a.key_benefits.forEach((b) => b.proof_type !== "none" && types.set(b.proof_type.replaceAll("_", " "), (types.get(b.proof_type.replaceAll("_", " ")) ?? 0) + 1));
+  const unproven = a.key_benefits.filter((b) => b.proof_type === "none").length;
+  return {
+    level: a.proof_strength.rating,
+    reasons: [
+      ...sentences(a.proof_strength.reason).slice(0, 2),
+      types.size ? `Proof offered: ${[...types.entries()].map(([k, n]) => `${k} (${n})`).join(", ")}` : "No proof offered for any benefit",
+      ...(unproven ? [`${unproven} of ${a.key_benefits.length} claimed benefits have no proof at all`] : []),
+    ].slice(0, 4),
+  };
+}
+
+/** Share of the product's checked claims that buyers repeat: ≥60% strong, 30–59% moderate, <30% weak (owner-approved). */
+function echoLevel(u: UspProduct | undefined, reviews: ReviewLite[] | undefined): { level: Lvl | null; reasons: string[]; none: string } {
+  if (!u) return { level: null, reasons: [], none: "Not analysed" };
+  const rc = u.analysis.review_check;
+  const judged = rc.benefit_verdicts.filter((b) => b.verdict !== "insufficient_reviews");
+  if (rc.reviews_considered < 30 || !judged.length) return { level: null, reasons: [], none: `Too few reviews (${rc.reviews_considered} read)` };
+  const echoed = judged.filter((b) => b.verdict === "echoed"); const contra = judged.filter((b) => b.verdict === "contradicted");
+  const share = echoed.length / judged.length;
+  const top = [...u.analysis.key_benefits].sort((x, y) => y.emphasis - x.emphasis)[0];
+  const th = top ? themeFor(top.benefit) : undefined;
+  let mention: string | null = null;
+  if (th && reviews?.length) {
+    const t = reviewThemes(reviews).praise.find((x) => x.key === th.key);
+    mention = `${Math.round((t?.share ?? 0) * 100)}% of ${reviews.length} stored reviews mention its lead benefit ("${clause(top.benefit, 6)}")`;
+  }
+  return {
+    level: share >= 0.6 ? "strong" : share >= 0.3 ? "moderate" : "weak", none: "",
+    reasons: [
+      `Buyers repeat ${echoed.length} of ${judged.length} claims checked (${Math.round(share * 100)}%)`,
+      ...(contra.length ? [`Contradicted: ${contra.map((b) => clause(b.benefit, 6)).join("; ")}`] : []),
+      ...(judged.length > echoed.length + contra.length ? [`Rarely mentioned: ${judged.filter((b) => b.verdict === "rarely_mentioned").map((b) => clause(b.benefit, 6)).join("; ")}`] : []),
+      ...(mention ? [mention] : []),
+    ].slice(0, 4),
+  };
+}
+
+const splitList = (v: string) => v.split(/,|;|\/| and | or /i).map((x) => x.trim().replace(/^(and|or)\s+/i, "")).filter((x) => x && x.split(/\s+/).length <= 4);
+const dedupe = (xs: string[]) => { const seen = new Set<string>(); return xs.filter((x) => { const k = x.toLowerCase().replace(/ skin$/, ""); if (seen.has(k)) return false; seen.add(k); return true; }); };
+const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+
+/** Who it is for: Nykaa's skin-type and concern fields merged with the USP read's target attributes, as short chips. */
+function whoFor(u: UspProduct | undefined, skin: string[], concerns: string[]) {
+  const attr = (d: string) => u?.analysis.target_consumer.attributes.filter((t) => t.dimension === d).map((t) => t.value) ?? [];
+  const aiSkin = attr("skin_type").flatMap(splitList).filter((x) => /skin|dry|oily|normal|combination|sensitive|all|acne/i.test(x));
+  return {
+    skin: dedupe([...skin, ...(skin.length ? [] : aiSkin)].map(cap)).slice(0, 4),
+    concerns: dedupe([...concerns, ...attr("concern").flatMap(splitList)].map(cap)).slice(0, 6),
+    age: attr("age_or_life_stage")[0] ? clause(attr("age_or_life_stage")[0], 6) : null,
+    use: attr("routine_role")[0] ? clause(attr("routine_role")[0], 7) : null,
   };
 }
 

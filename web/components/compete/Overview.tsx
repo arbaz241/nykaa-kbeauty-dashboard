@@ -1,128 +1,227 @@
 "use client";
 
-import CompareGrid, { Chip, type ExtraRow, type GridCol } from "@/components/CompareGrid";
+import { Chip } from "@/components/CompareGrid";
+import { DetailHead, LEVEL_SCORE, LEVEL_WORD, Opens, Points, useDetail, type DetailContent } from "@/components/Detail";
 import { useOpenProduct } from "@/components/ProductDrawer";
-import { ActionSection, Finding } from "@/components/Report";
-import Sparkline from "@/components/Sparkline";
 import { Card } from "@/components/ui";
-import { strongestWeakest, standings, type Criterion, type Standing } from "@/lib/compete";
-import { ROLE_LABEL, shortTitle, type BrandFacts, type ProductFacts, type ProductOption } from "@/lib/competeData";
+import { TONE_CLASS, TONE_WORD, tone, type Criterion, type Standing } from "@/lib/compete";
+import { ROLE_LABEL, shortTitle, type ProductFacts, type ProductOption } from "@/lib/competeData";
 import { CATEGORY_LABEL, compact, inr, signed } from "@/lib/format";
 import type { UspComparison } from "@/lib/usp";
 
-/* ---------------------------------------------------------------- product measures (one set, by pillar) */
+/* ---------------------------------------------------------------- product measures, one set per section */
 
-export const PRODUCT_CRITERIA: Criterion<ProductFacts>[] = [
-  { key: "price", label: "Price", help: "Selling price today", better: null, value: (p) => p.price, show: (p) => inr(p.price),
-    sub: (p) => [p.mrp && p.price && p.mrp > p.price ? `MRP ${inr(p.mrp)}` : null, p.priceNote].filter(Boolean).join(" · ") || null },
-  { key: "per100", label: "Price per 100 ml/g", help: "Where the pack size is known", better: null, value: (p) => p.perHundred, show: (p) => (p.perHundred ? `₹${Math.round(p.perHundred).toLocaleString("en-IN")}` : "–"), sub: (p) => p.pack },
-  { key: "discount", label: "Discount", help: "% off MRP today", better: null, value: (p) => p.discount, show: (p) => (p.discount ? `${Math.round(p.discount)}%` : "none") },
-  { key: "rank", label: "Shelf rank", help: "Position in this category's top 100 today (1 = top)", better: "low", value: (p) => p.rank ?? 101, show: (p) => (p.rank ? `#${p.rank}` : "Not in top 100"), sub: (p) => (p.paid ? "paid slot" : null) },
-  { key: "rank7", label: "Rank 7 days ago", help: "Movement over the last week", better: null, value: (p) => p.rank7, show: (p) => (p.rank7 ? `#${p.rank7}` : "–"),
-    sub: (p) => (p.gain7 ? `${p.gain7 > 0 ? "▲" : "▼"} ${Math.abs(p.gain7)} place${Math.abs(p.gain7) === 1 ? "" : "s"}${p.rank14 ? ` · 14 d ago #${p.rank14}` : ""}` : p.rank14 ? `14 d ago #${p.rank14}` : null) },
-  { key: "rating", label: "Rating", help: "Nykaa star rating", better: "high", value: (p) => p.rating, show: (p) => (p.rating ? `★ ${p.rating.toFixed(1)}` : "–") },
-  { key: "ratings", label: "Ratings", help: "Number of star ratings (lifetime popularity)", better: "high", value: (p) => p.ratings, show: (p) => compact(p.ratings), bar: true,
-    sub: (p) => (p.reviewsTotal ? `${compact(p.reviewsTotal)} written reviews` : null) },
-  { key: "demand", label: "Reviews, last 3 mo", help: "Dated reviews in the last 3 complete months: a proxy for recent sales", better: "high", value: (p) => p.recent, show: (p) => (p.recent === null ? "–" : compact(p.recent)), bar: true, sub: (p) => (p.recent === null ? "not tracked" : null) },
-  { key: "momentum", label: "Momentum", help: "Reviews in the last 3 months vs the 3 before", better: "high", value: (p) => p.momentum, show: (p) => (p.momentum === null ? "–" : signed(p.momentum)) },
-  { key: "search", label: "K-beauty searches", help: "Tracked searches where it is in the top 10 unpaid results today", better: "high", value: (p) => p.search, show: (p) => String(p.search), sub: (p) => (p.search ? "keywords in top 10" : null) },
+const rupee100 = (v: number) => `₹${Math.round(v).toLocaleString("en-IN")}`;
+
+export const VIS_CRITERIA: Criterion<ProductFacts>[] = [
+  { key: "rank", label: "Shelf position today", help: "Position in this category's top 100 on Nykaa today (1 = top of the page)", better: "low", value: (p) => p.rank ?? 101,
+    show: (p) => (p.rank ? `#${p.rank}` : "Not in top 100"), sub: (p) => (p.paid ? "paid (ad) slot" : p.rank ? "unpaid" : null),
+    up: "Ranks higher on the shelf than", down: "Ranks lower on the shelf than" },
+  { key: "rankmove", label: "Change in 7 days", help: "Places gained or lost on the shelf since a week ago", better: "high", value: (p) => (p.rank && p.rank7 ? p.gain7 ?? 0 : null),
+    show: (p) => (!p.gain7 ? "No change" : `${p.gain7 > 0 ? "▲" : "▼"} ${Math.abs(p.gain7)} place${Math.abs(p.gain7) === 1 ? "" : "s"}`),
+    sub: (p) => (p.rank7 ? `#${p.rank7} a week ago` : null),
+    missing: (p) => (p.rank && p.rank7 ? null : p.rank ? "New in the top 100 this week" : p.rank7 ? `Dropped out (was #${p.rank7})` : "Not in the top 100 either week"),
+    up: "Climbing faster than", down: "Slipping more than" },
+  { key: "search", label: "K-beauty searches", help: "Tracked Korean-beauty searches where it shows in the first 10 unpaid results today", better: "high", value: (p) => p.search,
+    show: (p) => (p.search ? `${p.search} search${p.search === 1 ? "" : "es"}` : "In none"), sub: (p) => (p.search ? "top 10, unpaid" : "of the tracked searches"),
+    up: "Shows up in more K-beauty searches than", down: "Shows up in fewer K-beauty searches than" },
 ];
-const GROUPS = { price: "Buyability", rank: "Visibility", rating: "Reception", demand: "Velocity", search: "Discoverability" };
 
-/** "leads on X; trails all 5 rivals on Y and Z" from the standings. */
-export function standingsSentence(subject: string, st: Standing[], n: number) {
-  const { strong, weak } = strongestWeakest(st, 2);
-  const all = (s: Standing[], dir: "ahead" | "behind") => s.filter((x) => (dir === "ahead" ? x.ahead : x.behind) === x.of && x.of === n);
-  const lead = strong.length ? `leads ${all(strong, "ahead").length === strong.length ? `all ${n} rivals` : "most rivals"} on ${strong.map((s) => s.label.toLowerCase()).join(" and ")}` : null;
-  const trail = weak.length ? `trails ${all(weak, "behind").length === weak.length ? `all ${n} rivals` : "most rivals"} on ${weak.map((s) => s.label.toLowerCase()).join(" and ")}` : null;
-  if (lead && trail) return `${subject} ${lead} but ${trail}`;
-  return `${subject} ${lead ?? trail ?? `is broadly on par with its ${n} rivals`}`;
+export const DEMAND_CRITERIA: Criterion<ProductFacts>[] = [
+  { key: "demand", label: "Reviews, last 3 months", help: "Dated reviews in the last 3 complete months: a stand-in for recent sales", better: "high", value: (p) => p.recent, show: (p) => compact(p.recent), bar: true,
+    missing: (p) => (p.recent === null ? "Not in review tracking" : null), up: "More recent reviews (a sales signal) than", down: "Fewer recent reviews (a sales signal) than" },
+  { key: "momentum", label: "Review growth", help: "Reviews in the last 3 months against the 3 months before", better: "high", value: (p) => p.momentum, show: (p) => signed(p.momentum),
+    sub: () => "vs the 3 months before", missing: (p) => (p.momentum === null ? (p.recent === null ? "Not in review tracking" : "Too new to compare") : null),
+    up: "Reviews growing faster than", down: "Reviews growing slower than" },
+  { key: "ratings", label: "Ratings, all time", help: "Number of star ratings: lifetime popularity", better: "high", value: (p) => p.ratings, show: (p) => compact(p.ratings), bar: true,
+    sub: (p) => (p.reviewsTotal ? `${compact(p.reviewsTotal)} written reviews` : null), missing: (p) => (p.ratings === null ? "No ratings yet" : null),
+    up: "More lifetime ratings than", down: "Fewer lifetime ratings than" },
+];
+
+export const BUYER_CRITERIA: Criterion<ProductFacts>[] = [
+  { key: "rating", label: "Star rating", help: "Nykaa star rating", better: "high", value: (p) => p.rating, show: (p) => (p.rating ? `★ ${p.rating.toFixed(1)}` : ""),
+    missing: (p) => (p.rating === null ? "No ratings yet" : null), up: "Rated higher than", down: "Rated lower than" },
+];
+
+/** Not shown as grid rows (they are levels in the Message section) but counted for strengths and gaps. */
+const MESSAGE_CRITERIA: Criterion<ProductFacts>[] = [
+  { key: "proof", label: "Proof of claims", help: "", better: "high", value: (p) => (p.proof.level ? LEVEL_SCORE[p.proof.level] : null), show: (p) => (p.proof.level ? LEVEL_WORD[p.proof.level] : ""),
+    up: "Better-proven claims than", down: "Less-proven claims than" },
+  { key: "echo", label: "Buyers repeat its claims", help: "", better: "high", value: (p) => (p.echo.level ? LEVEL_SCORE[p.echo.level] : null), show: (p) => (p.echo.level ? LEVEL_WORD[p.echo.level] : ""),
+    up: "Buyers repeat its claims more than for", down: "Buyers repeat its claims less than for" },
+];
+
+const ALL = [...BUYER_CRITERIA, ...MESSAGE_CRITERIA, ...VIS_CRITERIA, ...DEMAND_CRITERIA];
+
+function standingsOf(a: ProductFacts, rivals: ProductFacts[]): (Standing & { c: Criterion<ProductFacts> })[] {
+  return ALL.filter((c) => c.better && c.value(a) !== null).map((c) => {
+    const ts = rivals.map((r) => tone(c.value(a), c.value(r), c.better, c.key.startsWith("rank") ? "rank" : "ratio")).filter((t) => t !== null);
+    return { key: c.key, label: c.label, ahead: ts.filter((t) => t === "ahead").length, behind: ts.filter((t) => t === "behind").length, of: ts.length, c };
+  }).filter((s) => s.of > 0);
 }
 
-/* ---------------------------------------------------------------- §1 summary */
+/** Evidence behind a strength or gap: Innisfree's value against each rival's. */
+function evidence(c: Criterion<ProductFacts>, a: ProductFacts, rivals: ProductFacts[]): DetailContent {
+  const v = (p: ProductFacts) => c.missing?.(p) ?? c.show(p);
+  return {
+    kicker: "Strength or gap · evidence", title: c.label,
+    body: (<>
+      <p className="text-muted">{c.help}</p>
+      <DetailHead>Innisfree</DetailHead>
+      <p><b>{shortTitle(a.name, a.brand)}</b>: {v(a)}</p>
+      <DetailHead>Against each rival</DetailHead>
+      <ul className="space-y-1.5">{rivals.map((r) => { const t = tone(c.value(a), c.value(r), c.better, c.key.startsWith("rank") ? "rank" : "ratio"); return (
+        <li key={r.pid} className="flex items-start justify-between gap-3"><span><b className="font-medium">{r.brand}</b> {shortTitle(r.name, r.brand)}: {v(r)}</span>
+          {t && <span className={`shrink-0 rounded px-1.5 py-px text-[11px] ${TONE_CLASS[t]}`}>{TONE_WORD[t]}</span>}</li>); })}</ul>
+      <p className="mt-4 text-[12px] text-muted">On par = within 5% (or 3 shelf places).</p>
+    </>),
+  };
+}
 
-export function Summary({ hero, products, brands, anchor, cat }: { hero: UspComparison | null; products: ProductFacts[]; brands: BrandFacts[]; anchor: string; cat: string }) {
+/* ---------------------------------------------------------------- price benchmark (shared with the price section) */
+
+export interface Bench { median: number; min: number; max: number; n: number; std: number | null }
+
+/* ---------------------------------------------------------------- §1 verdict, strengths and gaps */
+
+type Dim = { id: string; label: string; href: string; tone?: "good" | "bad"; good?: string; bad?: string; point: React.ReactNode };
+
+export function Summary({ hero, products, bench, cat }: { hero: UspComparison | null; products: ProductFacts[]; bench: Bench | null; cat: string }) {
+  const open = useDetail();
   const a = products.find((p) => p.role === "anchor");
   const rivals = products.filter((p) => p !== a);
-  const st = a ? standings(a, rivals, PRODUCT_CRITERIA) : [];
-  const { strong, weak } = strongestWeakest(st);
-  const ab = brands.find((b) => b.brand === anchor);
-  const rb = brands.filter((b) => b.brand !== anchor && b.basket.vsAnchor !== null);
-  const cheaperBrands = rb.filter((b) => b.basket.vsAnchor! < 0.95).length;
-  const name = a ? shortTitle(a.name, a.brand) : null;
+  if (!a) return (
+    <section id="summary" className="mt-6 scroll-mt-32"><Card className="px-6 py-5">
+      <p className="font-display text-[18px] font-medium">Innisfree sells nothing in {CATEGORY_LABEL[cat]} on Nykaa; the rivals are compared with each other below.</p>
+    </Card></section>
+  );
+  const name = shortTitle(a.name, a.brand);
+  const st = standingsOf(a, rivals);
+  const strong = st.filter((s) => s.ahead > s.behind).sort((x, y) => (y.ahead - y.behind) / y.of - (x.ahead - x.behind) / x.of).slice(0, 4);
+  const weak = st.filter((s) => s.behind > s.ahead).sort((x, y) => (y.behind - y.ahead) / y.of - (x.behind - x.ahead) / x.of).slice(0, 4);
+  const get = (k: string) => st.find((s) => s.key === k);
+  const most = (s?: Standing) => (s ? (s.ahead > s.behind ? "ahead" : s.behind > s.ahead ? "behind" : null) : null);
 
-  const priceFinding = a?.price ? (() => {
-    const below = rivals.filter((r) => r.price !== null && r.price > a.price! * 1.05).length;
-    const above = rivals.filter((r) => r.price !== null && r.price < a.price! * 0.95).length;
-    const pos = above === rivals.length ? "the priciest in the group" : below === rivals.length ? "the cheapest in the group" : `cheaper than ${below} and pricier than ${above} of its ${rivals.length} rivals`;
-    return <>At <b>{inr(a.price)}</b>, {name} is {pos}. Innisfree&rsquo;s core basket ({inr(ab?.basket.overall)}) is pricier than {cheaperBrands} of {rb.length} rival brands.</>;
-  })() : <>Innisfree&rsquo;s core basket costs {inr(ab?.basket.overall)}, pricier than {cheaperBrands} of {rb.length} rival brands.</>;
-  const bestRival = [...rivals].filter((r) => r.rank).sort((x, y) => x.rank! - y.rank!)[0];
-  const visFinding = a ? <>{a.rank ? <>#{a.rank} in {CATEGORY_LABEL[cat]}</> : <>Not in the {CATEGORY_LABEL[cat]} top 100</>}; {rivals.filter((r) => r.rank && (!a.rank || r.rank < a.rank)).length} of {rivals.length} rivals rank higher{bestRival ? <> (best: {bestRival.brand} #{bestRival.rank}{bestRival.paid ? ", paid slot" : ""})</> : null}.</> : null;
-  const topDemand = [...rivals].filter((r) => r.recent !== null).sort((x, y) => y.recent! - x.recent!)[0];
-  const demFinding = a ? <>{a.recent !== null ? <><b>{compact(a.recent)}</b> reviews in 3 months{a.momentum !== null ? <> ({signed(a.momentum)})</> : null}</> : <>Demand not tracked</>}{topDemand ? <>, against {compact(topDemand.recent)} for {topDemand.brand}&rsquo;s {shortTitle(topDemand.name, topDemand.brand)}</> : null}.</> : null;
-  const u = a?.usp?.analysis;
-  const promise = u ? (() => { const t = u.main_usp.statement.split(/[.;]/)[0]; if (t.length <= 110) return t; const c = t.slice(0, 110); return `${c.slice(0, c.lastIndexOf(" "))}…`; })() : "";
-  const msgFinding = u ? <>Leads on &ldquo;{promise}&rdquo;; proof is <b>{u.proof_strength.rating}</b>, buyers {u.review_check.usp_verdict === "echoed" ? "echo it" : u.review_check.usp_verdict === "contradicted" ? "contradict it" : "rarely mention it"}. {hero?.comparison.white_space.length ? `${hero.comparison.white_space.length} white-space openings found.` : ""}</> : null;
+  // price: position, not a win or a loss
+  const diff = a.mrpPer100 && bench ? a.mrpPer100 / bench.median - 1 : null;
+  const pricePhrase = diff === null ? null : Math.abs(diff) < 0.05 ? "priced in line with its category" : `priced ${Math.round(Math.abs(diff) * 100)}% ${diff > 0 ? "above" : "below"} its category`;
+  const cheaper = rivals.filter((r) => r.mrpPer100 && a.mrpPer100 && r.mrpPer100 < a.mrpPer100 * 0.95).length;
+  const ps = a.proof.level ? LEVEL_SCORE[a.proof.level] : null; const es = a.echo.level ? LEVEL_SCORE[a.echo.level] : null;
+  const unique = hero?.comparison.anchor_position.unique_to_anchor.length ?? 0;
+  const msgScore = ps !== null && es !== null ? ps + es : null;
+  const praise = a.themes?.praise[0]; const complaint = a.themes?.complaints[0];
+  const rivalRatings = rivals.map((r) => r.rating).filter((x): x is number => x !== null).sort((x, y) => x - y);
+  const rivalMed = rivalRatings.length ? rivalRatings[Math.floor(rivalRatings.length / 2)] : null;
+  const rank = get("rank"); const dem = get("demand");
 
+  const dims: Dim[] = [
+    { id: "price", label: "Price", href: "#price",
+      point: a.mrp ? <>MRP <b>{inr(a.mrp)}</b>{a.mrpPer100 ? <> · {rupee100(a.mrpPer100)}/100 ml</> : null}{bench ? <> vs category median {rupee100(bench.median)}</> : null}; {cheaper} of {rivals.length} rivals cost less per 100 ml</> : <>MRP not shown on Nykaa</> },
+    { id: "message", label: "Message", href: "#message",
+      tone: msgScore === null ? undefined : msgScore >= 5 ? "good" : msgScore <= 3 ? "bad" : undefined,
+      good: es === 3 ? "a message buyers repeat" : "a well-proven message",
+      bad: ps === 1 && es !== 3 ? "weakly proven claims" : "claims buyers rarely repeat",
+      point: a.proof.level ? <>Proof <b>{LEVEL_WORD[a.proof.level].toLowerCase()}</b> · buyer echo <b>{a.echo.level ? LEVEL_WORD[a.echo.level].toLowerCase() : "too few reviews"}</b>{hero ? <> · {unique} claim{unique === 1 ? "" : "s"} no rival makes</> : null}</> : <>No message analysis for this product</> },
+    { id: "buyers", label: "Buyers", href: "#buyers",
+      tone: most(get("rating")) === "ahead" ? "good" : most(get("rating")) === "behind" ? "bad" : undefined,
+      good: "rated higher than most rivals", bad: "rated lower than most rivals",
+      point: <>{a.rating ? <>★ <b>{a.rating.toFixed(1)}</b>{rivalMed ? <> (rivals ★ {rivalMed.toFixed(1)})</> : null}</> : "No rating yet"}{praise ? <> · most praised: {praise.label.toLowerCase()} ({Math.round(praise.share * 100)}%)</> : null}{complaint ? <> · top complaint: {complaint.label.toLowerCase()} ({Math.round(complaint.share * 100)}%)</> : null}</> },
+    { id: "reach", label: "Shelf and demand", href: "#visibility",
+      tone: most(rank) === "ahead" && most(dem) !== "behind" ? "good" : most(rank) === "behind" && most(dem) !== "ahead" ? "bad" : undefined,
+      good: (a.momentum ?? 0) > 0.05 ? "a strong shelf position and rising demand" : "a strong shelf position",
+      bad: (a.momentum ?? 0) < -0.05 ? "a weak shelf position and falling demand" : "a weak shelf position",
+      point: <>{a.rank ? <>#{a.rank} on the shelf</> : <>Not in the top 100</>} ({rivals.filter((r) => r.rank && (!a.rank || r.rank < a.rank)).length} of {rivals.length} rivals higher){a.recent !== null ? <> · {compact(a.recent)} reviews in 3 months{a.momentum !== null ? <> ({signed(a.momentum)})</> : null}</> : null}</> },
+  ];
+  const goods = dims.filter((d) => d.tone === "good").map((d) => d.good!);
+  const bads = dims.filter((d) => d.tone === "bad").map((d) => d.bad!);
+  const join = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+  const headline = `${name} is ${pricePhrase ?? "priced without a comparable size"}${goods.length ? `, with ${join(goods)}` : ""}${bads.length ? `${goods.length ? ", but" : ", and"} has ${join(bads)}` : ""}.`;
+
+  const chip = (s: Standing & { c: Criterion<ProductFacts> }, good: boolean) => (
+    <button key={s.key} onClick={() => open(evidence(s.c, a, rivals))} className="text-left">
+      <Chip tone={good ? "good" : "bad"}>{good ? s.c.up : s.c.down} {good ? s.ahead : s.behind} of {s.of} rival{s.of === 1 ? "" : "s"} ›</Chip>
+    </button>
+  );
   return (
     <section id="summary" className="mt-6 scroll-mt-32">
       <Card className="px-6 py-5">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Verdict for Innisfree{name ? ` · ${name}` : ""}</div>
-        {hero ? (() => {
-          const v = hero.comparison.anchor_position.verdict;
-          const [lead, ...rest] = v.split(/(?<=[.!?])\s+/);
-          return (<>
-            <p className="mt-2 max-w-[110ch] font-display text-[18px] font-medium leading-snug tracking-tight">{lead}</p>
-            {rest.length > 0 && <p className="mt-2 max-w-[110ch] text-[13.5px] leading-relaxed text-ink-2">{rest.join(" ")}</p>}
-          </>);
-        })() : (
-          <p className="mt-2 max-w-[110ch] font-display text-[18px] font-medium leading-snug tracking-tight">
-            {a ? standingsSentence(name ?? "Innisfree", st, rivals.length) + "." : `Innisfree sells nothing in ${CATEGORY_LABEL[cat]} on Nykaa; rivals are compared with each other below.`}
-          </p>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Verdict for Innisfree · {name}</div>
+        <p className="mt-2 max-w-[110ch] font-display text-[19px] font-medium leading-snug tracking-tight">{headline}</p>
+        {hero && (
+          <Opens className="mt-2 text-[12px] text-ink-2" detail={{ kicker: "AI read of the message, in full", title: "Message verdict", body: <Points items={hero.comparison.anchor_position.verdict.split(/(?<=[.!?])\s+/)} /> }}>
+            Read the full message verdict
+          </Opens>
         )}
-        {a && (
-          <div className="mt-4 grid gap-2 border-t border-line pt-3 md:grid-cols-2">
-            <div className="flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-good">Strengths</span>
-              {strong.length ? strong.map((s) => <Chip key={s.key} tone="good">{s.label} · ahead of {s.ahead}/{s.of}</Chip>) : <span className="text-[12px] text-muted">No clear lead on the numbers</span>}</div>
-            <div className="flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-bad">Gaps</span>
-              {weak.length ? weak.map((s) => <Chip key={s.key} tone="bad">{s.label} · behind {s.behind}/{s.of}</Chip>) : <span className="text-[12px] text-muted">No clear gap on the numbers</span>}</div>
-          </div>
-        )}
+        <div className="mt-4 grid gap-3 border-t border-line pt-3 md:grid-cols-2">
+          <div><div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-good">Strengths</div>
+            <div className="flex flex-wrap gap-1.5">{strong.length ? strong.map((s) => chip(s, true)) : <span className="text-[12px] text-muted">No measure where it beats most rivals</span>}</div></div>
+          <div><div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-bad">Gaps</div>
+            <div className="flex flex-wrap gap-1.5">{weak.length ? weak.map((s) => chip(s, false)) : <span className="text-[12px] text-muted">No measure where it trails most rivals</span>}</div></div>
+        </div>
       </Card>
       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <Finding label="Price" href="#price">{priceFinding}</Finding>
-        {visFinding && <Finding label="Visibility" tone={a?.rank && rivals.every((r) => !r.rank || r.rank > a.rank!) ? "good" : "bad"} href="#scorecard">{visFinding}</Finding>}
-        {demFinding && <Finding label="Demand" tone={a?.momentum != null ? (a.momentum > 0.05 ? "good" : a.momentum < -0.05 ? "bad" : undefined) : undefined} href="#scorecard">{demFinding}</Finding>}
-        {msgFinding && <Finding label="Message" tone={u?.review_check.usp_verdict === "echoed" ? "good" : undefined} href="#proposition">{msgFinding}</Finding>}
+        {dims.map((d) => (
+          <a key={d.id} href={d.href} className="relative block overflow-hidden rounded-2xl bg-surface px-5 py-4 shadow-card ring-1 ring-line transition hover:ring-line-2">
+            <span className={`absolute left-0 top-0 h-full w-1 ${d.tone === "good" ? "bg-good" : d.tone === "bad" ? "bg-bad" : "bg-line-2"}`} />
+            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.1em] text-muted"><span>{d.label}</span><span className="font-normal normal-case tracking-normal">see ↓</span></div>
+            <div className="mt-1.5 text-[13.5px] leading-snug">{d.point}</div>
+          </a>
+        ))}
       </div>
     </section>
   );
 }
 
-/* ---------------------------------------------------------------- §2 product scorecard */
+/* ---------------------------------------------------------------- product column header (image opens the shelf read) */
+
+const SHOT = (s: string | null) => (s ?? "").replaceAll("_", " ");
+
+export function thumbDetail(p: ProductFacts): DetailContent {
+  const t = p.thumb;
+  return {
+    kicker: `${p.brand} · how it looks on the shelf`, title: shortTitle(p.name, p.brand),
+    body: (<>
+      <div className="grid aspect-square w-full max-w-[360px] place-items-center overflow-hidden rounded-2xl bg-surface ring-1 ring-line">
+        {/* eslint-disable-next-line @next/next/no-img-element -- Nykaa CDN image */}
+        {(t?.image_url ?? p.image) ? <img src={t?.image_url ?? p.image!} alt="" className="h-[88%] w-[88%] object-contain" /> : <span className="text-muted">No image</span>}
+      </div>
+      {t?.shot_type ? (<>
+        <DetailHead>What the thumbnail shows</DetailHead>
+        <div className="flex flex-wrap gap-1">
+          <Chip>{SHOT(t.shot_type)}</Chip><Chip>{t.model_present ? "shows a person" : "no person"}</Chip>
+          <Chip>{t.text_density === "heavy" ? "text-heavy" : t.text_density === "light" ? "light text" : "no text"}</Chip>
+          {t.background && <Chip>{t.background} background</Chip>}{t.packaging_style && <Chip>{t.packaging_style}</Chip>}{t.mood && <Chip>{t.mood}</Chip>}
+        </div>
+        {!!t.dominant_colors?.length && <><DetailHead>Main colours</DetailHead><div className="flex h-3 max-w-[360px] overflow-hidden rounded-full ring-1 ring-line">{t.dominant_colors.slice(0, 5).map((c) => <span key={c.hex} style={{ background: c.hex, width: `${c.share * 100}%` }} />)}</div></>}
+        {!!t.on_image_claims?.length && <><DetailHead>Printed on the image</DetailHead><Points items={t.on_image_claims} /></>}
+        {t.summary && <><DetailHead>Summary</DetailHead><p className="text-ink-2">{t.summary}</p></>}
+      </>) : <p className="mt-4 text-muted">This thumbnail has not been analysed yet (image analysis covers the focus brands and the analysed rival groups).</p>}
+    </>),
+  };
+}
 
 export function ProductHead({ p, color, options, onSwap }: { p: ProductFacts; color?: string; options?: ProductOption[]; onSwap?: (pid: string) => void }) {
-  const open = useOpenProduct();
+  const open = useOpenProduct(); const detail = useDetail();
   return (
     <div>
       <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted">
         {color && <span className="h-2 w-2 rounded-full" style={{ background: color }} />}{ROLE_LABEL[p.role] ?? ""}
       </div>
       <div className="mt-2 flex items-start gap-2.5">
-        <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-page ring-1 ring-line">
+        <button onClick={() => detail(thumbDetail(p))} title="Larger image and how it looks on the shelf"
+          className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-page ring-1 ring-line transition hover:ring-ink">
           {/* eslint-disable-next-line @next/next/no-img-element -- Nykaa CDN image */}
-          {p.image ? <img src={p.image} alt="" className="h-12 w-12 object-contain" /> : null}
-        </span>
+          {p.image ? <img src={p.image} alt="" className="h-12 w-12 object-contain" /> : <span className="text-[10px] text-muted">No image</span>}
+        </button>
         <span className="min-w-0">
           <span className="block text-[12px] font-semibold text-ink-2">{p.brand}</span>
           <span className="block text-[12.5px] leading-snug" title={p.name}>{shortTitle(p.name, p.brand)}</span>
         </span>
       </div>
-      <div className="mt-2 flex gap-1.5 text-[11.5px]">
+      <div className="mt-2 flex flex-wrap gap-1.5 text-[11.5px]">
         {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="rounded-md px-1.5 py-0.5 text-ink-2 ring-1 ring-line hover:bg-sunken">Nykaa ↗</a>}
         <button onClick={() => open({ product_id: p.pid, name: p.name, brand: p.brand, url: p.url, image: p.image, price: p.price, mrp: p.mrp, rating: p.rating, rating_count: p.ratings, usp: p.whatItIs, phrases: p.phrases, splitup: p.split, madeIn: p.madeIn })}
-          className="rounded-md px-1.5 py-0.5 text-ink-2 ring-1 ring-line hover:bg-sunken">History →</button>
+          className="rounded-md px-1.5 py-0.5 text-ink-2 ring-1 ring-line hover:bg-sunken">History ›</button>
       </div>
       {options && options.length > 1 && onSwap && (
         <select value={p.pid} onChange={(e) => onSwap(e.target.value)} className="mt-1.5 w-full rounded-md bg-surface px-1.5 py-1 text-[11px] text-ink-2 ring-1 ring-line">
@@ -133,38 +232,3 @@ export function ProductHead({ p, color, options, onSwap }: { p: ProductFacts; co
   );
 }
 
-function StarSplit({ split }: { split: Record<string, number> | null }) {
-  if (!split) return <span className="text-[11.5px] text-muted">–</span>;
-  const tot = Object.values(split).reduce((x, y) => x + y, 0) || 1;
-  return (
-    <div className="w-full max-w-[160px] space-y-0.5">
-      {["5", "4", "3", "2", "1"].map((k) => (
-        <div key={k} className="flex items-center gap-1.5 text-[10.5px] text-muted tabular">
-          <span className="w-2">{k}</span>
-          <div className="h-1.5 flex-1 rounded-full bg-sunken"><div className="h-1.5 rounded-full" style={{ width: `${((split[k] ?? 0) / tot) * 100}%`, background: Number(k) >= 4 ? "#121211" : Number(k) === 3 ? "#8a8880" : "#c0352b" }} /></div>
-          <span className="w-7 text-right">{Math.round(((split[k] ?? 0) / tot) * 100)}%</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export function ProductScorecard({ products, colors, optionsFor, onSwap, cat }: {
-  products: ProductFacts[]; colors: Record<string, string>; optionsFor: ((b: string) => ProductOption[]) | null; onSwap: (brand: string, pid: string) => void; cat: string;
-}) {
-  const a = products.find((p) => p.role === "anchor");
-  const rivals = products.filter((p) => p !== a);
-  const title = a ? standingsSentence(shortTitle(a.name, a.brand), standings(a, rivals, PRODUCT_CRITERIA), rivals.length) : `${products.length} products compared in ${CATEGORY_LABEL[cat]}`;
-  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, head: <ProductHead p={p} color={colors[p.brand]} options={optionsFor?.(p.brand)} onSwap={(pid) => onSwap(p.brand, pid)} /> }));
-  const extra: ExtraRow<ProductFacts>[] = [
-    { after: "discount", label: "Offer", help: "Gift, bundle or coupon on the listing", has: (p) => !!p.offer, render: (p) => <span className="text-[12px] leading-snug">{p.offer ?? <span className="text-muted">none</span>}</span> },
-    { after: "ratings", label: "Star split", help: "Share of all ratings by stars", has: (p) => !!p.split, render: (p) => <StarSplit split={p.split} /> },
-    { after: "momentum", label: "12-month reviews", help: "Monthly reviews over the last 12 complete months", has: (p) => !!p.spark, render: (p) => <Sparkline values={p.spark!} color={colors[p.brand] ?? "#8a8880"} width={140} height={30} /> },
-  ];
-  return (
-    <ActionSection id="scorecard" kicker="Scorecard · product vs product" title={`${title}.`}
-      note="Shading is from Innisfree's side: green where Innisfree beats that rival, red where it trails, grey on par (within 5% or 3 places). LEAD marks the best value in the row. Price is never shaded: cheaper is a position, not a win. No blended total score.">
-      <CompareGrid cols={cols} items={products} criteria={PRODUCT_CRITERIA} extra={extra} groups={GROUPS} colors={products.map((p) => colors[p.brand])} labelWidth={160} />
-    </ActionSection>
-  );
-}

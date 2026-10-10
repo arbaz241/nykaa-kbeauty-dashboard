@@ -2,39 +2,46 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
-import { ProductScorecard, Summary } from "@/components/compete/Overview";
-import { Battlecards, Proposition } from "@/components/compete/Proposition";
-import { Reception, Shelf } from "@/components/compete/Reception";
+import { Summary } from "@/components/compete/Overview";
+import { PriceSection } from "@/components/compete/Price";
+import { Message } from "@/components/compete/Proposition";
+import { Buyers, Demand, Visibility } from "@/components/compete/Reception";
 import { Brands, PriceBasket, WhereCompete } from "@/components/compete/Brands";
 import { SectionNav, type NavItem } from "@/components/Report";
+import Segmented from "@/components/Segmented";
 import Shell from "@/components/Shell";
 import { Card, Loading } from "@/components/ui";
 import { ANCHOR_BRAND, SLOT_COLORS, resolveBrand } from "@/lib/brands";
-import { HERO_ORDER, brandFacts, productFacts, productOptions, searchCounts, shelfCat, shortTitle, type Sources } from "@/lib/competeData";
-import { useAspectsFor, useAssortment, useCatalog, useDemand, useLastPrices, useMovement, useReviewMonths, useSearch, useShelf, useThumbnails } from "@/lib/data";
+import { HERO_ORDER, brandFacts, productFacts, productOptions, searchCounts, shelfCat, shortTitle, standardSize, type Sources } from "@/lib/competeData";
+import { useReviewsFor, useVariants, useAssortment, useCatalog, useDemand, useLastPrices, useMovement, useReviewMonths, useSearch, useShelf, useThumbnails } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/format";
 import { monthsWindow } from "@/lib/metrics";
+import { categoryBenchmark } from "@/lib/price";
 import type { ReviewMonth } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
 
-/** Competitive Analysis: the old USP and Compare tabs as one report (docs/restructure-v2-plan.md).
- *  Answer first, then one section per pillar; every element of the old pages has a visible place. */
+/** Competitive Analysis: the old USP and Compare tabs as one report (docs/restructure-v2-plan.md), layered in round 2
+ *  (docs/competitive-round2-plan.md): Product view answers first, then price, message, buyers, visibility, demand;
+ *  brand-vs-brand lives in its own Brand view so the two never repeat each other. Detail opens in the side panel. */
 
 const ORDER = [...HERO_ORDER, ...CATEGORIES.filter((c) => !HERO_ORDER.includes(c))];
 const DEFAULT_RIVALS = ["Beauty of Joseon", "Laneige", "The Face Shop", "COSRX"];
 const readUrl = () => (typeof window === "undefined" ? {} : Object.fromEntries(new URLSearchParams(window.location.search).entries())) as Record<string, string>;
 
-const NAV: NavItem[] = [
-  { id: "summary", label: "Summary" },
-  { id: "scorecard", label: "Scorecard" },
-  { id: "proposition", label: "Proposition" },
-  { id: "rivals", label: "Rival by rival" },
-  { id: "reception", label: "What buyers say" },
-  { id: "shelf", label: "Shelf presentation" },
-  { id: "brands", label: "Brands" },
-  { id: "compete", label: "Where they compete" },
+const PRODUCT_NAV: NavItem[] = [
+  { id: "summary", label: "Verdict" },
   { id: "price", label: "Price" },
+  { id: "message", label: "Message" },
+  { id: "buyers", label: "What buyers say" },
+  { id: "visibility", label: "Visibility" },
+  { id: "demand", label: "Demand" },
 ];
+const BRAND_NAV: NavItem[] = [
+  { id: "brands", label: "Brand scorecard" },
+  { id: "compete", label: "Where they compete" },
+  { id: "price", label: "Price basket" },
+];
+type View = "product" | "brand";
 
 function CompetitivePage() {
   const shelf = useShelf(); const catalog = useCatalog(); const months = useReviewMonths(); const search = useSearch(); const assort = useAssortment();
@@ -49,15 +56,16 @@ function CompetitivePage() {
   const [heroPick, setHeroPick] = useState<string | null>(url.hero ?? null);
   const [brandOverride, setBrandOverride] = useState<string[] | null>(null);
   const [swap, setSwap] = useState<Record<string, string>>({});
+  const [view, setView] = useState<View>(url.view === "brand" ? "brand" : "product");
 
   const heroes = useMemo(() => (uspC.data ?? []).filter((g) => shelfCat(g.category) === cat), [uspC.data, cat]);
   const hero: UspComparison | null = heroes.find((g) => g.anchor_product_id === heroPick) ?? heroes[0] ?? null;
   const uspBy = useMemo(() => new Map((uspP.data ?? []).map((p) => [p.product_id, p])), [uspP.data]);
 
   useEffect(() => {
-    const p = new URLSearchParams({ cat, ...(hero ? { hero: hero.anchor_product_id } : {}) });
+    const p = new URLSearchParams({ cat, ...(hero ? { hero: hero.anchor_product_id } : {}), ...(view === "brand" ? { view } : {}) });
     window.history.replaceState(null, "", `?${p.toString()}${window.location.hash}`);
-  }, [cat, hero]);
+  }, [cat, hero, view]);
 
   // brands in view: the hero's rival brands, else a default set; the brand picker (§7) overrides either
   const heroBrands = useMemo(() => hero ? [...new Set([anchor, ...hero.products.map((id) => uspBy.get(id)?.brand).filter((b): b is string => !!b)])] : null, [hero, uspBy, anchor]);
@@ -79,14 +87,16 @@ function CompetitivePage() {
       .filter((x): x is { pid: string; brand: string; role: string } => !!x);
   }, [hero, uspBy, brands, cat, rows, cat0, swap, anchor]);
   const ids = useMemo(() => productIds.map((p) => p.pid), [productIds]);
-  const aspects = useAspectsFor(ids);
+  const reviews = useReviewsFor(ids); const variants = useVariants(ids);
+  const stdMl = useMemo(() => standardSize(rows, cat), [rows, cat]);
+  const bench = useMemo(() => categoryBenchmark(rows, cat, stdMl), [rows, cat, stdMl]);
   const lastPrices = useLastPrices(useMemo(() => ids.filter((id) => !rows.some((r) => r.product_id === id) && !cat0.some((r) => r.product_id === id)), [ids, rows, cat0]));
   const win = useMemo(() => monthsWindow(12), []);
   const monthsBy = useMemo(() => { const m = new Map<string, ReviewMonth[]>(); (months.data ?? []).forEach((r) => m.set(r.product_id, [...(m.get(r.product_id) ?? []), r])); return m; }, [months.data]);
   const src: Sources = useMemo(() => ({
     cat, rows, catalog: cat0, demand: new Map((demand.data ?? []).map((d) => [d.product_id, d])), movement: movement.data ?? [], months: monthsBy, win,
-    search: searchCounts(search.data ?? []), thumbs: new Map((thumbs.data ?? []).map((t) => [t.product_id, t])), usp: uspBy, aspects: aspects.data, lastPrices: lastPrices.data, hero,
-  }), [cat, rows, cat0, demand.data, movement.data, monthsBy, win, search.data, thumbs.data, uspBy, aspects.data, lastPrices.data, hero]);
+    search: searchCounts(search.data ?? []), thumbs: new Map((thumbs.data ?? []).map((t) => [t.product_id, t])), usp: uspBy, reviews: reviews.data, variants: variants.data, stdMl, lastPrices: lastPrices.data, hero,
+  }), [cat, rows, cat0, demand.data, movement.data, monthsBy, win, search.data, thumbs.data, uspBy, reviews.data, variants.data, stdMl, lastPrices.data, hero]);
   const products = useMemo(() => productIds.map(({ pid, brand, role }) => productFacts(pid, brand, role, src)), [productIds, src]);
   const bfacts = useMemo(() => brandFacts(brands, anchor, cat, rows, cat0, months.data ?? [], search.data ?? [], assort.data ?? []), [brands, anchor, cat, rows, cat0, months.data, search.data, assort.data]);
 
@@ -98,7 +108,7 @@ function CompetitivePage() {
   return (
     <Shell active="Competitive Analysis" asOf={asOf ? new Date(asOf).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : undefined}>
       <h1 className="font-display text-[30px] font-semibold leading-tight tracking-[-0.02em]">Competitive Analysis</h1>
-      <p className="mt-1 max-w-[860px] text-[14px] text-ink-2">Innisfree against its direct rivals in one category: the answer first, then the evidence by pillar: price, shelf visibility, demand, search, what each product promises, what buyers say, how it looks on the shelf, and the brands behind them.</p>
+      <p className="mt-1 max-w-[860px] text-[14px] text-ink-2">Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail.</p>
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">Could not load data: {String(err.message ?? err)}</div>}
       {loading && !err ? <Loading what="the comparison" /> : !err && (
         <>
@@ -125,18 +135,28 @@ function CompetitivePage() {
             </div>
           </Card>
 
-          <SectionNav items={hero ? NAV : NAV.filter((n) => n.id !== "rivals")} />
-          <Summary hero={hero} products={products} brands={bfacts} anchor={anchor} cat={cat} />
-          <ProductScorecard products={products} colors={colors} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
-          <Proposition hero={hero} products={products} colors={colors} />
-          {hero && <Battlecards hero={hero} products={products} colors={colors} />}
-          <Reception hero={hero} products={products} colors={colors} loading={aspects.isLoading} />
-          <Shelf products={products} colors={colors} />
-          <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isHeroSet={!brandOverride}
-            onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
-          <WhereCompete facts={bfacts} anchor={anchor} rows={rows} catalog={cat0} uspBy={uspBy} comps={uspC.data ?? []} colors={colors} brands={brands}
-            onPickCat={(c) => { setCat(c); setHeroPick(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
-          <PriceBasket facts={bfacts} anchor={anchor} />
+          <div className="mt-4">
+            <Segmented value={view} onChange={(v) => { setView(v); window.scrollTo({ top: 0 }); }} options={[
+              { value: "product", label: "Product view", hint: hero ? `${shortTitle(hero.anchor_name, "Innisfree")} vs its rivals` : `Best product per brand in ${CATEGORY_LABEL[cat]}` },
+              { value: "brand", label: "Brand view", hint: "Innisfree vs the brands behind them" },
+            ]} />
+          </div>
+          {view === "product" ? (<>
+            <SectionNav key="p" items={PRODUCT_NAV} />
+            <Summary hero={hero} products={products} bench={bench} cat={cat} />
+            <PriceSection products={products} colors={colors} bench={bench} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
+            <Message hero={hero} products={products} colors={colors} />
+            <Buyers products={products} colors={colors} loading={reviews.isLoading} />
+            <Visibility products={products} colors={colors} cat={cat} />
+            <Demand products={products} colors={colors} />
+          </>) : (<>
+            <SectionNav key="b" items={BRAND_NAV} />
+            <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isHeroSet={!brandOverride}
+              onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
+            <WhereCompete facts={bfacts} anchor={anchor} rows={rows} catalog={cat0} uspBy={uspBy} comps={uspC.data ?? []} colors={colors} brands={brands}
+              onPickCat={(c) => { setCat(c); setHeroPick(null); setView("product"); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+            <PriceBasket facts={bfacts} anchor={anchor} />
+          </>)}
         </>
       )}
     </Shell>

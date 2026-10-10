@@ -6,40 +6,53 @@ import PresenceMatrix from "@/components/PresenceMatrix";
 import { ActionSection, Finding } from "@/components/Report";
 import Sparkline from "@/components/Sparkline";
 import { Card } from "@/components/ui";
+import { Missing, Points, useDetail } from "@/components/Detail";
 import { FOCUS_BRANDS, ORIGIN_LABEL, norm, resolveBrand } from "@/lib/brands";
-import { standings, type Criterion } from "@/lib/compete";
+import { standings, strongestWeakest, type Criterion } from "@/lib/compete";
 import { productOptions, shelfCat, shortTitle, type BrandFacts } from "@/lib/competeData";
 import { CATEGORIES, CATEGORY_LABEL, compact, inr, pct, signed } from "@/lib/format";
 import { BASKET_LABEL, PRICE_BASKET } from "@/lib/price";
 import type { CatalogRow, ShelfRow } from "@/lib/types";
 import type { UspComparison, UspProduct } from "@/lib/usp";
-import { standingsSentence } from "./Overview";
 
 const SKINCARE = ["toner", "serum", "face_moisturizer", "face_wash", "sunscreen", "cleansing_balm", "masks", "sheet_mask", "eye_care", "lip_care"];
 
 function criteriaFor(cat: string, anchor: string): Criterion<BrandFacts>[] {
   const inBasket = (PRICE_BASKET as readonly string[]).includes(cat);
+  const crawl = (f: BrandFacts) => (f.basket.source === "shelf" ? "Full range crawl pending (from 12 Oct)" : "Sells none of these on Nykaa");
   return [
-    { key: "price", label: "Price, core basket", help: `Average of the brand's median full-size price per basket category (${BASKET_LABEL})`, better: null, value: (f) => f.basket.overall, show: (f) => inr(f.basket.overall),
-      sub: (f) => (f.brand === anchor ? `${f.basket.categories}/5 categories` : f.basket.vsAnchor ? `${f.basket.vsAnchor.toFixed(2)}× Innisfree · ${f.basket.shared} shared` : `${f.basket.categories}/5 categories`) },
-    { key: "catprice", label: `Price, ${CATEGORY_LABEL[cat]}`, help: inBasket ? "Median full-size price in this category" : "Median full-size price in this category (outside the core basket)", better: null,
+    { key: "price", label: "MRP, core basket", help: `Average of the brand's median full-size MRP per basket category (${BASKET_LABEL})`, better: null, value: (f) => f.basket.overall, show: (f) => inr(f.basket.overall),
+      sub: (f) => (f.brand === anchor ? `${f.basket.categories} of 5 categories` : f.basket.vsAnchor ? `${f.basket.vsAnchor.toFixed(2)}× Innisfree, on ${f.basket.shared} shared` : `${f.basket.categories} of 5 categories`),
+      missing: (f) => (f.basket.overall === null ? crawl(f) : null) },
+    { key: "catprice", label: `MRP, ${CATEGORY_LABEL[cat]}`, help: inBasket ? "Median full-size MRP in this category" : "Median full-size MRP in this category (outside the core basket)", better: null,
       value: (f) => f.catPrice?.price ?? null, show: (f) => inr(f.catPrice?.price),
-      sub: (f) => (f.catPrice ? `${f.catPrice.perHundred ? `₹${Math.round(f.catPrice.perHundred)}/100ml · ` : ""}${f.catPrice.n} product${f.catPrice.n === 1 ? "" : "s"}` : "not sold") },
-    { key: "discount", label: "Discount", help: "Average % off MRP across its top-100 listings", better: null, value: (f) => f.avgDiscount, show: (f) => (f.avgDiscount === null ? "–" : `${Math.round(f.avgDiscount)}%`), bar: true },
-    { key: "offer", label: "With an offer", help: "Share of its top-100 listings carrying a gift, bundle or coupon", better: null, value: (f) => f.offerShare, show: (f) => pct(f.offerShare), bar: true },
-    { key: "listings", label: "Top-100 listings", help: "Product slots in the top 100 of all tracked categories today", better: "high", value: (f) => f.slots, show: (f) => String(f.slots), sub: (f) => `${f.categories.length} categories`, bar: true },
+      sub: (f) => (f.catPrice ? `${f.catPrice.perHundred ? `₹${Math.round(f.catPrice.perHundred).toLocaleString("en-IN")}/100 ml · ` : ""}${f.catPrice.n} product${f.catPrice.n === 1 ? "" : "s"}` : null),
+      missing: (f) => (f.catPrice ? null : f.basket.source === "shelf" ? "Not in today's top 100; full range from 12 Oct" : "Does not sell this category on Nykaa") },
+    { key: "discount", label: "Average discount", help: "Average % off MRP across its top-100 listings", better: null, value: (f) => f.avgDiscount, show: (f) => `${Math.round(f.avgDiscount!)}%`, bar: true,
+      missing: (f) => (f.avgDiscount === null ? "No listing in today's top 100" : null) },
+    { key: "offer", label: "Listings with an offer", help: "Share of its top-100 listings carrying a gift, bundle or coupon", better: null, value: (f) => f.offerShare, show: (f) => pct(f.offerShare), bar: true,
+      missing: (f) => (f.offerShare === null ? "No listing in today's top 100" : null) },
+    { key: "listings", label: "Top-100 listings", help: "Product slots in the top 100 of all tracked categories today", better: "high", value: (f) => f.slots, show: (f) => String(f.slots), sub: (f) => `${f.categories.length} categories`, bar: true,
+      up: "More top-100 listings than", down: "Fewer top-100 listings than" },
     { key: "top20", label: "In the top 20", help: "Slots in the first 20 positions, where most clicks happen", better: "high", value: (f) => f.top20, show: (f) => String(f.top20), bar: true },
-    { key: "rank", label: "Best shelf rank", help: "Highest position of any of its products today", better: "low", value: (f) => f.bestRank, show: (f) => (f.bestRank ? `#${f.bestRank}` : "–"), sub: (f) => (f.medianRank ? `typical #${Math.round(f.medianRank)}` : null) },
-    { key: "paid", label: "Paid placement", help: "Share of its top-100 slots that are ads or featured", better: null, value: (f) => f.paidShare, show: (f) => pct(f.paidShare), bar: true },
-    { key: "rating", label: "Rating", help: "Average star rating of its top-100 products", better: "high", value: (f) => f.rating, show: (f) => (f.rating ? `★ ${f.rating.toFixed(2)}` : "–") },
-    { key: "ratings", label: "Ratings", help: "Total star ratings on its top-100 products", better: "high", value: (f) => f.ratings, show: (f) => compact(f.ratings), bar: true },
-    { key: "demand", label: "Reviews, last 3 mo", help: "Dated reviews on its tracked products in the last 3 complete months: a proxy for recent sales", better: "high", value: (f) => f.last3, show: (f) => (f.last3 === null ? "–" : compact(f.last3)), sub: (f) => (f.last3 === null ? "not tracked" : `${f.demandProducts} products`), bar: true },
-    { key: "momentum", label: "Momentum", help: "Change in review volume, last 3 months vs the 3 before", better: "high", value: (f) => f.growth, show: (f) => (f.growth === null ? "–" : signed(f.growth)) },
-    { key: "search", label: "K-beauty searches", help: "Tracked Korean-intent searches where it is in the top 10 unpaid results", better: "high", value: (f) => f.searchTerms, show: (f) => String(f.searchTerms), sub: (f) => (f.bestSearch ? `best #${f.bestSearch}` : "absent"), bar: true },
-    { key: "range", label: "Range on Nykaa", help: "All products the brand lists on Nykaa", better: null, value: (f) => f.range, show: (f) => (f.range === null ? "–" : String(f.range)), sub: (f) => (f.conversion !== null ? `${pct(f.conversion)} reach the top 100` : null) },
+    { key: "rank", label: "Best shelf position", help: "Highest position of any of its products today", better: "low", value: (f) => f.bestRank, show: (f) => `#${f.bestRank}`,
+      sub: (f) => (f.medianRank ? `typical #${Math.round(f.medianRank)}` : null), missing: (f) => (f.bestRank ? null : "Not in any top 100 today") },
+    { key: "paid", label: "Paid placements", help: "Share of its top-100 slots that are ads or featured", better: null, value: (f) => f.paidShare, show: (f) => pct(f.paidShare), bar: true,
+      missing: (f) => (f.paidShare === null ? "No listing in today's top 100" : null) },
+    { key: "rating", label: "Star rating", help: "Average star rating of its top-100 products", better: "high", value: (f) => f.rating, show: (f) => `★ ${f.rating!.toFixed(2)}`,
+      missing: (f) => (f.rating ? null : "No rated product in today's top 100") },
+    { key: "ratings", label: "Ratings, all time", help: "Total star ratings on its top-100 products", better: "high", value: (f) => f.ratings, show: (f) => compact(f.ratings), bar: true },
+    { key: "demand", label: "Reviews, last 3 months", help: "Dated reviews on its tracked products in the last 3 complete months: a stand-in for recent sales", better: "high", value: (f) => f.last3, show: (f) => compact(f.last3),
+      sub: (f) => `${f.demandProducts} products`, bar: true, missing: (f) => (f.last3 === null ? "Not in review tracking" : null) },
+    { key: "momentum", label: "Review growth", help: "Reviews in the last 3 months against the 3 months before", better: "high", value: (f) => f.growth, show: (f) => signed(f.growth),
+      missing: (f) => (f.growth === null ? (f.last3 === null ? "Not in review tracking" : "Too new to compare") : null) },
+    { key: "search", label: "K-beauty searches", help: "Tracked Korean-beauty searches where it shows in the first 10 unpaid results", better: "high", value: (f) => f.searchTerms,
+      show: (f) => (f.searchTerms ? String(f.searchTerms) : "In none"), sub: (f) => (f.bestSearch ? `best #${f.bestSearch}` : null), bar: true },
+    { key: "range", label: "Products on Nykaa", help: "All products the brand lists on Nykaa", better: null, value: (f) => f.range, show: (f) => String(f.range),
+      sub: (f) => (f.conversion !== null ? `${pct(f.conversion)} reach a top 100` : null), missing: (f) => (f.range === null ? "Range not counted for this brand" : null) },
   ];
 }
-const GROUPS = { price: "Buyability", listings: "Visibility", rating: "Reception", demand: "Velocity", search: "Discoverability", range: "Range" };
+const GROUPS = { price: "Price and promotion", listings: "Shelf visibility", rating: "Buyer response", demand: "Demand (sales signal)", search: "Search", range: "Range" };
 
 /* ---------------------------------------------------------------- §7 brands */
 
@@ -52,7 +65,9 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
   const rivals = facts.filter((f) => f.brand !== anchor);
   const priced = rivals.filter((f) => f.basket.vsAnchor !== null);
   const cheaper = priced.filter((f) => f.basket.vsAnchor! < 0.95).length;
-  const title = a ? `${standingsSentence("Innisfree", standings(a, rivals, criteria), rivals.length)}; its core basket is pricier than ${cheaper} of ${priced.length} rival brands.` : "Brand vs brand.";
+  const { strong, weak } = a ? strongestWeakest(standings(a, rivals, criteria), 2) : { strong: [], weak: [] };
+  const list = (xs: { label: string }[]) => xs.map((x) => x.label.toLowerCase()).join(" and ");
+  const title = a ? `${strong.length ? `Innisfree beats most of these brands on ${list(strong)}` : "Innisfree leads these brands on no measure"}${weak.length ? ` and trails on ${list(weak)}` : ""}; its core basket costs more than ${cheaper} of ${priced.length} of them.` : "Brand vs brand.";
 
   const on = facts.filter((f) => f.slots > 0);
   const widest = [...on].sort((x, y) => y.slots - x.slots);
@@ -65,15 +80,15 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
   const cols: GridCol[] = facts.map((f) => ({ key: f.brand, anchor: f.brand === anchor, head: (
     <div>
       <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colors[f.brand] }} /><span className="text-[14px] font-semibold">{f.brand}</span></div>
-      <div className="mt-0.5 text-[11px] leading-snug text-muted">{ORIGIN_LABEL[f.origin]}{f.madeIn ? ` · made in ${f.madeIn}` : ""}{f.kMarketing ? " · sells as Korean" : ""}{f.basket.source === "shelf" ? " · price from top 100 only" : ""}</div>
+      <div className="mt-0.5 text-[11px] leading-snug text-muted">{ORIGIN_LABEL[f.origin]}{f.madeIn ? ` · made in ${f.madeIn}` : ""}{f.kMarketing ? " · sells as Korean" : ""}{f.basket.source === "shelf" ? " · prices from today's top 100 until its full range is crawled" : ""}</div>
     </div>
   ) }));
   const extra: ExtraRow<BrandFacts>[] = [
-    { after: "momentum", label: "12-month trend", help: "Monthly reviews over the last 12 complete months", has: (f) => f.spark.some((v) => v !== null), render: (f) => <Sparkline values={f.spark} color={colors[f.brand]} width={140} height={30} /> },
+    { after: "momentum", label: "12-month trend", help: "Monthly reviews over the last 12 complete months", has: (f) => f.spark.some((v) => v !== null), missing: () => "Not in review tracking", render: (f) => <Sparkline values={f.spark} color={colors[f.brand]} width={140} height={30} /> },
   ];
 
   return (
-    <ActionSection id="brands" kicker="Brands · Innisfree vs the brands behind these products" title={title}
+    <ActionSection id="brands" kicker="Brand scorecard · Innisfree vs the brands behind these products" title={title}
       note={isHeroSet ? "Brands of the selected hero's rivals. Change the set below; the products above stay the analysed group." : "Change the brand set below."}>
       <Card className="mb-4 px-4 py-3">
         <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
@@ -138,35 +153,49 @@ export function WhereCompete({ facts, anchor, rows, catalog, uspBy, comps, color
 /* ---------------------------------------------------------------- §9 price */
 
 export function PriceBasket({ facts, anchor }: { facts: BrandFacts[]; anchor: string }) {
+  const open = useDetail();
   const a = facts.find((f) => f.brand === anchor);
   const rivals = facts.filter((f) => f.brand !== anchor && f.basket.vsAnchor !== null).sort((x, y) => x.basket.vsAnchor! - y.basket.vsAnchor!);
-  const title = a?.basket.overall ? `Innisfree's core basket averages ${inr(a.basket.overall)}${rivals.length ? `; ${rivals[0].brand} is the cheapest rival at ${rivals[0].basket.vsAnchor!.toFixed(2)}× and ${rivals[rivals.length - 1].brand} the dearest at ${rivals[rivals.length - 1].basket.vsAnchor!.toFixed(2)}×` : ""}.` : "Like-for-like prices by category.";
+  const title = a?.basket.overall ? `Innisfree's core basket averages ${inr(a.basket.overall)} MRP${rivals.length ? `; ${rivals[0].brand} is the cheapest rival at ${rivals[0].basket.vsAnchor!.toFixed(2)}× and ${rivals[rivals.length - 1].brand} the dearest at ${rivals[rivals.length - 1].basket.vsAnchor!.toFixed(2)}×` : ""}.` : "Like-for-like MRP by category.";
+  const cellDetail = (f: BrandFacts, c: string) => {
+    const v = f.basket.byCategory[c]; const av = a?.basket.byCategory[c];
+    return { kicker: `${f.brand} · ${CATEGORY_LABEL[c]}`, title: `Median MRP ${inr(v.price)}`, body: <Points items={[
+      `${v.n} full-size product${v.n === 1 ? "" : "s"} counted${f.basket.source === "shelf" ? " (from today's top 100; full range from 12 Oct)" : " (its full Nykaa range)"}`,
+      v.perHundred ? `Median ₹${Math.round(v.perHundred).toLocaleString("en-IN")} per 100 ml/g` : "Pack sizes not listed, so no per-100 ml figure",
+      ...(av && f.brand !== anchor ? [`${(v.price / av.price).toFixed(2)}× Innisfree's ${inr(av.price)}`] : []),
+      "Combos, gift sets, minis under 15 ml/g and out-of-stock products are left out",
+    ]} /> };
+  };
+  const gap = (f: BrandFacts) => (f.basket.source === "shelf" ? "Crawl pending" : "Not sold");
   return (
-    <ActionSection id="price" kicker="Price · like for like" title={title} note={`Based on: ${BASKET_LABEL}. Excludes combos, gift sets, kits, minis and samples (under 15 ml/g) and out-of-stock products. "× Innisfree" compares only the categories both sell.`}>
+    <ActionSection id="price" kicker="Price · like for like, on MRP" title={title} note={`Median full-size MRP in each core category (${BASKET_LABEL}). "×" compares with Innisfree on the categories both sell; click a price for how it was built.`}>
       <Card className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-[12.5px] tabular">
+        <table className="w-full min-w-[640px] text-[12.5px] tabular">
           <thead>
             <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.08em] text-muted">
-              <th className="px-4 py-2.5 font-semibold">Median full-size price</th>
-              {PRICE_BASKET.map((c) => <th key={c} className="px-3 py-2.5 font-semibold">{CATEGORY_LABEL[c]}</th>)}
+              <th className="px-4 py-2.5 font-semibold">Brand</th>
               <th className="px-3 py-2.5 font-semibold">Basket</th>
+              {PRICE_BASKET.map((c) => <th key={c} className="px-3 py-2.5 font-semibold">{CATEGORY_LABEL[c]}</th>)}
+              <th className="px-3 py-2.5 font-semibold">Avg discount</th>
             </tr>
           </thead>
           <tbody>
             {facts.map((f) => (
               <tr key={f.brand} className={`border-b border-line last:border-0 ${f.brand === anchor ? "bg-page/70" : ""}`}>
-                <td className="px-4 py-2 font-medium">{f.brand}{f.basket.source === "shelf" && <span className="ml-1.5 text-[10.5px] font-normal text-muted">top 100 only</span>}</td>
+                <td className="px-4 py-2 font-medium">{f.brand}</td>
+                <td className="px-3 py-2">{f.basket.overall ? <><b>{inr(f.basket.overall)}</b>{f.basket.vsAnchor && f.brand !== anchor ? <span className="block text-[10.5px] text-muted">{f.basket.vsAnchor.toFixed(2)}× Innisfree</span> : null}</> : <Missing>{gap(f)}</Missing>}</td>
                 {PRICE_BASKET.map((c) => { const v = f.basket.byCategory[c]; const av = a?.basket.byCategory[c]; return (
-                  <td key={c} className="px-3 py-2">{v ? <><b>{inr(v.price)}</b>{av && f.brand !== anchor && <span className={`ml-1 text-[10.5px] ${v.price > av.price * 1.05 ? "text-bad" : v.price < av.price * 0.95 ? "text-good" : "text-muted"}`}>{(v.price / av.price).toFixed(2)}×</span>}
-                    <span className="block text-[10.5px] text-muted">{v.perHundred ? `₹${Math.round(v.perHundred)}/100ml · ` : ""}n={v.n}</span></> : <span className="text-muted">–</span>}</td>
+                  <td key={c} className="px-3 py-2">{v ? <button onClick={() => open(cellDetail(f, c))} className="text-left hover:underline">
+                    <b>{inr(v.price)}</b>{av && f.brand !== anchor && <span className={`ml-1 text-[10.5px] ${v.price > av.price * 1.05 ? "text-bad" : v.price < av.price * 0.95 ? "text-good" : "text-muted"}`}>{(v.price / av.price).toFixed(2)}×</span>}
+                    {v.perHundred ? <span className="block text-[10.5px] text-muted">₹{Math.round(v.perHundred).toLocaleString("en-IN")}/100 ml</span> : null}</button> : <Missing>{gap(f)}</Missing>}</td>
                 ); })}
-                <td className="px-3 py-2"><b>{inr(f.basket.overall)}</b>{f.basket.vsAnchor && f.brand !== anchor ? <span className="block text-[10.5px] text-muted">{f.basket.vsAnchor.toFixed(2)}× Innisfree</span> : null}</td>
+                <td className="px-3 py-2">{f.avgDiscount === null ? <Missing>No top-100 listing</Missing> : `${Math.round(f.avgDiscount)}%`}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </Card>
-      <p className="mt-2 text-[11.5px] text-muted">Rival brands outside the 22 tracked K-beauty brands get their full range from the weekly catalogue run (from 12 Oct); until then they are priced from today&rsquo;s top-100 listings (&ldquo;top 100 only&rdquo;). Green/red ratios: cheaper/dearer than Innisfree in that category.</p>
+      <p className="mt-2 text-[11.5px] text-muted">&ldquo;Not sold&rdquo;: the brand has no full-size product in that category on Nykaa. &ldquo;Crawl pending&rdquo;: brands outside the 22 tracked K-beauty brands are priced from today&rsquo;s top 100 until the weekly catalogue run (first run 12 Oct) collects their full range. Green/red ×: cheaper/dearer than Innisfree.</p>
     </ActionSection>
   );
 }

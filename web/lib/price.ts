@@ -1,7 +1,9 @@
 import { packMl } from "./format";
 import type { CatalogRow, ShelfRow } from "./types";
 
-/** Brand price benchmark: like-for-like, on a fixed basket of core skincare categories.
+/** Brand price benchmark: like-for-like, on a fixed basket of core skincare categories, on MRP (the list price;
+ *  selling prices move with each sale, so they are shown second). Medians, not averages: a few premium products
+ *  would pull an average up.
  *  The old "typical price" was the median of whatever happened to rank in the top 100 that day, so a
  *  brand ranking with a sheet mask and a lip balm looked cheap (Innisfree ₹720 vs ₹1,403 across its range). */
 export const PRICE_BASKET = ["toner", "serum", "face_moisturizer", "face_wash", "sunscreen"] as const;
@@ -31,14 +33,15 @@ export function basketItems(brand: string, catalog: CatalogRow[], shelf: ShelfRo
   const useCat = catalog.some((r) => r.brand === brand);
   const out = new Map<string, PricedItem>();
   const add = (pid: string, name: string, cat: string, price: number | null, pack: string | null) => {
+    // price here is the MRP when the listing shows one
     if (!PRICE_BASKET.includes(cat as (typeof PRICE_BASKET)[number]) || !price) return;
     const ml = packMl(pack) ?? packMl(name);
     out.set(`${cat}|${pid}`, { product_id: pid, brand, name, category: cat, price, ml, perHundred: ml ? (price / ml) * 100 : null });
   };
   if (useCat) {
-    for (const r of fromCat) if (!exclusion(r)) for (const c of r.subcategories) add(r.product_id, r.name, c, r.price, r.pack_size);
+    for (const r of fromCat) if (!exclusion(r)) for (const c of r.subcategories) add(r.product_id, r.name, c, r.mrp ?? r.price, r.pack_size);
   } else {
-    for (const r of shelf) if (r.brand === brand && r.in_stock !== false && !exclusion(r)) add(r.product_id, r.name, r.subcategory, r.price, r.pack_size);
+    for (const r of shelf) if (r.brand === brand && r.in_stock !== false && !exclusion(r)) add(r.product_id, r.name, r.subcategory, r.mrp ?? r.price, r.pack_size);
   }
   return { items: [...out.values()], source: useCat ? "range" : "shelf" };
 }
@@ -76,8 +79,8 @@ export function categoryPrice(brand: string, cat: string, catalog: CatalogRow[],
   const src = useCat ? catalog.filter((r) => r.brand === brand && r.subcategories.includes(cat)) : shelf.filter((r) => r.brand === brand && r.subcategory === cat);
   const items = [...new Map(src.filter((r) => r.in_stock !== false && !exclusion(r)).map((r) => [r.product_id, r])).values()];
   if (!items.length) return null;
-  const per = items.map((r) => { const ml = packMl(r.pack_size) ?? packMl(r.name); return ml && r.price ? (r.price / ml) * 100 : null; }).filter((v): v is number => v !== null);
-  return { price: med(items.map((r) => r.price!))!, perHundred: med(per), n: items.length };
+  const per = items.map((r) => { const ml = packMl(r.pack_size) ?? packMl(r.name); const p = r.mrp ?? r.price; return ml && p ? (p / ml) * 100 : null; }).filter((v): v is number => v !== null);
+  return { price: med(items.map((r) => (r.mrp ?? r.price)!))!, perHundred: med(per), n: items.length };
 }
 
 export function withAnchor(prices: Omit<BasketPrice, "vsAnchor" | "shared">[], anchor: string): BasketPrice[] {
@@ -88,4 +91,18 @@ export function withAnchor(prices: Omit<BasketPrice, "vsAnchor" | "shared">[], a
     const logs = shared.map((c) => Math.log(p.byCategory[c].price / a.byCategory[c].price));
     return { ...p, vsAnchor: logs.length ? Math.exp(logs.reduce((x, y) => x + y, 0) / logs.length) : null, shared: shared.length };
   });
+}
+
+/** Category benchmark for one product comparison: median MRP per 100 ml/g of today's top-100 products in the category,
+ *  full sizes only and packs between half and double the category's usual size, so sizes are like for like. */
+export function categoryBenchmark(shelf: ShelfRow[], cat: string, std: number | null) {
+  const seen = new Set<string>(); const per: number[] = [];
+  for (const r of shelf) {
+    if (r.subcategory !== cat || seen.has(r.product_id) || exclusion(r)) continue;
+    const ml = packMl(r.pack_size) ?? packMl(r.name); const p = r.mrp ?? r.price;
+    if (!ml || !p || ml < MINI_ML || (std && (ml < std / 2 || ml > std * 2))) continue;
+    seen.add(r.product_id); per.push((p / ml) * 100);
+  }
+  if (per.length < 3) return null;
+  return { median: med(per)!, min: Math.min(...per), max: Math.max(...per), n: per.length, std };
 }
