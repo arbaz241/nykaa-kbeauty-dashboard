@@ -8,6 +8,7 @@ import LineChart from "@/components/LineChart";
 import { eventsInWindow } from "@/components/EventLog";
 import { useOpenProduct } from "@/components/ProductDrawer";
 import { ActionSection, SectionNav, ShowAll, type NavItem } from "@/components/Report";
+import { Missing, Opens, Points, useDetail } from "@/components/Detail";
 import Shell from "@/components/Shell";
 import Sparkline from "@/components/Sparkline";
 import { Card, Loading } from "@/components/ui";
@@ -73,14 +74,13 @@ function Kpi({ label, value, sub, delta, href }: { label: string; value: React.R
 function DemandPage() {
   const months = useReviewMonths(); const shelf = useShelf(); const catalog = useCatalog(); const events = useEvents();
   const hist = useSearchHistory(); const sugg = useSuggestions();
-  const open = useOpenProduct();
+  const open = useOpenProduct(); const detail = useDetail();
 
   /* ---- demand (reviews) */
   const data = useMemo(() => months.data ?? [], [months.data]);
   const known = useMemo(() => [...new Set(data.map((m) => m.brand))], [data]);
   const focus = useMemo(() => FOCUS_BRANDS.map((b) => resolveBrand(b, known) ?? b).filter((b) => known.includes(b)), [known]);
   const { selected, colors, toggle } = useBrandSelection(known);
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [onlySelected, setOnlySelected] = useState(false);
   const [allRows, setAllRows] = useState(false);
   const brands = useMemo(() => demandLines(data, "brand"), [data]);
@@ -207,18 +207,18 @@ function DemandPage() {
           <section id="summary" className="mt-6 scroll-mt-32">
             {verdict && <Card className="px-6 py-5"><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Verdict for {ANCHOR_BRAND}</div><p className="mt-2 max-w-[110ch] font-display text-[18px] font-medium leading-snug tracking-tight">{verdict}</p></Card>}
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              <Kpi href="#demand" label={`${ANCHOR_BRAND} reviews, last 3 mo`} value={anchorD?.last3 != null ? compact(anchorD.last3) : "–"} delta={anchorD?.growth ?? null} sub={anchorD?.last3 != null ? `#${anchorRank} of ${ranked.length} brands` : "not tracked"} />
-              <Kpi href="#demand" label="Fastest-rising brand" value={up?.brand ?? "–"} delta={up?.growth ?? null} sub={up ? `${compact(up.last3)} reviews in 3 months` : undefined} />
-              <Kpi href="#demand" label="Sharpest decline" value={dn?.brand ?? "–"} delta={dn?.growth ?? null} sub={dn ? `${compact(dn.last3)} reviews in 3 months` : undefined} />
-              <Kpi href="#demand" label="Top product by demand" value={topProducts[0]?.brand ?? "–"} sub={topProducts[0] ? `${shortName(topProducts[0].label, topProducts[0].brand)} · ${compact(topProducts[0].last3)} reviews` : undefined} />
+              <Kpi href="#demand" label={`${ANCHOR_BRAND} reviews, last 3 mo`} value={anchorD?.last3 != null ? compact(anchorD.last3) : <Missing>not tracked</Missing>} delta={anchorD?.growth ?? null} sub={anchorD?.last3 != null ? `#${anchorRank} of ${ranked.length} brands` : "not tracked"} />
+              <Kpi href="#demand" label="Fastest-rising brand" value={up?.brand ?? <Missing>too little history</Missing>} delta={up?.growth ?? null} sub={up ? `${compact(up.last3)} reviews in 3 months` : undefined} />
+              <Kpi href="#demand" label="Sharpest decline" value={dn?.brand ?? <Missing>too little history</Missing>} delta={dn?.growth ?? null} sub={dn ? `${compact(dn.last3)} reviews in 3 months` : undefined} />
+              <Kpi href="#demand" label="Top product by demand" value={topProducts[0]?.brand ?? <Missing>none tracked</Missing>} sub={topProducts[0] ? `${shortName(topProducts[0].label, topProducts[0].brand)} · ${compact(topProducts[0].last3)} reviews` : undefined} />
               <Kpi href="#search" label="Focus brands' unpaid top-5 share" value={`${Math.round((focusTop5 / Math.max(1, totalTop5)) * 100)}%`} sub={`${ANCHOR_BRAND}: ${anchorS?.top5 ?? 0} top-5 · ${anchorS?.top10 ?? 0} top-10 · outside the top 10 on ${absent} of ${keywords.length} keywords`} />
-              <Kpi href="#ads" label="Focus brands' share of ad slots" value={`${Math.round((focusAds / Math.max(1, totalAds)) * 100)}%`} sub={`${ANCHOR_BRAND}: ${anchorS?.ads ?? 0} of ${totalAds} ads today; top advertiser ${topAdv?.brand ?? "–"}`} />
+              <Kpi href="#ads" label="Focus brands' share of ad slots" value={`${Math.round((focusAds / Math.max(1, totalAds)) * 100)}%`} sub={`${ANCHOR_BRAND}: ${anchorS?.ads ?? 0} of ${totalAds} ads today; top advertiser ${topAdv?.brand ?? "none today"}`} />
             </div>
-            <p className="mt-2 text-[11.5px] text-muted">Reviews: {period}. Search: {keywords.length} keywords ({keywords.filter((k) => CORE.includes(k)).length} K-beauty terms, {keywords.filter((k) => !CORE.includes(k)).length} from Nykaa suggestions) on {latest ? day(latest) : "–"}.</p>
+            <p className="mt-2 text-[11.5px] text-muted">Reviews: {period}. Search: {keywords.length} keywords ({keywords.filter((k) => CORE.includes(k)).length} K-beauty terms, {keywords.filter((k) => !CORE.includes(k)).length} from Nykaa suggestions) on {latest ? day(latest) : "the latest day"}.</p>
           </section>
 
           <ActionSection id="demand" kicker="Demand · who is selling more" title={`${up ? `${up.brand} is rising fastest (${signed(up.growth)}) and ${dn?.brand} falling hardest (${signed(dn?.growth ?? null)})` : "Demand by brand"}; ${ANCHOR_BRAND} is ${anchorD ? momentumWord(anchorD.growth, anchorD.last3) : "not tracked"}.`}
-            note="Reviews are written at a steady rate by buyers, so monthly review volume tracks sales momentum. Rising = more reviews in the last 3 complete months than the 3 before.">
+            note={<>Monthly reviews track sales. Rising = more reviews in the last 3 complete months than the 3 before. <Opens detail={{ kicker: "Method", title: "How demand is measured", body: <Points items={["Nykaa does not publish sales; buyers write reviews at a steady rate, so monthly review volume tracks sales momentum.", "Tracked products: each focus brand's best-ranked products plus the leading products of the most visible rival brands.", "Nykaa serves about 1,000 reviews per product, so for big bestsellers only recent months are complete; earlier months are left blank rather than counted as zero, and such products are left out of the 3-vs-3 comparison.", "Under 30 reviews in 3 months is marked as low volume."]} /> }}>Method</Opens></>}>
             <Card className="p-5">
               <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><div className="text-[14px] font-semibold">Monthly reviews, last 12 complete months</div><span className="text-[12px] text-muted">Hover for values; logged market events are marked</span></div>
               <div className="mb-3"><BrandPicker focus={focus} all={brands.map((b) => ({ brand: b.brand, slots: b.last3 ?? 0 }))} selected={selected} colors={colors} onToggle={toggle} /></div>
@@ -230,7 +230,7 @@ function DemandPage() {
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
               <div>
                 <div className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
-                  <div className="text-[14px] font-semibold">Momentum by brand <span className="text-[12px] font-normal text-muted">· click a brand for its products</span></div>
+                  <div className="text-[14px] font-semibold">Review growth by brand <span className="text-[12px] font-normal text-muted">· click a brand for its products</span></div>
                   <label className="flex items-center gap-2 text-[12.5px] text-ink-2"><input type="checkbox" checked={onlySelected} onChange={(e) => setOnlySelected(e.target.checked)} className="accent-ink" />Selected brands only</label>
                 </div>
                 <Card className="overflow-hidden">
@@ -238,29 +238,24 @@ function DemandPage() {
                     <span>Brand</span><span>12 months</span><span>Reviews, 3 mo</span><span className="pr-4 text-right">Prior 3</span><span>Change</span>
                   </div>
                   {(allRows ? table : table.slice(0, 15)).map((b) => {
-                    const isOpen = expanded === b.brand; const ps = products.filter((p) => p.brand === b.brand); const c = colors[b.brand] ?? "#8a8880";
+                    const ps = products.filter((p) => p.brand === b.brand); const c = colors[b.brand] ?? "#8a8880";
                     return (
                       <Fragment key={b.brand}>
-                        <button onClick={() => setExpanded(isOpen ? null : b.brand)} className={`grid w-full grid-cols-[minmax(170px,1.4fr)_110px_1fr_90px_1.1fr] items-center border-b border-line px-4 py-2 text-left transition hover:bg-page/70 ${isOpen || isAnchor(b.brand) ? "bg-page/70" : ""}`}>
-                          <span className="flex items-center gap-2"><span className={`text-[10px] text-muted transition ${isOpen ? "rotate-90" : ""}`}>▶</span><span className="h-2 w-2 rounded-full" style={{ background: colors[b.brand] ?? "#d9d7cf" }} /><span className={`text-[13.5px] ${isAnchor(b.brand) ? "font-semibold" : "font-medium"}`}>{b.brand}</span><span className="text-[11px] text-muted">{ORIGIN_LABEL[origin.get(b.brand) ?? "unknown"]}</span></span>
+                        <button onClick={() => detail({ kicker: `${b.brand} · tracked products`, title: `${b.brand}: ${b.last3 === null ? "partial history" : `${compact(b.last3)} reviews in 3 months`}`, body: (<>
+                          <p className="text-muted">{ps.length} tracked product{ps.length === 1 ? "" : "s"}, ranked by recent reviews. Click one for its history.</p>
+                          <div className="mt-3 space-y-1">{ps.map((p) => { const s = shelfFor(p.key); return (
+                            <button key={p.key} onClick={() => openProduct(p.key, p.label, p.brand, p.url)} className="grid w-full grid-cols-[40px_1fr_auto] items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-surface">
+                              <Thumb src={imgFor(p.key)} cls="bg-surface" />
+                              <span className="min-w-0 text-[12.5px] leading-snug">{shortName(p.label, p.brand)}{s ? <span className="ml-2 text-[11px] text-muted">#{s.rank} on shelf</span> : null}<span className="mt-0.5 block"><Sparkline values={p.spark} color={c} width={120} height={20} /></span></span>
+                              <span className="text-right text-[12.5px]"><b className="tabular">{p.last3 === null ? <Missing>partial</Missing> : compact(p.last3)}</b><span className="block"><Change g={p.growth} vol={p.last3} /></span></span>
+                            </button>); })}</div>
+                        </>) })} className={`grid w-full grid-cols-[minmax(170px,1.4fr)_110px_1fr_90px_1.1fr] items-center border-b border-line px-4 py-2 text-left transition hover:bg-page/70 ${isAnchor(b.brand) ? "bg-page/70" : ""}`}>
+                          <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: colors[b.brand] ?? "#d9d7cf" }} /><span className={`text-[13.5px] ${isAnchor(b.brand) ? "font-semibold" : "font-medium"}`}>{b.brand} <span className="text-muted">›</span></span><span className="text-[11px] text-muted">{ORIGIN_LABEL[origin.get(b.brand) ?? "unknown"]}</span></span>
                           <Sparkline values={b.spark} color={c} width={96} height={24} />
-                          <span className="flex items-center gap-2 pr-4"><b className="w-12 text-[13.5px] tabular">{b.last3 === null ? "–" : compact(b.last3)}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full" style={{ width: `${((b.last3 ?? 0) / maxLast3) * 100}%`, background: c }} /></span></span>
-                          <span className="pr-4 text-right text-[12.5px] text-ink-2 tabular">{b.prev3 === null ? "–" : compact(b.prev3)}</span>
+                          <span className="flex items-center gap-2 pr-4"><b className="w-12 text-[13.5px] tabular">{b.last3 === null ? <Missing>partial</Missing> : compact(b.last3)}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full" style={{ width: `${((b.last3 ?? 0) / maxLast3) * 100}%`, background: c }} /></span></span>
+                          <span className="pr-4 text-right text-[12.5px] text-ink-2 tabular">{b.prev3 === null ? <Missing>partial</Missing> : compact(b.prev3)}</span>
                           <Change g={b.growth} vol={b.last3} />
                         </button>
-                        {isOpen && (
-                          <div className="border-b border-line bg-page/50 px-4 py-2.5">
-                            <div className="mb-1.5 text-[11.5px] text-muted">{ps.length} tracked product{ps.length === 1 ? "" : "s"} · ranked by recent reviews</div>
-                            {ps.map((p) => { const s = shelfFor(p.key); return (
-                              <button key={p.key} onClick={() => openProduct(p.key, p.label, p.brand, p.url)} className="grid w-full grid-cols-[40px_minmax(180px,1.3fr)_100px_70px_1fr] items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-surface">
-                                <Thumb src={imgFor(p.key)} cls="bg-surface" />
-                                <span className="text-[12.5px] leading-snug">{shortName(p.label, p.brand)}{s ? <span className="ml-2 text-[11px] text-muted">#{s.rank} on shelf</span> : null}</span>
-                                <Sparkline values={p.spark} color={c} width={96} height={22} />
-                                <b className="text-[12.5px] tabular">{p.last3 === null ? <span className="font-normal text-muted">partial</span> : compact(p.last3)}</b>
-                                <Change g={p.growth} vol={p.last3} />
-                              </button>); })}
-                          </div>
-                        )}
                       </Fragment>
                     );
                   })}
@@ -281,11 +276,10 @@ function DemandPage() {
                 </Card>
               </div>
             </div>
-            <p className="mt-3 text-[11.5px] leading-relaxed text-muted">Tracked products: each focus brand&apos;s best-ranked products plus the leading products of the most visible rival brands. Nykaa serves about 1,000 reviews per product, so for big bestsellers only recent months are complete; earlier months are left blank rather than counted as zero, and such products are excluded from the 3-vs-3 comparison.</p>
           </ActionSection>
 
           <ActionSection id="sos" kicker="Search vs demand · a leading signal" title={`${ahead.length ? `${ahead.join(", ")} take more of K-beauty search than of demand` : "No brand's search share clearly runs ahead of its demand"}${anchorSos ? `; ${ANCHOR_BRAND} is ${anchorSos.excess > 0.02 ? "ahead" : anchorSos.excess < -0.02 ? "behind" : "level"} (${(anchorSos.search * 100).toFixed(1)}% of search vs ${(anchorSos.demand * 100).toFixed(1)}% of demand)` : ""}.`}
-            note="Share of search = share of all unpaid top-10 places across today's tracked K-beauty keywords. Share of demand = share of reviews in the last 3 months across tracked brands. Binet & Field found share of search tends to lead market share, so brands whose search share runs ahead of demand may be about to grow, and those behind may lose ground. Indicative only: demand covers tracked products, and search is one day's sample.">
+            note={<>Brands whose share of search runs ahead of their share of demand tend to grow next (Binet &amp; Field); those behind tend to lose ground. <Opens detail={{ kicker: "Method", title: "Share of search vs share of demand", body: <Points items={["Share of search: share of all unpaid top-10 places across today's tracked K-beauty keywords.", "Share of demand: share of reviews in the last 3 months across tracked brands.", "Gap: search minus demand, in percentage points. Green = search ahead (a leading signal of growth), red = behind.", "Indicative only: demand covers tracked products, and search is one day's sample."]} /> }}>Method</Opens></>}>
             <Card className="overflow-hidden">
               <div className="grid grid-cols-[minmax(160px,1.2fr)_1fr_1fr_120px] border-b border-line px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted"><span>Brand</span><span>Share of search</span><span>Share of demand</span><span className="text-right">Gap</span></div>
               <ShowAll n={12} more="brands" items={sos} render={(x) => {
@@ -303,7 +297,7 @@ function DemandPage() {
             {behind.length > 0 && <p className="mt-2 text-[12px] text-ink-2">Search share furthest behind demand: {behind.join(", ")}.</p>}
           </ActionSection>
 
-          <ActionSection id="search" kicker="Search · who shoppers find" title={`${sov[0]?.brand ?? "–"} holds the most unpaid top-5 places (${sov[0]?.top5 ?? 0}); ${ANCHOR_BRAND} holds ${anchorS?.top5 ?? 0} and is outside the top 10 on ${absent} of ${keywords.length} keywords.`}
+          <ActionSection id="search" kicker="Search · who shoppers find" title={`${sov[0]?.brand ?? "No brand"} holds the most unpaid top-5 places (${sov[0]?.top5 ?? 0}); ${ANCHOR_BRAND} holds ${anchorS?.top5 ?? 0} and is outside the top 10 on ${absent} of ${keywords.length} keywords.`}
             note="Unpaid results are the same for every shopper. Pick a keyword to see its results; the right-hand table shows Innisfree keyword by keyword (click a row to open it).">
             {keywordChips}
             <div className="grid gap-4 lg:grid-cols-3">
@@ -325,7 +319,7 @@ function DemandPage() {
                     <button key={x.k} onClick={() => setKw(x.k)} className={`grid w-full grid-cols-[1fr_84px_1fr] items-center border-b border-line px-4 py-1.5 text-left text-[12px] last:border-0 hover:bg-page ${active === x.k ? "bg-page" : ""}`}>
                       <span className="truncate" title={x.k}>{x.k}</span>
                       <span className="tabular">{x.pos ? <Chip tone={x.pos <= 5 ? "good" : x.pos <= 10 ? undefined : "bad"}>#{x.pos}</Chip> : <Chip tone="bad">absent</Chip>}{x.ads ? <span className="ml-1 text-[10.5px] text-[#8a5a00]">+{x.ads} ad</span> : null}</span>
-                      <span className="truncate text-ink-2" title={x.first ?? ""}>{x.first ?? "–"}</span>
+                      <span className="truncate text-ink-2" title={x.first ?? ""}>{x.first ?? <Missing>no results</Missing>}</span>
                     </button>
                   ))}
                 </div>
@@ -346,8 +340,8 @@ function DemandPage() {
             </Card>
           </ActionSection>
 
-          <ActionSection id="ads" kicker="Ads · who is paying for attention" title={`${topAdv?.brand ?? "–"} buys the most ad slots (${topAdv?.ads ?? 0} today, ${topAdv?.adDays ?? 0} keyword-days this week); ${ANCHOR_BRAND} holds ${anchorS?.ads ?? 0} today and ${anchorS?.adDays ?? 0} keyword-days.`}
-            note="Ads are what Nykaa showed our collector at about 07:00 IST from a data centre outside India. A 22 Sep test found identical ads across fresh sessions minutes apart but different ads by location, so treat ad counts as a daily sample, not every shopper's view.">
+          <ActionSection id="ads" kicker="Ads · who is paying for attention" title={`${topAdv?.brand ?? "No brand"} buys the most ad slots (${topAdv?.ads ?? 0} today, ${topAdv?.adDays ?? 0} keyword-days this week); ${ANCHOR_BRAND} holds ${anchorS?.ads ?? 0} today and ${anchorS?.adDays ?? 0} keyword-days.`}
+            note={<>A daily sample of the paid tiles Nykaa shows, not every shopper&rsquo;s view. <Opens detail={{ kicker: "Method", title: "How ads are sampled", body: <Points items={["Ads are what Nykaa showed our collector at about 07:00 IST from a data centre outside India.", "A 22 Sep test found identical ads across fresh sessions minutes apart, but different ads by location.", "Treat ad counts as a daily sample, comparable day to day, not as every shopper's view."]} /> }}>Method</Opens></>}>
             {keywordChips}
             <Card className="overflow-x-auto p-5">
               <div className="mb-1 text-[14px] font-semibold">Ad placements over time · &ldquo;{active}&rdquo;</div>
@@ -361,7 +355,7 @@ function DemandPage() {
                       {adGrid.ds.map((d) => { const n = m.get(d) ?? 0; return <td key={d} className="py-1.5 text-center">{n ? <span className="inline-grid h-6 w-6 place-items-center rounded-md text-[11.5px] font-semibold text-white" style={{ background: `rgba(237,161,0,${0.45 + Math.min(n, 3) * 0.18})` }}>{n}</span> : <span className="text-line-2">·</span>}</td>; })}
                     </tr>
                   ))}
-                  <tr className="border-t-2 border-line"><td className="py-1.5 pr-3 text-muted">#1 unpaid</td>{adGrid.unpaid1.map((b, i) => <td key={i} className="py-1.5 text-center text-[11px] text-ink-2">{b ?? "–"}</td>)}</tr>
+                  <tr className="border-t-2 border-line"><td className="py-1.5 pr-3 text-muted">#1 unpaid</td>{adGrid.unpaid1.map((b, i) => <td key={i} className="py-1.5 text-center text-[11px] text-ink-2">{b ?? <Missing>not collected</Missing>}</td>)}</tr>
                 </tbody>
               </table>
               {adGrid.brands.length === 0 && <p className="mt-2 text-[12.5px] text-muted">No ads recorded on this keyword.</p>}
@@ -373,7 +367,7 @@ function DemandPage() {
                 return (
                   <div key={s.brand} className={`grid grid-cols-[minmax(180px,1.5fr)_1fr_1fr_1fr] items-center border-b border-line px-5 py-2 text-[13px] last:border-0 ${isAnchor(s.brand) ? "bg-page/70 font-semibold" : ""}`}>
                     <span className="flex items-center gap-2"><span>{s.brand}</span><span className="text-[11px] font-normal text-muted">{ORIGIN_LABEL[s.origin]}</span>{isFocus(s.brand) && <span className="rounded bg-sunken px-1 text-[10px] font-normal text-muted">focus</span>}</span>
-                    <span className="tabular">{s.ads || <span className="text-muted">–</span>}</span>
+                    <span className="tabular">{s.ads || <span className="text-muted">0</span>}</span>
                     <span className="flex items-center gap-2 pr-6 tabular"><b className="w-6">{s.adDays}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-[#eda100]" style={{ width: `${(s.adDays / mx) * 100}%` }} /></span></span>
                     <span className="tabular text-ink-2">{s.top10}</span>
                   </div>
