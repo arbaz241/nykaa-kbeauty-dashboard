@@ -10,7 +10,7 @@ import { useOpenProduct } from "@/components/ProductDrawer";
 import { useAvailability, useBrandShares, useCatalog, useCategoryCoverage, useDemand, useMovement, useShelf, useThumbnails } from "@/lib/data";
 import { buildFindings, portfolioGaps, threeShares, type Finding } from "@/lib/findings";
 import { heroProducts } from "@/lib/hero";
-import { ANCHOR_BRAND, FOCUS_BRANDS, resolveBrand } from "@/lib/brands";
+import { ANCHOR_BRAND, FOCUS_BRANDS, norm, resolveBrand } from "@/lib/brands";
 import { CATEGORY_LABEL, num } from "@/lib/format";
 
 const TONE = {
@@ -65,14 +65,16 @@ function Analysis() {
     const anchorCats = new Set(
       catalog.data.filter((r) => r.brand.toLowerCase() === anchor.toLowerCase()).flatMap((r) => r.subcategories ?? []),
     );
-    const rows = catalog.data
+    // the catalogue now also holds rival brands' ranges (for Compare's pricing); the gap read stays on the K-beauty set
+    const focus = new Set(FOCUS_BRANDS.map(norm));
+    const rows = catalog.data.filter((r) => focus.has(norm(r.brand)))
       .flatMap((r) => (r.subcategories ?? []).map((c) => ({ brand: r.brand, category: c, price: r.price })))
       .filter((r) => anchorCats.size === 0 || anchorCats.has(r.category));
     return portfolioGaps(anchor, rows);
   }, [anchor, catalog.data]);
 
   const heroes = useMemo(
-    () => (movement.data && demand.data && catalog.data ? heroProducts(anchor, movement.data, demand.data, catalog.data).slice(0, 6) : []),
+    () => (movement.data && demand.data && catalog.data ? heroProducts(anchor, movement.data, demand.data, catalog.data.filter((r) => FOCUS_BRANDS.some((f) => norm(f) === norm(r.brand)))).slice(0, 6) : []),
     [anchor, movement.data, demand.data, catalog.data],
   );
 

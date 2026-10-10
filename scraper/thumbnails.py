@@ -163,8 +163,8 @@ def candidates(client, limit: int | None) -> list[dict]:
     from .signals_run import catalog_rows, latest_rows
 
     images: dict[str, str] = {}
-    for row in fetch_all(lambda: client.table("brand_catalog").select("product_id,image_url").order("product_id").order("scrape_date", desc=True)):
-        if row.get("image_url"):
+    for row in fetch_all(lambda: client.table("brand_catalog").select("product_id,brand,image_url").order("product_id").order("scrape_date", desc=True)):
+        if row.get("image_url") and config.is_focus(row["brand"]):   # rival ranges are for pricing, not image analysis
             images.setdefault(row["product_id"], row["image_url"])
     start = 0
     while True:
