@@ -1,3 +1,4 @@
+import type React from "react";
 /** One set of comparison criteria, used by both the brand view and the product view of Competitive Analysis,
  *  so the two always read the same way. Tones are from the anchor's side: "ahead" means Innisfree does better
  *  than that rival on the criterion. Price carries no tone: cheaper is a position, not a win. */
@@ -15,6 +16,10 @@ export interface Criterion<T> {
   show: (x: T) => string;
   /** smaller second line, e.g. "₹420 / 100ml" */
   sub?: (x: T) => string | null;
+  /** draw a bar scaled to the row's largest value */
+  bar?: boolean;
+  /** custom cell (e.g. a sparkline) instead of the value text; shading and LEAD still apply */
+  cell?: (x: T) => React.ReactNode;
 }
 
 /** Within 5% (or 3 rank places) counts as on par. */

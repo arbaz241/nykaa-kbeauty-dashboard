@@ -4,22 +4,37 @@ import { Fragment } from "react";
 import { TONE_CLASS, tone, type Criterion } from "@/lib/compete";
 
 export interface GridCol { key: string; head: React.ReactNode; anchor?: boolean }
-export interface ExtraRow<T> { label: string; help?: string; render: (x: T) => React.ReactNode; has?: (x: T) => boolean }
+export interface ExtraRow<T> { label: string; help?: string; render: (x: T) => React.ReactNode; has?: (x: T) => boolean;
+  /** place right after this criterion (by key) instead of at the end */
+  after?: string }
 
 /** Criteria down the side, one column per brand or product. Each rival cell is shaded by how the anchor
  *  compares with it on that row (green: anchor ahead, red: anchor behind, grey: on par). */
-export default function CompareGrid<T>({ cols, items, criteria, extra = [], groups }: {
+export default function CompareGrid<T>({ cols, items, criteria, extra = [], groups, colors, labelWidth = 150 }: {
   cols: GridCol[]; items: (T | null)[]; criteria: Criterion<T>[]; extra?: ExtraRow<T>[];
+  /** bar colour per column */
+  colors?: string[]; labelWidth?: number;
   /** optional section labels: criterion key -> heading shown above it */
   groups?: Record<string, string>;
 }) {
   const ai = cols.findIndex((c) => c.anchor);
   const anchor = ai >= 0 ? items[ai] : null;
-  const grid = { gridTemplateColumns: `150px repeat(${cols.length}, minmax(132px, 1fr))` };
+  const grid = { gridTemplateColumns: `${labelWidth}px repeat(${cols.length}, minmax(150px, 1fr))` };
   const live = items.filter((x): x is T => x !== null);
+  const extraRow = (r: ExtraRow<T>) => (
+    <div key={r.label} className="grid border-b border-line last:border-0" style={grid}>
+      <div className="px-4 py-2.5 text-[12.5px] text-ink-2" title={r.help}>{r.label}</div>
+      {items.map((x, i) => (
+        <div key={i} className={`border-l border-line px-3 py-2.5 ${i === ai ? "bg-page/70" : ""}`}>
+          {!x ? <span className="text-[12px] text-muted">—</span> : r.has && !r.has(x) ? <span className="text-[11.5px] text-muted">–</span> : r.render(x)}
+        </div>
+      ))}
+    </div>
+  );
+  const shownExtra = extra.filter((r) => !r.has || live.some(r.has));
   return (
     <div className="overflow-x-auto rounded-2xl bg-surface shadow-card ring-1 ring-line">
-      <div style={{ minWidth: 150 + cols.length * 140 }}>
+      <div style={{ minWidth: labelWidth + cols.length * 158 }}>
         <div className="grid border-b border-line" style={grid}>
           <div className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
             <span className="flex flex-wrap gap-1.5 normal-case tracking-normal">
@@ -31,6 +46,9 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
         {criteria.map((cr) => {
           const kind = cr.key.includes("rank") ? "rank" : "ratio";
           const a = anchor ? cr.value(anchor) : null;
+          const vals = items.map((x) => (x ? cr.value(x) : null)).filter((v): v is number => v !== null);
+          const best = cr.better && vals.length > 1 ? (cr.better === "high" ? Math.max(...vals) : Math.min(...vals)) : null;
+          const max = vals.length ? Math.max(...vals.map(Math.abs)) : 0;
           return (
             <Fragment key={cr.key}>
               {groups?.[cr.key] && <div className="border-b border-line bg-page/40 px-4 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted">{groups[cr.key]}</div>}
@@ -38,29 +56,24 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
                 <div className="px-4 py-2.5 text-[12.5px] text-ink-2" title={cr.help}>{cr.label}</div>
                 {items.map((x, i) => {
                   if (!x) return <div key={i} className="border-l border-line px-3 py-2.5 text-[12px] text-muted">—</div>;
-                  const t = i === ai ? null : tone(a, cr.value(x), cr.better, kind);
+                  const v = cr.value(x);
+                  const t = i === ai ? null : tone(a, v, cr.better, kind);
                   const sub = cr.sub?.(x);
                   return (
                     <div key={i} className={`border-l border-line px-3 py-2 ${i === ai ? "bg-page/70" : ""}`}>
-                      <span className={`inline-block rounded-md px-1.5 py-0.5 text-[13px] font-semibold tabular ${t ? TONE_CLASS[t] : ""}`}>{cr.show(x)}</span>
+                      <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[13px] font-semibold tabular ${t ? TONE_CLASS[t] : ""}`}>{cr.cell ? cr.cell(x) : cr.show(x)}</span>
+                      {best !== null && v === best && <span className="ml-1.5 rounded-full bg-ink px-1.5 py-px align-middle text-[9.5px] font-semibold uppercase tracking-wide text-white">lead</span>}
                       {sub && <div className="mt-0.5 text-[11px] leading-tight text-muted">{sub}</div>}
+                      {cr.bar && v !== null && max > 0 && <div className="mt-1.5 h-1 w-full max-w-[150px] rounded-full bg-sunken"><div className="h-1 rounded-full" style={{ width: `${Math.max(2, (Math.abs(v) / max) * 100)}%`, background: colors?.[i] ?? "#8a8880" }} /></div>}
                     </div>
                   );
                 })}
               </div>
+              {shownExtra.filter((r) => r.after === cr.key).map(extraRow)}
             </Fragment>
           );
         })}
-        {extra.filter((r) => !r.has || live.some(r.has)).map((r) => (
-          <div key={r.label} className="grid border-b border-line last:border-0" style={grid}>
-            <div className="px-4 py-2.5 text-[12.5px] text-ink-2" title={r.help}>{r.label}</div>
-            {items.map((x, i) => (
-              <div key={i} className={`border-l border-line px-3 py-2.5 ${i === ai ? "bg-page/70" : ""}`}>
-                {!x ? <span className="text-[12px] text-muted">—</span> : r.has && !r.has(x) ? <span className="text-[11.5px] text-muted">–</span> : r.render(x)}
-              </div>
-            ))}
-          </div>
-        ))}
+        {shownExtra.filter((r) => !r.after).map(extraRow)}
       </div>
     </div>
   );

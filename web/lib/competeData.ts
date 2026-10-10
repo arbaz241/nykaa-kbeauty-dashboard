@@ -1,0 +1,120 @@
+/** Competitive Analysis data assembly: every product and brand fact the old USP and Compare tabs showed, in one
+ *  shape per product and per brand (docs/restructure-v2-plan.md §2 inventory). Pure functions, no fetching. */
+
+import { norm } from "./brands";
+import { packMl, shortName } from "./format";
+import { brandScore, type AspectStat, type BrandScore } from "./metrics";
+import { basketPrice, categoryPrice, withAnchor, type BasketPrice } from "./price";
+import type { AssortmentRow, CatalogRow, Movement, ProductDemand, ReviewMonth, ReviewPhrase, SearchRow, ShelfRow, Thumbnail } from "./types";
+import type { UspComparison, UspProduct } from "./usp";
+
+export const HERO_ORDER = ["toner", "face_moisturizer", "serum", "sunscreen", "face_wash", "masks", "eye_care", "lip_care"];
+/** The USP analysis files lip balms as "lip_balm"; on the shelf they are the Lip care category. */
+export const shelfCat = (c: string | null) => (c === "lip_balm" ? "lip_care" : c ?? "");
+export const ROLE_LABEL: Record<string, string> = {
+  anchor: "Innisfree", korean_rival_1: "K-beauty rival", korean_rival_2: "K-beauty rival", korean_rival_3: "K-beauty rival",
+  indian_leader: "Indian leader", global_rival: "Global rival", rival: "Rival",
+};
+
+/** Product title without the brand and without the trailing claim list. */
+export const shortTitle = (name: string, brand: string) => shortName(name, brand).split(/,| [-–|] | SPF | For /i)[0];
+
+export interface ProductFacts {
+  pid: string; brand: string; name: string; url: string | null; image: string | null; role: string;
+  price: number | null; mrp: number | null; discount: number | null; offer: string | null; perHundred: number | null; pack: string | null; priceNote: string | null;
+  rank: number | null; paid: boolean; rank7: number | null; rank14: number | null; gain7: number | null;
+  rating: number | null; ratings: number | null; reviewsTotal: number | null; split: Record<string, number> | null;
+  recent: number | null; momentum: number | null; spark: (number | null)[] | null; search: number;
+  whatItIs: string | null; claims: string[]; concerns: string[]; ingredients: string[]; skinTypes: string[];
+  formulation: string | null; madeIn: string | null; since: string | null; phrases: ReviewPhrase[];
+  usp?: UspProduct; thumb?: Thumbnail; aspects?: AspectStat[];
+  /** this product's line in the USP group read (angle, credibility, whether buyers echo it) */
+  groupRead?: UspComparison["comparison"]["products"][number];
+}
+
+export type BrandFacts = BrandScore & { basket: BasketPrice; catPrice: { price: number; perHundred: number | null; n: number } | null };
+
+/** Every product a brand sells in a category: today's top 100 first (by rank), then its wider catalogue by ratings. */
+export function productOptions(brand: string, cat: string, rows: ShelfRow[], catalog: CatalogRow[]) {
+  const on = rows.filter((r) => r.subcategory === cat && r.brand === brand).sort((a, b) => a.rank - b.rank)
+    .map((r) => ({ product_id: r.product_id, name: r.name, brand, price: r.price, rank: r.rank as number | null }));
+  const seen = new Set(on.map((r) => r.product_id));
+  const more = catalog.filter((r) => r.brand === brand && r.subcategories.includes(cat) && !seen.has(r.product_id))
+    .sort((a, b) => (b.rating_count ?? 0) - (a.rating_count ?? 0))
+    .map((r) => ({ product_id: r.product_id, name: r.name, brand, price: r.price, rank: null as number | null }));
+  return [...on, ...more];
+}
+export type ProductOption = ReturnType<typeof productOptions>[number];
+
+/** Product id -> number of tracked searches where it is in the top 10 unpaid results (one sample per query). */
+export function searchCounts(rows: SearchRow[]) {
+  const byQ = new Map<string, SearchRow[]>(); rows.forEach((r) => byQ.set(r.query, [...(byQ.get(r.query) ?? []), r]));
+  const out = new Map<string, number>();
+  for (const rs of byQ.values()) {
+    const minS = Math.min(...rs.map((r) => r.sample));
+    const top = rs.filter((r) => !r.is_ad && r.sample === minS).sort((a, b) => a.rank - b.rank).slice(0, 10);
+    new Set(top.map((r) => r.product_id)).forEach((id) => out.set(id, (out.get(id) ?? 0) + 1));
+  }
+  return out;
+}
+
+/** Monthly reviews for one product over a fixed window, blank before its reliable coverage. */
+export function productSpark(months: ReviewMonth[], win: string[]) {
+  if (!months.length) return null;
+  const start = months[0].coverage_start;
+  const m = new Map(months.filter((r) => r.month >= r.coverage_start).map((r) => [r.month.slice(0, 10), r.reviews]));
+  return win.map((mo) => (mo >= start ? m.get(mo) ?? 0 : null));
+}
+
+export interface Sources {
+  cat: string; rows: ShelfRow[]; catalog: CatalogRow[]; demand: Map<string, ProductDemand>; movement: Movement[];
+  months: Map<string, ReviewMonth[]>; win: string[]; search: Map<string, number>; thumbs: Map<string, Thumbnail>;
+  usp: Map<string, UspProduct>; aspects?: Map<string, AspectStat[]>; lastPrices?: Map<string, { price: number | null; mrp: number | null; scrape_date: string }>;
+  hero: UspComparison | null;
+}
+
+export function productFacts(pid: string, brandHint: string, role: string, s: Sources): ProductFacts {
+  const onCat = s.rows.filter((r) => r.product_id === pid && r.subcategory === s.cat).sort((a, b) => a.rank - b.rank)[0];
+  const sh = onCat ?? s.rows.find((r) => r.product_id === pid);
+  const c = s.catalog.find((r) => r.product_id === pid);
+  const u = s.usp.get(pid); const lp = s.lastPrices?.get(pid);
+  const name = sh?.name ?? c?.name ?? u?.name ?? pid;
+  const price = sh?.price ?? c?.price ?? lp?.price ?? null; const mrp = sh?.mrp ?? c?.mrp ?? lp?.mrp ?? null;
+  const pack = sh?.pack_size ?? c?.pack_size ?? null; const ml = packMl(pack) ?? packMl(name);
+  const mv = s.movement.find((m) => m.product_id === pid && m.category === s.cat);
+  const d = s.demand.get(pid);
+  const lower = name.toLowerCase();
+  const groupRead = s.hero?.comparison.products.find((x) => { const p = x.product.toLowerCase(); return p.includes(lower.slice(0, 24)) || lower.includes(p.slice(0, 24)); });
+  return {
+    pid, brand: brandHint || sh?.brand || c?.brand || u?.brand || "", name, url: sh?.url ?? c?.url ?? u?.url ?? null,
+    image: sh?.image_url ?? c?.best_image ?? s.thumbs.get(pid)?.image_url ?? null, role,
+    price, mrp, discount: sh?.discount_pct ?? c?.discount_pct ?? (price && mrp && mrp > price ? ((mrp - price) / mrp) * 100 : null),
+    offer: (sh?.has_offer ? sh.offer_message ?? "Offer available" : null) ?? (c?.has_offer ? c.offer_message ?? "Offer available" : null),
+    perHundred: ml && price ? (price / ml) * 100 : null, pack,
+    priceNote: !sh && !c && lp ? `last seen ${new Date(lp.scrape_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : null,
+    rank: onCat?.rank ?? null, paid: !!(onCat?.is_ad || onCat?.is_pinned), rank7: mv?.rank_7d ?? null, rank14: mv?.rank_14d ?? null, gain7: mv?.gain_7d ?? null,
+    rating: sh?.rating ?? c?.rating ?? null, ratings: sh?.rating_count ?? c?.rating_count ?? null,
+    reviewsTotal: sh?.detail_review_count ?? c?.detail_review_count ?? null, split: sh?.review_splitup ?? c?.review_splitup ?? null,
+    recent: d?.recent ?? null, momentum: d?.momentum ?? null, spark: productSpark(s.months.get(pid) ?? [], s.win), search: s.search.get(pid) ?? 0,
+    whatItIs: sh?.usp_summary ?? c?.usp_summary ?? null, claims: sh?.usp_points ?? c?.usp_points ?? [], concerns: sh?.concerns ?? c?.concerns ?? [],
+    ingredients: sh?.key_ingredients ?? c?.key_ingredients ?? [], skinTypes: sh?.skin_types ?? c?.skin_types ?? [],
+    formulation: sh?.formulation ?? c?.formulation ?? null, madeIn: sh?.country_name ?? c?.country_name ?? null, since: sh?.first_review_date ?? null,
+    phrases: sh?.review_key_phrases ?? c?.review_key_phrases ?? [],
+    usp: u, thumb: s.thumbs.get(pid), aspects: s.aspects?.get(pid), groupRead,
+  };
+}
+
+export function brandFacts(brands: string[], anchor: string, cat: string, rows: ShelfRow[], catalog: CatalogRow[], months: ReviewMonth[], search: SearchRow[], assort: AssortmentRow[]): BrandFacts[] {
+  const prices = withAnchor(brands.map((b) => basketPrice(b, catalog, rows)), anchor);
+  return brands.map((b, i) => ({
+    ...brandScore(b, rows, months, search, assort), basket: prices[i], catPrice: prices[i].byCategory[cat] ?? categoryPrice(b, cat, catalog, rows),
+  }));
+}
+
+/** Match a rival named in the AI read ("LANEIGE Lip Glowy Balm") to one of the products in view. */
+export function matchRival<T extends { brand: string; name: string }>(label: string, products: T[]): T | undefined {
+  const l = norm(label);
+  return products.find((p) => l.includes(norm(shortTitle(p.name, p.brand)).slice(0, 14)) && l.includes(norm(p.brand)))
+    ?? products.find((p) => norm(p.brand).length > 2 && l.startsWith(norm(p.brand)))
+    ?? products.find((p) => l.includes(norm(p.brand)));
+}
