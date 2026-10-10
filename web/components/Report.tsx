@@ -92,3 +92,16 @@ export function Bar({ v, max, color = "#121211" }: { v: number | null; max: numb
 export function Lead() {
   return <span className="ml-1.5 rounded-full bg-ink px-1.5 py-px align-middle text-[9.5px] font-semibold uppercase tracking-wide text-white">lead</span>;
 }
+
+/** Long explanation: first sentence, the rest one click away in place (never cut mid-word). */
+export function More({ text, className = "" }: { text: string; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const [first, ...rest] = text.split(/(?<=[.!?])\s+/);
+  if (!rest.length) return <span className={className}>{text}</span>;
+  return (
+    <span className={className}>
+      {open ? text : first}{" "}
+      <button onClick={() => setOpen(!open)} className="whitespace-nowrap text-[11px] font-medium text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">{open ? "less" : "more"}</button>
+    </span>
+  );
+}

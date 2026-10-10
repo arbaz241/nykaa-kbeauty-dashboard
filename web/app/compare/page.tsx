@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import { ProductScorecard, Summary } from "@/components/compete/Overview";
+import { Battlecards, Proposition } from "@/components/compete/Proposition";
 import { SectionNav, type NavItem } from "@/components/Report";
 import Shell from "@/components/Shell";
 import { Card, Loading } from "@/components/ui";
@@ -24,6 +25,8 @@ const readUrl = () => (typeof window === "undefined" ? {} : Object.fromEntries(n
 const NAV: NavItem[] = [
   { id: "summary", label: "Summary" },
   { id: "scorecard", label: "Scorecard" },
+  { id: "proposition", label: "Proposition" },
+  { id: "rivals", label: "Rival by rival" },
 ];
 
 function CompetitivePage() {
@@ -111,9 +114,11 @@ function CompetitivePage() {
             </div>
           </Card>
 
-          <SectionNav items={NAV} />
+          <SectionNav items={hero ? NAV : NAV.filter((n) => n.id !== "rivals")} />
           <Summary hero={hero} products={products} brands={bfacts} anchor={anchor} cat={cat} />
           <ProductScorecard products={products} colors={colors} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
+          <Proposition hero={hero} products={products} colors={colors} />
+          {hero && <Battlecards hero={hero} products={products} colors={colors} />}
         </>
       )}
     </Shell>
