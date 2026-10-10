@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Card } from "./ui";
+import { ActionSection } from "./Report";
 import { norm } from "@/lib/brands";
 import { CATEGORY_LABEL } from "@/lib/format";
 import type { Movement, Thumbnail } from "@/lib/types";
@@ -66,16 +67,11 @@ export default function Presentation({
   const { mine, rivals, winners, traits, topClaims, cats } = view;
 
   return (
-    <section className="mt-10">
-      <h2 className="font-display text-[17px] font-semibold tracking-tight">How {anchor} shows up on the shelf</h2>
-      <p className="mb-4 mt-1 max-w-[72ch] text-[13.5px] text-muted">
-        Every main image read and described: what kind of shot it is, whether a person appears, how much text
-        sits on it. {mine.length} {anchor} images against {rivals.length} rival images in{" "}
-        {cats.map((c) => CATEGORY_LABEL[c] ?? c).slice(0, 4).join(", ")}
-        {cats.length > 4 ? " and more" : ""} — and separately the {winners.length} rival images that are
-        currently in a top 20.
-      </p>
-
+    <ActionSection id="shelf" kicker="Shelf presentation · the main image" title={(() => {
+      const g = [...traits].sort((a, b) => Math.abs(b.mine - b.winners) - Math.abs(a.mine - a.winners))[0];
+      return `${g.label}: ${Math.round(g.mine * 100)}% of ${anchor}'s images against ${Math.round(g.winners * 100)}% of rivals in a top 20, the widest difference in how they are shot.`;
+    })()}
+      note={<>{mine.length} {anchor} images against {rivals.length} rival images in {cats.map((c) => CATEGORY_LABEL[c] ?? c).slice(0, 4).join(", ")}{cats.length > 4 ? " and more" : ""}, and the {winners.length} rival images in a top 20 today. A gap of 25 points or more is marked; it says the products are shot differently, not that the image caused the rank.</>}>
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-[13px]">
@@ -123,11 +119,6 @@ export default function Presentation({
         </div>
       )}
 
-      <p className="mt-3 text-[12px] text-muted">
-        A gap of 25 points or more against top-20 rivals is marked. It says these products are photographed
-        differently, not that the photography caused the rank — the shelf order is Nykaa&rsquo;s, and it weighs
-        far more than an image.
-      </p>
-    </section>
+    </ActionSection>
   );
 }

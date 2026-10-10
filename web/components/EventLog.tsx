@@ -26,7 +26,7 @@ export default function EventLog() {
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="mt-10">
+    <section id="events" className="mt-12 scroll-mt-32">
       <div className="mb-4 flex flex-wrap items-baseline gap-3">
         <h2 className="font-display text-[17px] font-semibold tracking-tight">What was happening</h2>
         <p className="text-[13px] text-muted">

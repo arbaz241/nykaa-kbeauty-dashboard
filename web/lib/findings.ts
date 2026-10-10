@@ -300,5 +300,5 @@ const ref = (r: { product_id: string; name: string; brand: string; url?: string 
 function shorten(name: string, brand?: string) {
   let n = name.replace(/\s*[-–,]\s*(with|for|featuring).*$/i, "").trim();
   if (brand && norm(n).startsWith(norm(brand))) n = n.slice(brand.length).replace(/^[\s-–:]+/, "");
-  return n.length > 46 ? `${n.slice(0, 46)}…` : n;
+  return n.length > 64 ? `${n.slice(0, 64).replace(/\s+\S*$/, "")}…` : n;
 }
