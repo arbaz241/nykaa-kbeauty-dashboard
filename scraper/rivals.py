@@ -201,7 +201,7 @@ def load(client) -> list[dict]:
         if cat:
             out.setdefault((cat, r["product_id"]), {**r, "subcategory": cat, "rank": None, "price": float(r["price"] or 0)})
     for r in fetch_all(lambda: client.table("web_brand_catalog").select("product_id,brand,name,price,pack_size,rating_count,subcategories,in_stock").order("brand").order("product_id")):
-        if r.get("in_stock") is False:
+        if r.get("in_stock") is False or not config.is_focus(r["brand"]):   # rival ranges: pricing only, keeps the rival pool as it was
             continue
         cats = list(r["subcategories"] or [])
         if not cats and LIP.search(r["name"]):

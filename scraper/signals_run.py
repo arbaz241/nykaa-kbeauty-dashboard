@@ -55,8 +55,9 @@ def catalog_rows(client) -> list[dict]:
     d = client.table("brand_catalog").select("scrape_date").order("scrape_date", desc=True).limit(1).execute().data
     if not d:
         return []
-    return fetch_all(lambda: client.table("brand_catalog").select("product_id,brand,name,rating_count,subcategories")
+    rows = fetch_all(lambda: client.table("brand_catalog").select("product_id,brand,name,rating_count,subcategories")
                      .eq("scrape_date", d[0]["scrape_date"]).order("product_id"))
+    return [r for r in rows if config.is_focus(r["brand"])]
 
 
 def products_with_text(client) -> set[str]:
@@ -98,6 +99,36 @@ def focus_brand_ids(client) -> dict[str, str]:
             out[b] = KNOWN_BRAND_IDS[b]
         else:
             log.warning("no brand id for focus brand %s", b)
+    return out
+
+
+def rival_brand_ids(client) -> dict[str, str]:
+    """Indian/global rivals whose full range we also read, so Compare prices every brand on the same basis
+    (owner, 10 Oct): the brands in the USP comparisons, plus the brands holding the most top-100 slots in the
+    anchor's categories (the same rule signals.key_products uses to pick competitors)."""
+    from .signals import _norm
+    have = brand_ids(client)
+    latest = latest_rows(client)
+    anchor_cats = {r["subcategory"] for r in latest if _norm(r["brand"]) == _norm(config.ANCHOR_BRAND)}
+    korean = {_norm(b) for b in config.TRACKED_BRANDS}
+    slots: dict[str, int] = {}
+    for r in latest:
+        if r["subcategory"] in anchor_cats and _norm(r["brand"]) not in korean:
+            slots[r["brand"]] = slots.get(r["brand"], 0) + 1
+    want = [b for b, _ in sorted(slots.items(), key=lambda kv: (-kv[1], kv[0]))[:config.KEY_COMPETITORS]]
+    try:
+        want += [r["brand"] for r in fetch_all(lambda: client.table("web_usp_products").select("brand,product_id").order("product_id"))]
+    except Exception as e:  # noqa: BLE001
+        log.warning("USP products not available: %s", e)
+    out = {}
+    for b in dict.fromkeys(want):
+        if config.is_focus(b):
+            continue
+        if b in have:
+            out[b] = have[b]
+        else:
+            log.warning("no brand id for rival brand %s", b)
+    log.info("rival catalogues: %d brands %s", len(out), list(out)[:12])
     return out
 
 
@@ -182,6 +213,9 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     from .catalog import brand_catalog
                     from .db import write_catalog
                     rows, st = await brand_catalog(page, focus_brand_ids(client), today)
+                    # rivals: first 8 pages (160 products, by popularity) is enough to price their core range
+                    rrows, rst = await brand_catalog(page, rival_brand_ids(client), today, max_pages=8)
+                    rows += rrows; st = {k: st.get(k, 0) + rst.get(k, 0) for k in st}; st["rival_brands"] = rst["brands"]
                     st["written"] = write_catalog(client, rows); stats["catalog"] = st
             if "reviews" in which:
                 with _stage(stats, "reviews"):

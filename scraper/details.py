@@ -32,8 +32,9 @@ def missing_product_ids(client) -> list[str]:
     prods = fetch_all(lambda: client.table("products").select("product_id,last_seen_date").order("last_seen_date", desc=True).order("product_id"))
     ids = [p["product_id"] for p in prods if p["product_id"] not in have]
     try:
-        cat = fetch_all(lambda: client.table("brand_catalog").select("product_id,catalog_rank").order("catalog_rank").order("product_id").order("scrape_date"))
-        ids += [c["product_id"] for c in cat if c["product_id"] not in have and c["product_id"] not in ids]
+        cat = fetch_all(lambda: client.table("brand_catalog").select("product_id,brand,catalog_rank").order("catalog_rank").order("product_id").order("scrape_date"))
+        # rival brands' ranges are read for pricing only: no detail pages for them
+        ids += [c["product_id"] for c in cat if config.is_focus(c["brand"]) and c["product_id"] not in have and c["product_id"] not in ids]
     except Exception as e:  # noqa: BLE001
         log.warning("catalogue not available: %s", e)
     return list(dict.fromkeys(ids))

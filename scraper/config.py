@@ -1,5 +1,6 @@
 """Scraper configuration. Edit CATEGORIES / TOP_N here; secrets live in .env."""
 import os
+import re
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -58,6 +59,13 @@ KBEAUTY_WATCH = ["Aestura", "Arencia", "Mixsoon", "La'dor", "Rom&nd", "Illiyoon"
                  "mise en scene", "Parnell", "Mirabelle Korea", "Biodance", "Moira"]
 FOCUS_BRANDS = KBEAUTY_CORE          # dashboard defaults, autosuggest seeds, full catalogue collection
 TRACKED_BRANDS = list(dict.fromkeys(KBEAUTY_CORE + KBEAUTY_WATCH))
+
+
+def is_focus(brand: str) -> bool:
+    """Focus K-beauty brand. brand_catalog also holds rival brands' ranges (for like-for-like pricing only);
+    everything that used to read 'the catalogue' as 'the focus brands' range' filters on this."""
+    n = lambda x: re.sub(r"[^a-z0-9]", "", x.lower())
+    return n(brand) in {n(b) for b in FOCUS_BRANDS}
 SEARCH_SAMPLES = int(os.getenv("SEARCH_SAMPLES", "1"))          # extra fresh-session samples showed identical ads (22 Sep test): ads vary by time and location, not per visitor
 SUGGESTED_KEYWORDS_MAX = int(os.getenv("SUGGESTED_KEYWORDS_MAX", "10"))
 REVIEW_TEXT_DAYS = int(os.getenv("REVIEW_TEXT_DAYS", "400"))     # keep review text this far back
