@@ -7,7 +7,9 @@ import LineChart from "@/components/LineChart";
 import { useOpenProduct, type ProductRef } from "@/components/ProductDrawer";
 import Shell from "@/components/Shell";
 import Segmented from "@/components/Segmented";
-import { Card, Insight, Loading, PageHead, SectionHead, Stat } from "@/components/ui";
+import { Card, Loading, Stat } from "@/components/ui";
+import { Missing, Opens, Points } from "@/components/Detail";
+import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import { ANCHOR_BRAND, FOCUS_BRANDS, ORIGIN_LABEL, TIER_LABEL, marketSet, norm, resolveBrand, type Tier } from "@/lib/brands";
 import { useBrandDaily, useKoreanStore, useProductNames, useShareDaily, useShelf, useShelfDays } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, compact, inr, median, shortName } from "@/lib/format";
@@ -24,8 +26,12 @@ function TierTag({ tier }: { tier: Tier | null }) {
   return tier ? <span className={`ml-1.5 rounded px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-[0.05em] ${TIER_STYLE[tier]}`}>{TIER_LABEL[tier]}</span> : null;
 }
 const ratings = (r: { rating?: number | null; rating_count?: number | null }) =>
-  r.rating_count ? `★ ${r.rating?.toFixed(1) ?? "–"} · ${compact(r.rating_count)} ratings` : "no ratings yet";
+  r.rating_count ? `${r.rating ? `★ ${r.rating.toFixed(1)} · ` : ""}${compact(r.rating_count)} ratings` : "no ratings yet";
 type Window = "7" | "14";
+const NAV: NavItem[] = [
+  { id: "summary", label: "Summary" }, { id: "origin", label: "Who holds the shelf" }, { id: "trend", label: "Day by day" },
+  { id: "movers", label: "Movers" }, { id: "store", label: "Korean store" }, { id: "launches", label: "Launches" },
+];
 interface Move { wasAd?: boolean; key: string; product_id: string; brand: string; name: string; sub: string; from: number | null; to: number | null; change: number; isAd: boolean; rating: number | null; rating_count: number | null; row?: ShelfRow; url?: string | null }
 
 const ref = (r: ShelfRow): ProductRef => ({ product_id: r.product_id, name: r.name, brand: r.brand, url: r.url, image: r.image_url, price: r.price, mrp: r.mrp, rating: r.rating, rating_count: r.rating_count, usp: r.usp_summary, phrases: r.review_key_phrases, splitup: r.review_splitup, madeIn: r.country_name });
@@ -130,20 +136,39 @@ function MarketPage() {
   const anchorInStore = store.find((s) => norm(s.b) === norm(set.anchor));
 
   const ready = shelf.data && share.data && bd.data;
+  const anchorRows = rows.filter((r) => norm(r.brand) === norm(ANCHOR_BRAND));
+  const anchorSlots = anchorRows.length; const anchorBest = Math.min(...anchorRows.map((r) => r.rank), 999);
+  const anchorRatings = anchorRows.reduce((a, r) => a + (r.rating_count ?? 0), 0);
   return (
     <Shell active="Market" asOf={last ? day(last) : undefined}>
-      <PageHead title="Market" sub={`The Nykaa shelf across ${CATEGORIES.length} categories: who holds the top-100 positions, how that is moving day by day, which products are climbing, and which launches are catching on.`} />
+      <h1 className="font-display text-[30px] font-semibold leading-tight tracking-[-0.02em]">Market</h1>
+      <p className="mt-1 max-w-[860px] text-[14px] text-ink-2">The Nykaa shelf across {CATEGORIES.length} categories: who holds the top-100 places, how that moves day by day, who is climbing, the Korean store, and which launches are catching on.</p>
       {!ready ? <Loading what="market data" /> : (
         <>
-          <section className="mt-8 grid gap-3 md:grid-cols-4">
+          <SectionNav items={NAV} />
+          <section id="summary" className="mt-6 scroll-mt-32">
+          <Card className="px-6 py-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">The shelf today</div>
+            <p className="mt-2 max-w-[110ch] font-display text-[19px] font-medium leading-snug tracking-tight">
+              K-beauty holds {(kNow * 100).toFixed(1)}% of all top-100 places{days.length > 1 ? `, ${kNow >= kFirst ? "up" : "down"} ${Math.abs((kNow - kFirst) * 100).toFixed(1)} points since ${day(first)}` : ""}; {set.anchor} holds {anchorSlots} of them{anchorSlots ? `, best #${anchorBest}` : ""}{anchorInStore ? `, and ${anchorInStore.n} of the Korean store's top 100` : ", and no place in the Korean store's top 100"}.
+            </p>
+            <Points className="mt-3 text-[13px] text-ink-2" items={[
+              <>{set.anchor}&rsquo;s listed products carry {compact(anchorRatings)} ratings in total.</>,
+              <>The Korean store&rsquo;s top three brands hold {storeLeaders.slice(0, 3).reduce((a, s) => a + s.n, 0)} of its 100 places; {storeLeaders.slice(0, 10).filter((s) => isFocus(s.b)).length} of its top 10 brands are in the focus set.</>,
+            ]} />
+          </Card>
+          <div className="mt-3 grid gap-3 md:grid-cols-4">
             <Stat label="K-beauty share of the shelf" value={`${(kNow * 100).toFixed(1)}%`} sub={days.length > 1 ? `${kNow >= kFirst ? "▲" : "▼"} ${Math.abs((kNow - kFirst) * 100).toFixed(1)} pts since ${day(first)} · ${days.length} days tracked` : "first day of data"} />
             <Stat label="Focus brands' listings" value={String(focusSlots)} sub={`${((focusSlots / Math.max(1, rows.length)) * 100).toFixed(1)}% of all top-100 slots`} />
             <Stat label="Launches on the shelf" value={String(allLaunches.length)} sub={`first reviewed in the last 90 days · ${allLaunches.filter((l) => l.r.origin === "kbeauty").length} K-beauty · ${launches.length} from brands in view`} />
-            <Stat label="Korean store leader" value={storeLeaders[0]?.b ?? "–"} sub={storeLeaders[0] ? `${storeLeaders[0].n} of the store's top 100 · best #${storeLeaders[0].best}` : ""} />
+            <Stat label="Korean store leader" value={storeLeaders[0]?.b ?? "None today"} sub={storeLeaders[0] ? `${storeLeaders[0].n} of the store's top 100 · best #${storeLeaders[0].best}` : "the store was not collected today"} />
+          </div>
           </section>
 
-          <section className="mt-10">
-            <SectionHead title="Who holds the shelf" note={`Share of each category's top-100 slots by brand origin, ${day(last)}. Top 20 is where most clicks land.`} />
+          <ActionSection id="origin" kicker="Who holds the shelf · by brand origin" title={(() => {
+            const k = CATEGORIES.map((c) => ({ c, v: shareOn(last, c).kbeauty })).sort((a, b) => b.v - a.v);
+            return `K-beauty is strongest in ${CATEGORY_LABEL[k[0].c].toLowerCase()} (${Math.round(k[0].v * 100)}% of the top 100) and weakest in ${CATEGORY_LABEL[k[k.length - 1].c].toLowerCase()} (${Math.round(k[k.length - 1].v * 100)}%).`;
+          })()} note={`Share of each category's top-100 places by brand origin, ${day(last)}. The top 20 is where most clicks land.`}>
             <Card className="p-5">
               <div className="mb-4 flex flex-wrap gap-4 text-[12.5px] text-ink-2">{ORIGINS.map((o) => <span key={o} className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: OC[o] }} />{ORIGIN_LABEL[o]}</span>)}</div>
               <div className="space-y-2.5">
@@ -162,27 +187,20 @@ function MarketPage() {
                 })}
               </div>
             </Card>
-          </section>
+          </ActionSection>
 
-          <section className="mt-10">
-            <SectionHead title="Focus brands on the shelf, day by day" note="Total top-100 listings across the seven categories. Hover for values." />
+          <ActionSection id="trend" kicker="Focus brands, day by day" title={(() => {
+            const t = brandSeries.map((b) => ({ b: b.name, d: (b.values.at(-1) ?? 0) - (b.values[0] ?? 0) })).sort((a, b) => b.d - a.d);
+            return t.length && days.length > 1 ? `${t[0].b} gained the most top-100 listings since ${day(first)} (${t[0].d >= 0 ? "+" : ""}${t[0].d}); ${t[t.length - 1].b} gained least (${t[t.length - 1].d >= 0 ? "+" : ""}${t[t.length - 1].d}).` : "Top-100 listings for the selected brands.";
+          })()} note="Total top-100 listings across the tracked categories. Pick brands below; hover the chart for values.">
             <div className="mb-3 rounded-2xl bg-surface/70 p-4 ring-1 ring-line"><BrandPicker focus={focus} all={known.map((b) => ({ brand: b, slots: rows.filter((r) => r.brand === b).length }))} selected={selected} colors={colors} onToggle={toggle} /></div>
             <Card className="p-5">{days.length > 1 ? <LineChart labels={days.map(day)} series={brandSeries} height={260} yLabel="top-100 listings" /> : <p className="text-[13px] text-muted">Trends appear after a second day of data.</p>}</Card>
-          </section>
+          </ActionSection>
 
           {days.length > 1 && (
-            <section className="mt-10">
-              <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="font-display text-[20px] font-semibold tracking-tight">Biggest movers among the brands that matter</h2>
-                  <p className="mt-1 max-w-[760px] text-[12.5px] text-muted">
-                    Rank change inside each category&apos;s top 100{past ? `, ${day(past)} → ${day(last)}` : ""}. Limited to {set.anchor}, the Korean brand set, and the
-                    Indian and global brands holding the most slots in {set.anchor}&apos;s own categories today. Only products ranked on both days; entries and exits are listed separately below.
-                    Shelves added after {past ? day(past) : "that day"} are left out until they have a past to compare with.
-                  </p>
-                </div>
-                <Segmented<Window> value={win} onChange={setWin} options={[{ value: "7", label: "7 days" }, { value: "14", label: "14 days" }]} />
-              </div>
+            <ActionSection id="movers" kicker="Movers · the brands that matter" title={up[0] ? `${up[0].brand} climbed furthest (${up[0].change} places in ${CATEGORY_LABEL[up[0].sub].toLowerCase()})${down[0] ? `; ${down[0].brand} fell furthest (${Math.abs(down[0].change)} places in ${CATEGORY_LABEL[down[0].sub].toLowerCase()})` : ""}, over ${win} days.` : `Rank moves over ${win} days.`}
+              note={<>Rank change inside each category&apos;s top 100{past ? `, ${day(past)} → ${day(last)}` : ""}, for {set.anchor}, the Korean brand set and the rivals holding the most places in {set.anchor}&apos;s categories. <Opens detail={{ kicker: "Method", title: "Which moves are counted", body: <Points items={[`Only products ranked on both days count as moves; entries and exits are listed separately.`, `Rivals in view: the Indian and global brands holding the most places in ${set.anchor}'s own categories today.`, `Shelves added after ${past ? day(past) : "that day"} are left out until they have a past to compare with.`, "Entries are often a sponsored slot or a new listing; exits are often a sponsored slot ending or Nykaa showing another listing of the same product."]} /> }}>Method</Opens></>}
+              right={<Segmented<Window> value={win} onChange={setWin} options={[{ value: "7", label: "7 days" }, { value: "14", label: "14 days" }]} />}>
               <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
                 <span className="mr-1 text-muted">Rivals in view:</span>
                 {set.rivals.map((r) => <span key={r.brand} className="rounded-full bg-surface px-2.5 py-0.5 ring-1 ring-line">{r.brand} <span className="text-muted">{ORIGIN_LABEL[r.origin]} · {r.slots} slots</span></span>)}
@@ -223,20 +241,11 @@ function MarketPage() {
                   <p className="mt-2 px-2 text-[12px] text-muted">Listings on shelves added after {past ? day(past) : "that day"} are not shown here; they appear once the shelf has {win} days of history.</p>
                 )}
               </Card>
-            </section>
+            </ActionSection>
           )}
 
-          <section className="mt-10">
-            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-display text-[20px] font-semibold tracking-tight">Inside Nykaa&apos;s Korean Beauty store</h2>
-              <a href={STORE_URL} target="_blank" rel="noreferrer" className="text-[12.5px] text-ink-2 underline underline-offset-4 hover:text-ink">Open the store on Nykaa ↗</a>
-            </div>
-            <Card className="mb-3 px-5 py-4 text-[13px] leading-relaxed text-ink-2">
-              <b className="text-ink">What this is.</b> Nykaa runs a dedicated Korean Beauty store (category 30710) that mixes every product type: serums, sunscreens, masks, makeup.
-              We read its first 100 products every morning <b className="text-ink">in the order the Nykaa app shows them</b> (its default &ldquo;popularity&rdquo; sort; the website can order them differently).
-              It is not one category&apos;s top 100. <b className="text-ink">How brands are ordered here:</b> by how many of those 100 places a brand holds, then by its best position.
-              A place can be bought: the &ldquo;paid&rdquo; column counts sponsored slots, which is often why a brand sits above one with more ratings. Click a brand to see its products.
-            </Card>
+          <ActionSection id="store" kicker="Nykaa's Korean Beauty store" title={storeLeaders[0] ? `${storeLeaders[0].b} holds the most places in the Korean store (${storeLeaders[0].n} of 100); ${anchorInStore ? `${set.anchor} holds ${anchorInStore.n}, best #${anchorInStore.best}` : `${set.anchor} holds none`}.` : "The Korean store was not collected today."}
+            note={<>The store&rsquo;s first 100 products in the Nykaa app&rsquo;s order, all product types mixed; brands ordered by places held. Click a brand for its products. <Opens detail={{ kicker: "Method", title: "What the Korean store table shows", body: <Points items={["Nykaa runs a dedicated Korean Beauty store (category 30710) mixing serums, sunscreens, masks and makeup.", "We read its first 100 products every morning in the order the Nykaa app shows them (its default popularity sort; the website can order them differently).", "Brands are ordered by how many of those 100 places they hold, then by best position.", "A place can be bought: the paid column counts sponsored slots, often why a brand sits above one with more ratings."]} /> }}>Method</Opens> <a href={STORE_URL} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">Open the store ↗</a></>}>
             <Card className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-[13px]">
                 <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
@@ -257,7 +266,7 @@ function MarketPage() {
                           <td className="px-3 py-2.5 text-right tabular text-ink-2">#{Math.round(s.med)}</td>
                           <td className="px-3 py-2.5 text-right tabular">{s.paid ? <span className="rounded bg-[#fff4d6] px-1.5 text-[#8a6100]">{s.paid}</span> : <span className="text-muted">0</span>}</td>
                           <td className="px-3 py-2.5 text-right tabular">{compact(s.ratingsSum)}</td>
-                          <td className="px-5 py-2.5 text-right tabular">{s.avg ? `★ ${s.avg.toFixed(2)}` : "–"}</td>
+                          <td className="px-5 py-2.5 text-right tabular">{s.avg ? `★ ${s.avg.toFixed(2)}` : <Missing>no ratings</Missing>}</td>
                         </tr>
                         {isOpen && (
                           <tr className="border-b border-line/70 bg-page/60"><td colSpan={8} className="px-5 py-3">
@@ -282,10 +291,10 @@ function MarketPage() {
               </table>
               {!anchorInStore && <p className="border-t border-line px-5 py-3 text-[12.5px] text-ink-2"><b>{set.anchor}</b> holds no place in the store&apos;s top 100 today.</p>}
             </Card>
-          </section>
+          </ActionSection>
 
-          <section className="mt-10">
-            <SectionHead title="Launches catching on" note={`Products from the brands above whose first review is under 90 days old, that already sit in a top 100 and have at least 10 ratings, ordered by ratings gained per day since that first review. ${allLaunches.length - launches.length} other launches are left out.`} />
+          <ActionSection id="launches" kicker="Launches catching on" title={launches[0] ? `${launches[0].r.brand}'s ${shortName(launches[0].r.name, launches[0].r.brand).split(/,| - /)[0]} is the fastest-catching launch, at ${launches[0].perDay.toFixed(1)} ratings a day.` : "No launch from these brands is catching on yet."}
+            note={`First reviewed under 90 days ago, already in a top 100, with at least 10 ratings; ordered by ratings gained per day. ${allLaunches.length - launches.length} other launches are left out.`}>
             <Card className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-[13px]">
                 <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
@@ -303,7 +312,7 @@ function MarketPage() {
                       </td>
                       <td className="py-2 pr-3"><span className="block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{r.brand}<TierTag tier={set.tier(r.brand)} /></span><span className="block max-w-[420px] truncate">{shortName(r.name, r.brand)}</span></td>
                       <td className="px-3 py-2 text-ink-2">#{r.rank} {CATEGORY_LABEL[r.subcategory]}{r.is_ad && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">paid</span>}</td>
-                      <td className="px-3 py-2 text-right tabular">{(r.rating_count ?? 0).toLocaleString("en-US")} <span className="text-muted">★ {r.rating?.toFixed(1) ?? "–"}</span></td>
+                      <td className="px-3 py-2 text-right tabular">{(r.rating_count ?? 0).toLocaleString("en-US")}{r.rating ? <span className="text-muted"> ★ {r.rating.toFixed(1)}</span> : null}</td>
                       <td className="px-3 py-2 text-right tabular text-ink-2">{new Date(r.first_review_date!).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} <span className="text-muted">· {age}d ago</span></td>
                       <td className="px-5 py-2 text-right tabular"><b>{perDay.toFixed(1)}</b></td>
                     </tr>
@@ -313,12 +322,7 @@ function MarketPage() {
               {!launches.length && <p className="px-5 py-4 text-[12.5px] text-muted">No launches from these brands on a tracked shelf.</p>}
               {!launches.some((l) => norm(l.r.brand) === norm(set.anchor)) && <p className="border-t border-line px-5 py-3 text-[12.5px] text-ink-2"><b>{set.anchor}</b> has no launch under 90 days old on any tracked top 100.</p>}
             </Card>
-          </section>
-
-          <section className="mt-10 grid gap-3 md:grid-cols-2">
-            <Insight><b>{ANCHOR_BRAND}</b> holds {rows.filter((r) => norm(r.brand) === norm(ANCHOR_BRAND)).length} top-100 listings today, best rank #{Math.min(...rows.filter((r) => norm(r.brand) === norm(ANCHOR_BRAND)).map((r) => r.rank), 999)}. Its ratings on listed products total {compact(rows.filter((r) => norm(r.brand) === norm(ANCHOR_BRAND)).reduce((a, r) => a + (r.rating_count ?? 0), 0))}.</Insight>
-            <Insight>Of the {Math.min(10, storeLeaders.length)} brands leading Nykaa&apos;s Korean store, {storeLeaders.slice(0, 10).filter((s) => isFocus(s.b)).length} are in your focus set; the store&apos;s top three brands hold {storeLeaders.slice(0, 3).reduce((a, s) => a + s.n, 0)} of its 100 slots.</Insight>
-          </section>
+          </ActionSection>
         </>
       )}
     </Shell>
