@@ -5,6 +5,7 @@ import AuthGate from "@/components/AuthGate";
 import { useOpenProduct, type ProductRef } from "@/components/ProductDrawer";
 import Shell from "@/components/Shell";
 import { Card, Loading, PageHead } from "@/components/ui";
+import { Missing, Points } from "@/components/Detail";
 import { ORIGIN_LABEL, TIER_LABEL, marketSet, norm, type Tier } from "@/lib/brands";
 import { useShelf } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, compact, inr, median, shortName } from "@/lib/format";
@@ -23,7 +24,7 @@ const page = (rank: number) => Math.ceil(rank / 20);
 const ref = (r: ShelfRow): ProductRef => ({ product_id: r.product_id, name: r.name, brand: r.brand, url: r.url, image: r.image_url, price: r.price, mrp: r.mrp, rating: r.rating, rating_count: r.rating_count, usp: r.usp_summary, phrases: r.review_key_phrases, splitup: r.review_splitup, madeIn: r.country_name });
 
 function Stars({ v }: { v: number | null }) {
-  if (v === null) return <span className="text-muted">–</span>;
+  if (v === null) return <Missing>no rating</Missing>;
   return <span className="whitespace-nowrap tabular"><span className="text-[#d49a00]">★</span> {v.toFixed(1)}</span>;
 }
 
@@ -105,7 +106,14 @@ function CategoriesPage() {
           </div>
 
           <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-[20px] font-semibold tracking-tight">{CATEGORY_LABEL[cat]}: who holds the top 100{noAds ? ", sponsored slots removed" : ""}</h2>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{CATEGORY_LABEL[cat]} · who holds the top 100{noAds ? ", sponsored slots removed" : ""}</div>
+              <h2 className="mt-1 font-display text-[21px] font-semibold leading-snug tracking-tight">{(() => {
+                const by = ORIGIN_CARDS.map((o) => ({ o, n: summaryRows.filter((r) => r.origin === o.key).length })).sort((a, b) => b.n - a.n);
+                const best = summaryRows.find((r) => r.origin === "kbeauty");
+                return `${by[0].o.title} hold ${by[0].n} of the ${summaryRows.length} places${best ? `; the top K-beauty product is ${best.brand} at #${noAds ? base.find((b) => b.r === best)?.pos : best.rank}` : "; no K-beauty product ranks"}${anchorRows.length ? `, and ${set.anchor}'s best is #${anchorRows[0].rank}` : `, and ${set.anchor} is not in this top 100`}.`;
+              })()}</h2>
+            </div>
             <a href={CATEGORY_URL[cat]} target="_blank" rel="noreferrer" className="text-[12.5px] text-ink-2 underline underline-offset-4 hover:text-ink">This listing on Nykaa ↗</a>
           </div>
           <section className="mt-3 grid gap-3 lg:grid-cols-3">
@@ -121,20 +129,19 @@ function CategoriesPage() {
                   {!s ? <p className="mt-3 text-[13px] text-muted">No {o.short} in this top 100.</p> : (
                     <>
                       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-[12px]">
-                        <div><dt className="text-muted">Price band</dt><dd className="font-display text-[17px] font-semibold tabular">{s.band ? `${inr(s.band[0])}–${inr(s.band[1])}` : "–"}</dd><dd className="text-[11px] text-muted">middle half of listings</dd></div>
+                        <div><dt className="text-muted">Price band</dt><dd className="font-display text-[17px] font-semibold tabular">{s.band ? `${inr(s.band[0])}–${inr(s.band[1])}` : <Missing>no prices</Missing>}</dd><dd className="text-[11px] text-muted">middle half of listings</dd></div>
                         <div><dt className="text-muted">Placement</dt><dd className="font-display text-[17px] font-semibold tabular">{s.top20} in top 20</dd><dd className="text-[11px] text-muted">best #{s.best}{s.paid ? ` · ${s.paid} paid slot${s.paid === 1 ? "" : "s"}` : ""}</dd></div>
                         <div><dt className="text-muted">Most reviewed</dt><dd className="font-display text-[15px] font-semibold">{s.mostReviewed.b}</dd><dd className="text-[11px] text-muted">{compact(s.mostReviewed.ratings)} ratings across {s.mostReviewed.n}</dd></div>
                         <div><dt className="text-muted">Most listings</dt><dd className="font-display text-[15px] font-semibold">{s.mostListed.b}</dd><dd className="text-[11px] text-muted">{s.mostListed.n} of {s.n} · ranks {s.mostListed.ranks.slice(0, 4).map((x) => `#${x}`).join(", ")}</dd></div>
-                        <div><dt className="text-muted">Avg rating · discount</dt><dd className="font-display text-[15px] font-semibold tabular">★ {s.avgRating?.toFixed(2) ?? "–"} · {Math.round(s.avgDiscount)}%</dd></div>
+                        <div><dt className="text-muted">Avg rating · discount</dt><dd className="font-display text-[15px] font-semibold tabular">{s.avgRating ? `★ ${s.avgRating.toFixed(2)}` : "no rating"} · {Math.round(s.avgDiscount)}%</dd></div>
                         {s.spf ? <div><dt className="text-muted">Usual SPF</dt><dd className="font-display text-[15px] font-semibold tabular">SPF {s.spf.v}</dd><dd className="text-[11px] text-muted">{s.spf.n} of {s.spf.of} that state one</dd></div>
                           : <div><dt className="text-muted">Typical price</dt><dd className="font-display text-[15px] font-semibold tabular">{inr(s.median)}</dd></div>}
                       </dl>
-                      <p className="mt-4 border-t border-line pt-3 text-[12.5px] leading-relaxed text-ink-2">
-                        <b className="text-ink">{s.mostReviewed.b}</b> carries the most ratings among {o.short} here ({compact(s.mostReviewed.ratings)} across {s.mostReviewed.n} listing{s.mostReviewed.n === 1 ? "" : "s"}, ranks {s.mostReviewed.ranks.slice(0, 3).map((x) => `#${x}`).join(", ")}).
-                        {s.mostListed.b !== s.mostReviewed.b && <> <b className="text-ink">{s.mostListed.b}</b> has the most listings ({s.mostListed.n}).</>}
-                        {" "}Half of these listings sell between {s.band ? `${inr(s.band[0])} and ${inr(s.band[1])}` : "–"}.
-                        {o.key === "kbeauty" && <> <b className="text-ink">{set.anchor}</b>: {anchorHere.length ? `${anchorHere.length} listing${anchorHere.length === 1 ? "" : "s"}, ranks ${anchorHere.map((r) => `#${r.rank}`).join(", ")}.` : "not in this top 100."}</>}
-                      </p>
+                      <Points className="mt-4 border-t border-line pt-3 text-[12.5px] text-ink-2" items={[
+                        <><b className="text-ink">{s.mostReviewed.b}</b>: most ratings ({compact(s.mostReviewed.ratings)}, ranks {s.mostReviewed.ranks.slice(0, 3).map((x) => `#${x}`).join(", ")})</>,
+                        ...(s.mostListed.b !== s.mostReviewed.b ? [<><b className="text-ink">{s.mostListed.b}</b>: most listings ({s.mostListed.n})</>] : []),
+                        ...(o.key === "kbeauty" ? [<><b className="text-ink">{set.anchor}</b>: {anchorHere.length ? `${anchorHere.length} listing${anchorHere.length === 1 ? "" : "s"}, ${anchorHere.map((r) => `#${r.rank}`).join(", ")}` : "not in this top 100"}</>] : []),
+                      ]} />
                     </>
                   )}
                 </div>
@@ -164,7 +171,7 @@ function CategoriesPage() {
                 <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
                   <th className="px-4 py-3 text-right">#</th><th className="px-2 py-3">Page</th><th className="px-2 py-3">Origin</th><th className="px-3 py-3">Brand</th>
                   <th className="px-3 py-3">Product</th><th className="px-2 py-3">Badge</th>{isSun && <th className="px-2 py-3 text-right">SPF</th>}<th className="px-3 py-3">Targets</th>
-                  <th className="px-2 py-3 text-right">MRP</th><th className="px-2 py-3 text-right">Price</th><th className="px-2 py-3 text-right">Off</th>
+                  <th className="px-2 py-3 text-right">MRP</th><th className="px-2 py-3 text-right">Sells at</th><th className="px-2 py-3 text-right">Off</th>
                   <th className="px-2 py-3 text-right">Size</th><th className="px-2 py-3 text-right">Ratings</th><th className="px-4 py-3 text-right">Rating</th>
                 </tr></thead>
                 <tbody>
@@ -181,15 +188,15 @@ function CategoriesPage() {
                           {r.is_ad && <span className="rounded bg-[#fff4d6] px-1.5 text-[10.5px] font-semibold text-[#8a6100]">SPONSORED</span>}
                           {r.is_bestseller && <span className="rounded bg-[#fce8f1] px-1.5 text-[10.5px] font-semibold text-[#b03a72]">BESTSELLER</span>}
                           {r.is_new_tag && <span className="rounded bg-[#e6effb] px-1.5 text-[10.5px] font-semibold text-[#1f5fae]">NEW</span>}
-                          {!r.is_ad && !r.is_bestseller && !r.is_new_tag && <span className="text-muted">–</span>}
+                          {!r.is_ad && !r.is_bestseller && !r.is_new_tag && <span className="text-[11px] text-muted">none</span>}
                         </div></td>
-                        {isSun && <td className="px-2 py-2.5 text-right tabular">{spf(r.name) ?? "–"}</td>}
-                        <td className="px-3 py-2.5"><div className="flex max-w-[220px] flex-wrap gap-1">{(r.concerns ?? []).slice(0, 3).map((c) => <span key={c} className="rounded-full bg-sunken px-2 py-0.5 text-[11px] text-ink-2">{c}</span>)}{!r.concerns?.length && <span className="text-muted">–</span>}</div></td>
-                        <td className="px-2 py-2.5 text-right tabular text-muted">{r.mrp && r.price && r.mrp > r.price ? <span className="line-through">{inr(r.mrp)}</span> : inr(r.mrp)}</td>
-                        <td className="px-2 py-2.5 text-right font-medium tabular">{inr(r.price)}</td>
-                        <td className="px-2 py-2.5 text-right tabular">{r.discount_pct ? <span className="text-good">{Math.round(r.discount_pct)}%</span> : <span className="text-muted">–</span>}</td>
-                        <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.pack_size ?? "–"}</td>
-                        <td className="px-2 py-2.5 text-right tabular">{r.rating_count ? r.rating_count.toLocaleString("en-US") : "–"}</td>
+                        {isSun && <td className="px-2 py-2.5 text-right tabular">{spf(r.name) ?? <Missing>not stated</Missing>}</td>}
+                        <td className="px-3 py-2.5"><div className="flex max-w-[220px] flex-wrap gap-1">{(r.concerns ?? []).slice(0, 3).map((c) => <span key={c} className="rounded-full bg-sunken px-2 py-0.5 text-[11px] text-ink-2">{c}</span>)}{!r.concerns?.length && <Missing>not listed</Missing>}</div></td>
+                        <td className="px-2 py-2.5 text-right font-medium tabular">{r.mrp ? inr(r.mrp) : inr(r.price)}</td>
+                        <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.price && r.mrp && r.price < r.mrp ? inr(r.price) : <span className="text-[11px] text-muted">same</span>}</td>
+                        <td className="px-2 py-2.5 text-right tabular">{r.discount_pct ? <span className="text-good">{Math.round(r.discount_pct)}%</span> : <span className="text-[11px] text-muted">none</span>}</td>
+                        <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.pack_size ?? <Missing>not listed</Missing>}</td>
+                        <td className="px-2 py-2.5 text-right tabular">{r.rating_count ? r.rating_count.toLocaleString("en-US") : <Missing>none yet</Missing>}</td>
                         <td className="px-4 py-2.5 text-right"><Stars v={r.rating} /></td>
                       </tr>
                     );
