@@ -5,10 +5,8 @@ import { useIsAdmin, useSession } from "./AuthGate";
 
 const NAV = [
   { label: "Analysis", href: "/analysis/", live: true },
-  { label: "USP", href: "/usp/", live: true },
-  { label: "Compare", href: "/compare/", live: true },
+  { label: "Competitive Analysis", href: "/compare/", live: true },
   { label: "Demand", href: "/demand/", live: true },
-  { label: "Search & Ads", href: "/search/", live: true },
   { label: "Market", href: "/market/", live: true },
   { label: "Top by category", href: "/categories/", live: true },
 ];

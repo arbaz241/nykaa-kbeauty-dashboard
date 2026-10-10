@@ -7,12 +7,14 @@ import type { CatalogRow, ShelfRow } from "@/lib/types";
 /** Categories × brands. A dash used to mean three different things; each cell now says which:
  *  in the top 100 (how many, best rank, typical price), sold but outside the top 100 (how many, its biggest
  *  seller's ratings), or not sold at all. The last two come from each brand's full Nykaa catalogue. */
-export default function PresenceMatrix({ shelf, catalog, brands, colors, anchor, onPick }: {
+export default function PresenceMatrix({ shelf, catalog, brands, colors, anchor, onPick, categories = CATEGORIES }: {
   shelf: ShelfRow[]; catalog: CatalogRow[] | undefined; brands: string[]; colors: Record<string, string>; anchor: string; onPick: (cat: string) => void;
+  /** rows to show; defaults to every tracked category */
+  categories?: string[];
 }) {
   const cols = `190px repeat(${brands.length}, minmax(0, 1fr))`;
   const withCatalog = new Set((catalog ?? []).map((r) => r.brand));
-  const maxN = Math.max(1, ...CATEGORIES.flatMap((c) => brands.map((b) => shelf.filter((r) => r.subcategory === c && r.brand === b).length)));
+  const maxN = Math.max(1, ...categories.flatMap((c) => brands.map((b) => shelf.filter((r) => r.subcategory === c && r.brand === b).length)));
   const range = (c: string, b: string) => (catalog ?? []).filter((r) => r.brand === b && r.subcategories.includes(c));
   return (
     <div className="overflow-x-auto rounded-2xl bg-surface shadow-card ring-1 ring-line">
@@ -23,7 +25,7 @@ export default function PresenceMatrix({ shelf, catalog, brands, colors, anchor,
         <span>— = full range not tracked for this brand</span>
       </div>
       <div className="min-w-[760px]">
-        {CATEGORIES.map((c) => {
+        {categories.map((c) => {
           const anchorSells = shelf.some((r) => r.subcategory === c && norm(r.brand) === norm(anchor)) || range(c, brands.find((b) => norm(b) === norm(anchor)) ?? "").length > 0;
           const othersRank = brands.some((b) => norm(b) !== norm(anchor) && shelf.some((r) => r.subcategory === c && r.brand === b));
           const gap = brands.some((b) => norm(b) === norm(anchor)) && withCatalog.has(brands.find((b) => norm(b) === norm(anchor))!) && !anchorSells && othersRank;

@@ -31,8 +31,34 @@ function numeric(r: ShelfRow): ShelfRow {
 }
 
 
+/** Nykaa files some products under a sibling category id that is not one of the tracked shelves (its "Cleanser"
+ *  next to "Face Wash"); the catalogue then gave them no category and Compare called the brand "not in range".
+ *  Their own Nykaa sub-category name (l3) places them. Combos and gift sets stay uncategorised on purpose. */
+const L3_CATEGORY: Record<string, string> = {
+  "Cleanser": "face_wash", "Micellar Water": "face_wash", "Cleansing Oils & Balm": "cleansing_balm", "Night Cream": "face_moisturizer",
+  "Lip Balm": "lip_care", "Lip Masks": "lip_care", "Lip Scrubs": "lip_care", "Eye Masks": "eye_care",
+};
+
 export function useCatalog() {
-  return useSWR("catalog", async () => (await fetchAll<CatalogRow>("web_brand_catalog")).map((r) => ({ ...r, price: num(r.price), mrp: num(r.mrp), discount_pct: num(r.discount_pct), rating: num(r.rating) })), opts);
+  return useSWR("catalog", async () => (await fetchAll<CatalogRow>("web_brand_catalog")).map((r) => ({
+    ...r, price: num(r.price), mrp: num(r.mrp), discount_pct: num(r.discount_pct), rating: num(r.rating),
+    subcategories: r.subcategories?.length ? r.subcategories : r.l3 && L3_CATEGORY[r.l3] ? [L3_CATEGORY[r.l3]] : [],
+  })), opts);
+}
+
+/** Last price seen on any shelf day, for products that are on neither today's shelf nor a tracked catalogue. */
+export function useLastPrices(ids: string[]) {
+  const key = [...new Set(ids)].sort();
+  return useSWR(key.length ? ["last_prices", ...key] : null, async () => {
+    const out = new Map<string, { price: number | null; mrp: number | null; scrape_date: string }>();
+    await Promise.all(key.map(async (id) => {
+      const { data, error } = await supabase().from("web_product_history").select("scrape_date,price,mrp").eq("product_id", id).not("price", "is", null)
+        .order("scrape_date", { ascending: false }).limit(1);
+      if (error) throw new Error(error.message);
+      if (data?.[0]) out.set(id, { price: num(data[0].price), mrp: num(data[0].mrp), scrape_date: data[0].scrape_date });
+    }));
+    return out;
+  }, { revalidateOnFocus: false });
 }
 export function useShareDaily() { return useSWR("share_daily", () => fetchAll<ShareDaily>("web_share_daily"), opts); }
 export function useBrandDaily() { return useSWR("brand_daily", () => fetchAll<BrandDaily>("web_brand_daily"), opts); }
