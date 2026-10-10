@@ -21,8 +21,8 @@ export default function PresenceMatrix({ shelf, catalog, brands, colors, anchor,
       <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-line px-5 py-2.5 text-[11.5px] text-muted">
         <span><b className="text-ink">3</b> best #12 = listings in the category&apos;s top 100 today</span>
         <span><span className="text-[#8a6100]">Sells 8, none in top 100</span> = in its range, not ranking</span>
-        <span><span className="text-muted/70">Not in range</span> = the brand sells nothing here on Nykaa</span>
-        <span>— = full range not tracked for this brand</span>
+        <span><i>Not sold</i> = the brand sells nothing here on Nykaa</span>
+        <span><i>Crawl pending</i> = not in today&rsquo;s top 100, and the brand&rsquo;s full range is collected from 12 Oct</span>
       </div>
       <div className="min-w-[760px]">
         {categories.map((c) => {
@@ -48,8 +48,8 @@ export default function PresenceMatrix({ shelf, catalog, brands, colors, anchor,
                     </div>
                   );
                 }
-                if (!withCatalog.has(b)) return <div key={b} className="px-5 py-3 text-[12.5px] text-muted">—</div>;
-                if (!rg.length) return <div key={b} className="px-5 py-3 text-[12px] text-muted/70">Not in range</div>;
+                if (!withCatalog.has(b)) return <div key={b} className="px-5 py-3 text-[11.5px] italic text-muted">Crawl pending</div>;
+                if (!rg.length) return <div key={b} className="px-5 py-3 text-[11.5px] italic text-muted">Not sold</div>;
                 const top = [...rg].sort((x, y) => (y.rating_count ?? 0) - (x.rating_count ?? 0))[0];
                 return (
                   <div key={b} className="px-5 py-2.5">
