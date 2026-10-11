@@ -20,7 +20,7 @@ export default function Shell({ active, asOf, children }: { active: string; asOf
       <header className="sticky top-0 z-30 border-b border-line bg-page/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[1320px] items-center gap-6 px-6">
           <div className="flex items-center gap-2.5">
-            <span className="h-5 w-5 rounded-[5px] bg-ink" />
+            <span className="grid h-5 w-5 place-items-center rounded-[5px] bg-ink font-display text-[12px] font-bold leading-none text-white">N</span>
             <span className="whitespace-nowrap font-display text-[14px] font-semibold tracking-tight">Nykaa Market Intelligence</span>
           </div>
           <nav className="flex items-center gap-1">

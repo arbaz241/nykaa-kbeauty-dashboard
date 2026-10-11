@@ -47,7 +47,7 @@ export default function Login() {
     <main className="grid min-h-screen place-items-center px-4">
       <div className="w-full max-w-[380px]">
         <div className="mb-8 flex items-center gap-2.5">
-          <span className="h-6 w-6 rounded-md bg-ink" />
+          <span className="grid h-6 w-6 place-items-center rounded-md bg-ink font-display text-[14px] font-bold leading-none text-white">N</span>
           <span className="font-display text-[15px] font-semibold tracking-tight">Nykaa Market Intelligence</span>
         </div>
         <h1 className="font-display text-3xl font-semibold tracking-tight">{TITLE[mode]}</h1>
