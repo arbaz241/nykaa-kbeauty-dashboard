@@ -133,12 +133,17 @@ def main() -> int:
         if not blocked and not args.no_enrich:
             # product details for products we have never fetched (capped per run)
             from .db import connect
-            from .details import missing_product_ids, run_details
+            from .details import missing_catalog_ids, missing_product_ids, run_details
             try:
                 client = connect()
-                ids = [p for p in missing_product_ids(client) if p in {r["product_id"] for r in [x for rr in results for x in rr.products]}]
+                listed = {x["product_id"] for rr in results for x in rr.products}
+                # today's shelf products first; spare slots under the cap go to focus brands' range products
+                # (new launches the Monday catalogue finds), which otherwise never get details
+                on_shelf = [p for p in missing_product_ids(client) if p in listed]
+                in_range = [p for p in missing_catalog_ids(client) if p not in listed]
+                ids = on_shelf + in_range
                 if ids:
-                    log.info("product details: %d listed products without details", len(ids))
+                    log.info("product details: %d listed + %d range products without details", len(on_shelf), len(in_range))
                     asyncio.run(run_details(ids, config.DETAILS_MAX_PER_RUN, client))
             except BlockedError as e:
                 log.error("BLOCKED during product details — stopped: %s", e)
