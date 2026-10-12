@@ -82,10 +82,19 @@ function fromBundle<T>(view: string): Promise<T[]> {
 async function flush() {
   const batch = queue; queue = []; flushTimer = undefined;
   const { data, error } = await supabase().rpc("web_bundle", { names: [...new Set(batch.map((b) => b.view))] });
+  setTimeout(prefetchRest, 1500);
   for (const b of batch) {
     const doc = error ? undefined : (data as Record<string, Doc> | null)?.[b.view];
     if (doc) b.resolve(rowsOf(doc) as never[]); else fetchFresh<never>(b.view, "*", 1000).then(b.resolve, b.reject);
   }
+}
+
+/** Once a page has its data, fetch every other tab's in one background request, so the next tab opens at once. */
+let prefetched = false;
+function prefetchRest() {
+  if (prefetched) return;
+  prefetched = true;
+  for (const view of SNAPSHOT) fetchAll(view).catch(() => { /* that tab fetches it itself */ });
 }
 
 /** A bundle document: plain rows (021), or the compact column form (022) — one array per column, and a repeating
