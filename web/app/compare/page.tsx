@@ -21,6 +21,7 @@ import { useTiers } from "@/lib/tiers";
 import { kBeautyBenchmark } from "@/lib/price";
 import type { ReviewMonth } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
+import { push } from "@/lib/group";
 
 /** Competitive Analysis: the old USP and Compare tabs as one report (docs/restructure-v2-plan.md), layered in round 2
  *  (docs/competitive-round2-plan.md): Product view answers first, then price, message, buyers, visibility, demand;
@@ -101,7 +102,7 @@ function CompetitivePage() {
   const bench = useMemo(() => kBeautyBenchmark(rows, cat, anchor, stdMl), [rows, cat, anchor, stdMl]);
   const lastPrices = useLastPrices(useMemo(() => ids.filter((id) => !rows.some((r) => r.product_id === id) && !cat0.some((r) => r.product_id === id)), [ids, rows, cat0]));
   const win = useMemo(() => monthsWindow(12), []);
-  const monthsBy = useMemo(() => { const m = new Map<string, ReviewMonth[]>(); (months.data ?? []).forEach((r) => m.set(r.product_id, [...(m.get(r.product_id) ?? []), r])); return m; }, [months.data]);
+  const monthsBy = useMemo(() => { const m = new Map<string, ReviewMonth[]>(); (months.data ?? []).forEach((r) => push(m, r.product_id, r)); return m; }, [months.data]);
   // one row per review pool, the same counting as Analysis and Demand; every product of a pool gets the pool's numbers
   const pooled = useMemo(() => {
     if (!months.data || !demand.data || !shelf.data || !catalog.data) return undefined;

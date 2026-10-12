@@ -1,5 +1,6 @@
 import { norm } from "./brands";
 import type { CatalogRow, ProductDemand, ShelfRow } from "./types";
+import { push } from "@/lib/group";
 
 /** BCG growth-share matrix (Henderson, BCG 1970) on Nykaa data, per category:
  *  - market growth = tracked reviews in the last 3 complete months vs the 3 before (reviews stand in for sales);
@@ -30,7 +31,7 @@ export function categoryPortfolio(anchor: string, demand: ProductDemand[], shelf
   // some tracked products carry no category: place them by their shelf or catalogue category
   const catOf = (d: ProductDemand) => d.category ?? shelf.find((r) => r.product_id === d.product_id && r.subcategory !== "kbeauty_store")?.subcategory ?? catalog.find((r) => r.product_id === d.product_id)?.subcategories[0] ?? null;
   const by = new Map<string, ProductDemand[]>();
-  for (const d of best.values()) { const c = catOf(d); if (c && c !== "kbeauty_store") by.set(c, [...(by.get(c) ?? []), d]); }
+  for (const d of best.values()) { const c = catOf(d); if (c && c !== "kbeauty_store") push(by, c, d); }
   const rows: CategoryPosition[] = [];
   for (const [category, ds] of by) {
     const total = ds.reduce((a, d) => a + d.recent, 0); const prior = ds.reduce((a, d) => a + d.prior, 0);

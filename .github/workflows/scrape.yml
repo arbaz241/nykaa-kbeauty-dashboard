@@ -104,6 +104,12 @@ jobs:
           echo "args: $ARGS"
           python -m scraper.run $ARGS
 
+      # The dashboard reads ready-made copies of its views (migration 020): rebuild them from whatever tonight
+      # wrote, even when a step above failed part-way.
+      - name: Refresh dashboard copies
+        if: always() && steps.run.outcome != 'skipped' && github.event.inputs.mode != 'dry-run'
+        run: python -m scraper.refresh
+
       # Fails the job (so GitHub emails the owner) when a dataset did not advance tonight, even if every
       # step above passed: a collector can fail quietly, and a day Nykaa is not read is lost for good.
       - name: Check data freshness

@@ -11,6 +11,7 @@ import { useTiers } from "@/lib/tiers";
 import { useShelf } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, compact, inr, median, shortName } from "@/lib/format";
 import type { ShelfRow } from "@/lib/types";
+import { push } from "@/lib/group";
 
 type OriginKey = "all" | "kbeauty" | "local" | "global";
 type Badge = "all" | "bestseller" | "new" | "paid";
@@ -34,7 +35,7 @@ function originSummary(rs: ShelfRow[], total: number, isSunscreen: boolean) {
   if (!rs.length) return null;
   const prices = rs.map((r) => r.price ?? 0).filter((p) => p > 0).sort((a, b) => a - b);
   const q = (f: number) => prices[Math.min(prices.length - 1, Math.floor(f * (prices.length - 1)))];
-  const byBrand = new Map<string, ShelfRow[]>(); rs.forEach((r) => byBrand.set(r.brand, [...(byBrand.get(r.brand) ?? []), r]));
+  const byBrand = new Map<string, ShelfRow[]>(); rs.forEach((r) => push(byBrand, r.brand, r));
   const brands = [...byBrand.entries()].map(([b, g]) => ({ b, n: g.length, ratings: g.reduce((a, r) => a + (r.rating_count ?? 0), 0), ranks: g.map((r) => r.rank).sort((x, y) => x - y) }));
   const mostReviewed = [...brands].sort((a, b) => b.ratings - a.ratings)[0];
   const mostListed = [...brands].sort((a, b) => b.n - a.n || a.ranks[0] - b.ranks[0])[0];
@@ -145,7 +146,7 @@ function CategoriesPage() {
                       <Points className="mt-4 border-t border-line pt-3 text-[12.5px] text-ink-2" items={[
                         <><b className="text-ink">{s.mostReviewed.b}</b>: most ratings ({compact(s.mostReviewed.ratings)}, ranks {s.mostReviewed.ranks.slice(0, 3).map((x) => `#${x}`).join(", ")})</>,
                         ...(s.mostListed.b !== s.mostReviewed.b ? [<><b className="text-ink">{s.mostListed.b}</b>: most listings ({s.mostListed.n})</>] : []),
-                        (() => { const fb = new Map<string, number[]>(); g.filter((r) => tiers.inSet(r.brand) && !tiers.isPinned(r.brand)).forEach((r) => fb.set(r.brand, [...(fb.get(r.brand) ?? []), r.rank]));
+                        (() => { const fb = new Map<string, number[]>(); g.filter((r) => tiers.inSet(r.brand) && !tiers.isPinned(r.brand)).forEach((r) => push(fb, r.brand, r.rank));
                           const xs = [...fb.entries()].sort((a, b) => b[1].length - a[1].length || Math.min(...a[1]) - Math.min(...b[1]));
                           return <><b className="text-ink">Focus brands here</b>: {xs.length ? xs.slice(0, 4).map(([b, rk]) => `${b} ${rk.length} (best #${Math.min(...rk)})`).join(" · ") : "none"}{xs.length > 4 ? ` · +${xs.length - 4} more` : ""}</>; })(),
                         ...(o.key === "kbeauty" ? [<><b className="text-ink">{set.anchor}</b>: {anchorHere.length ? `${anchorHere.length} listing${anchorHere.length === 1 ? "" : "s"}, ${anchorHere.map((r) => `#${r.rank}`).join(", ")}` : "not in this top 100"}</>] : []),

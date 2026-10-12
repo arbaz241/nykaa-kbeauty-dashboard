@@ -1,5 +1,6 @@
 import { norm } from "./brands";
 import type { CatalogRow, Movement, ProductDemand } from "./types";
+import { push } from "@/lib/group";
 
 /** What makes a product a brand's hero, scored against the median product in its own category.
  *  Four factors, each 0–1, and the page names whichever one is furthest ahead of the category — that
@@ -39,16 +40,16 @@ export function heroProducts(
   const catRating = new Map<string, number[]>();
   for (const m of movement) {
     if (!m.category) continue;
-    catRank.set(m.category, [...(catRank.get(m.category) ?? []), m.rank]);
+    push(catRank, m.category, m.rank);
   }
   const catDemand = new Map<string, number[]>();
   for (const d of demand) {
     if (!d.category) continue;
-    catDemand.set(d.category, [...(catDemand.get(d.category) ?? []), d.recent]);
+    push(catDemand, d.category, d.recent);
   }
   for (const c of catalog) {
     for (const cat of c.subcategories ?? []) {
-      if (c.rating) catRating.set(cat, [...(catRating.get(cat) ?? []), c.rating]);
+      if (c.rating) push(catRating, cat, c.rating);
     }
   }
 

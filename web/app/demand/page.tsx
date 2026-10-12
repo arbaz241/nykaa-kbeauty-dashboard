@@ -19,10 +19,11 @@ import { compact, inr, shortName } from "@/lib/format";
 import { demandLines, momentumWord, monthsWindow, type DemandLine } from "@/lib/metrics";
 import { noteMarkers, unusual, useDataNotes } from "@/lib/notes";
 import { useBrandSelection } from "@/lib/selection";
-import { supabase } from "@/lib/supabase";
+import { fetchAll } from "@/lib/supabase";
 import { useTiers } from "@/lib/tiers";
 import type { SearchRow, Suggestion } from "@/lib/types";
 import useSWR from "swr";
+import { push } from "@/lib/group";
 
 /** Demand (Round 3): who is buying more, who shoppers find when they search, who pays for attention, and what
  *  Nykaa suggests as they type, always as the anchor against the focus brands (owner decisions 12 Oct 2026). */
@@ -78,17 +79,7 @@ function Kpi({ label, value, sub, basis, href, tone }: { label: string; value: R
 
 /** Suggestion history for the "new this week" read (the latest-day view cannot show what changed). */
 function useSuggestionHistory() {
-  return useSWR("suggestion_history", async () => {
-    const since = new Date(Date.now() - 15 * 864e5).toISOString().slice(0, 10);
-    const out: Suggestion[] = [];
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await supabase().from("search_suggestions").select("scrape_date,seed,position,suggestion,kind").gte("scrape_date", since).neq("kind", "product").order("scrape_date").order("seed").order("position").range(from, from + 999);
-      if (error) throw new Error(error.message);
-      out.push(...((data ?? []) as Suggestion[]));
-      if (!data || data.length < 1000) break;
-    }
-    return out;
-  }, { revalidateOnFocus: false });
+  return useSWR("suggestion_history", () => fetchAll<Suggestion>("web_suggestion_history"), { revalidateOnFocus: false });
 }
 
 function DemandPage() {
@@ -106,7 +97,7 @@ function DemandPage() {
     return months.data.filter((m) => keep.has(m.product_id));
   }, [months.data, drows]);
   const aggBy = useMemo(() => {
-    const by = new Map<string, DemandRow[]>(); drows.forEach((r) => { const k = norm(r.brand); by.set(k, [...(by.get(k) ?? []), r]); });
+    const by = new Map<string, DemandRow[]>(); drows.forEach((r) => { const k = norm(r.brand); push(by, k, r); });
     return by;
   }, [drows]);
   const rowBy = useMemo(() => new Map(drows.map((r) => [r.product_id, r])), [drows]);
@@ -169,7 +160,7 @@ function DemandPage() {
   const keywords = useMemo(() => [...new Set(today.map((r) => r.query))].sort((a, b) => (CORE.includes(a) ? 0 : 1) - (CORE.includes(b) ? 0 : 1) || a.localeCompare(b)), [today]);
   const [kw, setKw] = useState<string | null>(null);
   const active = kw ?? keywords.find((k) => k === "korean sunscreen") ?? keywords[0];
-  const byKw = useMemo(() => { const m = new Map<string, SearchRow[]>(); today.forEach((r) => m.set(r.query, [...(m.get(r.query) ?? []), r])); return m; }, [today]);
+  const byKw = useMemo(() => { const m = new Map<string, SearchRow[]>(); today.forEach((r) => push(m, r.query, r)); return m; }, [today]);
   const sov = useMemo(() => {
     const t = new Map<string, { brand: string; origin: string; top5: number; top10: number; ads: number; adDays: number }>();
     const get = (b: string, o: string) => t.get(b) ?? t.set(b, { brand: b, origin: o, top5: 0, top10: 0, ads: 0, adDays: 0 }).get(b)!;
@@ -524,7 +515,7 @@ function DemandPage() {
  *  category, which categories shoppers pair with each brand, and which terms are new this week. */
 function suggestionInsights(latest: Suggestion[], history: Suggestion[], known: string[], anchor: string, inSet: (b: string) => boolean) {
   const brandSeeds = new Set(known.map(norm));
-  const bySeedMap = new Map<string, Suggestion[]>(); latest.forEach((s) => bySeedMap.set(s.seed, [...(bySeedMap.get(s.seed) ?? []), s]));
+  const bySeedMap = new Map<string, Suggestion[]>(); latest.forEach((s) => push(bySeedMap, s.seed, s));
   const bySeed = [...bySeedMap.entries()].sort((a, b) => (a[0] === "" ? -1 : b[0] === "" ? 1 : a[0].localeCompare(b[0])));
   const isBrandSeed = (seed: string) => brandSeeds.has(norm(seed)) || [...brandSeeds].some((k) => k.startsWith(norm(seed)) && norm(seed).length >= 4);
   const genericSeeds = bySeed.map(([s]) => s).filter((s) => s && !isBrandSeed(s));

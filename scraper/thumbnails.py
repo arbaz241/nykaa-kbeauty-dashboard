@@ -32,7 +32,7 @@ import httpx
 from PIL import Image, ImageFilter, ImageStat
 
 from . import config
-from .db import connect, fetch_all
+from .db import connect, fetch_all, refresh_snapshots
 
 log = logging.getLogger("thumbnails")
 
@@ -242,6 +242,7 @@ def main() -> int:
         log.error("SUPABASE_URL not set")
         return 2
     run(args.max, args.pixels_only, args.refresh)
+    refresh_snapshots()
     return 0
 
 

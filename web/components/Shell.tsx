@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { clearCached } from "@/lib/persist";
 import { DefinitionsButton } from "./Tiered";
 import { useIsAdmin, useSession } from "./AuthGate";
 
@@ -46,7 +48,7 @@ function UserMenu() {
       {open && (
         <div role="menu" className="rise absolute right-0 top-full z-40 mt-2 w-64 rounded-2xl bg-surface p-1.5 shadow-pop ring-1 ring-line">
           <div className="truncate px-3.5 py-2.5 text-[13px] text-muted">{email}</div>
-          <button role="menuitem" type="button" onClick={async () => { await supabase().auth.signOut(); window.location.replace("/login/"); }}
+          <button role="menuitem" type="button" onClick={async () => { await clearCached(); await supabase().auth.signOut(); window.location.replace("/login/"); }}
             className="block w-full rounded-xl px-3.5 py-2.5 text-left text-[14px] text-ink-2 hover:bg-sunken hover:text-ink">Sign out</button>
         </div>
       )}
@@ -65,16 +67,16 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-brand focus:px-4 focus:py-2 focus:text-on-brand">Skip to content</a>
       <header className="sticky top-0 z-30 border-b border-line bg-page/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-5 px-6">
-          <a href="/analysis/" className="flex items-center gap-2.5" aria-label="Nykaa Market Intelligence, home">
+          <Link href="/analysis/" className="flex items-center gap-2.5" aria-label="Nykaa Market Intelligence, home">
             <LogoMark />
             <span className="hidden whitespace-nowrap font-display text-[15px] font-semibold tracking-tight sm:inline">Nykaa Market Intelligence</span>
-          </a>
+          </Link>
           <nav aria-label="Primary" className="ml-2 hidden items-center gap-1 lg:flex">
             {nav.map((n) => (
-              <a key={n.label} href={n.href} aria-current={n.label === active ? "page" : undefined}
+              <Link key={n.label} href={n.href} aria-current={n.label === active ? "page" : undefined}
                 className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[13.5px] transition ${n.label === active ? "bg-brand font-medium text-on-brand" : "text-ink-2 hover:bg-sunken hover:text-ink"}`}>
                 {n.label}
-              </a>
+              </Link>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
@@ -88,7 +90,7 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
         </div>
         {menu && (
           <nav aria-label="Primary mobile" className="rise border-t border-line bg-page px-6 pb-4 pt-2 lg:hidden">
-            {nav.map((n) => <a key={n.label} href={n.href} className={`block py-2.5 text-[16px] ${n.label === active ? "font-semibold text-brand" : "text-ink-2"}`}>{n.label}</a>)}
+            {nav.map((n) => <Link key={n.label} href={n.href} onClick={() => setMenu(false)} className={`block py-2.5 text-[16px] ${n.label === active ? "font-semibold text-brand" : "text-ink-2"}`}>{n.label}</Link>)}
             {asOf && <div className="mt-2 text-[13px] text-muted">Data as of {asOf}</div>}
           </nav>
         )}

@@ -58,8 +58,10 @@ function AdminPage() {
       if (error) { setBusy(false); setMsg({ kind: "err", text: `${brand}: ${error.message}` }); return; }
       n += count ?? 0;
     }
+    // the tabs read ready-made copies (migrations 020-022), rebuilt after the nightly run; a rebuild (~10 s) is
+    // longer than a signed-in request may run, so the new origins reach the tabs with tonight's update
     setBusy(false); setEdits({}); await brands.mutate();
-    setMsg(n ? { kind: "ok", text: `Saved ${n} brand${n === 1 ? "" : "s"}. The dashboard uses the new labels on its next load.` } : { kind: "err", text: "Nothing was saved: this account is not allowed to edit." });
+    setMsg(n ? { kind: "ok", text: `Saved ${n} brand${n === 1 ? "" : "s"}. The tabs show the new labels after tonight's update.` } : { kind: "err", text: "Nothing was saved: this account is not allowed to edit." });
   }
 
   const counts = useMemo(() => {
