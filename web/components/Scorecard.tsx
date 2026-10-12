@@ -66,7 +66,7 @@ export default function Scorecard({ scores, colors }: { scores: BrandScore[]; co
               const max = present.length ? Math.max(...present.map(Math.abs)) : 0;
               const best = r.better && present.length > 1 ? (r.better === "high" ? Math.max(...present) : Math.min(...present)) : null;
               return (
-                <div key={r.label} className="grid items-center hover:bg-page/60" style={{ gridTemplateColumns: cols }}>
+                <div key={r.label} className="grid items-center hover:bg-sunken/60" style={{ gridTemplateColumns: cols }}>
                   <div className="px-5 py-3" title={r.help}>
                     <div className="text-[13px] text-ink-2">{r.label}</div>
                   </div>

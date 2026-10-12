@@ -14,11 +14,11 @@ import type { ShelfRow } from "@/lib/types";
 type OriginKey = "all" | "kbeauty" | "local" | "global";
 type Badge = "all" | "bestseller" | "new" | "paid";
 const ORIGIN_CARDS = [
-  { key: "kbeauty", title: "K-beauty brands", short: "K-beauty brands", tone: "#2a78d6", chip: "bg-[#e6effb] text-[#1f5fae]" },
-  { key: "local", title: "Indian brands", short: "Indian brands", tone: "#eb6834", chip: "bg-[#fdeee6] text-[#b4501f]" },
-  { key: "global", title: "Global brands", short: "global brands", tone: "#1baf7a", chip: "bg-[#e3f5ec] text-[#127a55]" },
+  { key: "kbeauty", title: "K-beauty brands", short: "K-beauty brands", tone: "#2c6e5a", chip: "bg-[#e4f0eb] text-[#1f5646]" },
+  { key: "local", title: "Indian brands", short: "Indian brands", tone: "#e3b27c", chip: "bg-[#faefe2] text-[#8a5a22]" },
+  { key: "global", title: "Global brands", short: "global brands", tone: "#a7b9cc", chip: "bg-[#e9eff5] text-[#3d5670]" },
 ] as const;
-const ORIGIN_CHIP: Record<string, string> = { kbeauty: "bg-[#e6effb] text-[#1f5fae]", local: "bg-[#fdeee6] text-[#b4501f]", global: "bg-[#e3f5ec] text-[#127a55]", unknown: "bg-sunken text-muted" };
+const ORIGIN_CHIP: Record<string, string> = { kbeauty: "bg-[#e4f0eb] text-[#1f5646]", local: "bg-[#faefe2] text-[#8a5a22]", global: "bg-[#e9eff5] text-[#3d5670]", unknown: "bg-sunken text-muted" };
 const spf = (name: string) => { const m = name.match(/SPF\s*(\d{2,3})/i); return m ? Number(m[1]) : null; };
 const page = (rank: number) => Math.ceil(rank / 20);
 const ref = (r: ShelfRow): ProductRef => ({ product_id: r.product_id, name: r.name, brand: r.brand, url: r.url, image: r.image_url, price: r.price, mrp: r.mrp, rating: r.rating, rating_count: r.rating_count, usp: r.usp_summary, phrases: r.review_key_phrases, splitup: r.review_splitup, madeIn: r.country_name });

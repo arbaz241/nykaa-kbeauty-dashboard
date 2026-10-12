@@ -8,6 +8,15 @@ export const MAX_COMPARE = 5;
 /** Validated categorical slots (adjacent-pair CVD-safe in this order). Colour follows the brand, not its position. */
 export const SLOT_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"];
 
+/** Brand-origin palette: K-beauty in the house green, the others in quiet sand and slate so K-beauty reads first.
+ *  `text` is the label colour that stays readable on each fill. */
+export const ORIGIN_COLOR: Record<string, { fill: string; text: string; soft: string; ink: string }> = {
+  kbeauty: { fill: "#2c6e5a", text: "#ffffff", soft: "#e4f0eb", ink: "#1f5646" },
+  local: { fill: "#e3b27c", text: "#3d2810", soft: "#faefe2", ink: "#8a5a22" },
+  global: { fill: "#a7b9cc", text: "#1c2a38", soft: "#e9eff5", ink: "#3d5670" },
+  unknown: { fill: "#dde1df", text: "#3d4a43", soft: "#f2f4f3", ink: "#5f6b64" },
+};
+
 export const ORIGIN_LABEL: Record<string, string> = { kbeauty: "K-beauty", local: "Indian", global: "Global", unknown: "Unclassified" };
 
 export const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");

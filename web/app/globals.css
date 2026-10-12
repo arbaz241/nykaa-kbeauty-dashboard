@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 /* Nykaa Market Intelligence design system (redesign v2).
- * Editorial consulting-grade look: warm paper, deep forest green, ONE blue accent. Fonts stay Inter + Inter Tight.
+ * Editorial consulting-grade look: clean white, deep forest green, ONE blue accent (owner: white, not warm paper, 12 Oct). Fonts stay Inter + Inter Tight.
  * Utilities read these as bg-surface, text-ink-2, border-line, bg-brand, bg-accent ...
  * Components never use raw hex for UI chrome; data series may (lib/brands.ts SLOT_COLORS). */
 @theme {
   /* surfaces */
-  --color-page: #f4f2ee;
+  --color-page: #ffffff;
   --color-surface: #ffffff;
-  --color-sunken: #ece9e2;
-  --color-hero: #faf9f6;
+  --color-sunken: #f2f4f3;
+  --color-hero: #f7f9f8;
   /* text, four levels: ink, ink-2 (supporting), muted (metadata, AA on page and surface), faint (disabled only) */
   --color-ink: #14201a;
   --color-ink-2: #3d4a43;
   --color-muted: #5f6b64;
   --color-faint: #98a09b;
   /* edges */
-  --color-line: #e3e0d8;
-  --color-line-2: #d3cfc4;
+  --color-line: #e3e7e5;
+  --color-line-2: #ccd3cf;
   /* brand: deep forest green carries the editorial weight (callouts, primary buttons, active states, the anchor brand) */
   --color-brand: #0e3b2e;
   --color-brand-2: #17503f;
-  --color-on-brand: #f4f2ee;
+  --color-on-brand: #f5f8f6;
   --color-on-brand-muted: #b9cdc4;
   /* accent: the single blue. Fill = pale blue behind dark text; strong = links, focus rings, blue text on white (AA) */
   --color-accent: #a9c8ff;
@@ -40,7 +40,7 @@
 
   --radius-card: 16px;
   --radius-inner: 12px;
-  --shadow-card: 0 0 0 1px rgba(20, 32, 26, 0.04);
+  --shadow-card: 0 1px 2px rgba(20, 32, 26, 0.04);
   --shadow-lift: 0 14px 34px -14px rgba(20, 32, 26, 0.22), 0 2px 6px rgba(20, 32, 26, 0.05);
   --shadow-pop: 0 18px 44px -12px rgba(20, 32, 26, 0.24), 0 2px 8px rgba(20, 32, 26, 0.06);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);

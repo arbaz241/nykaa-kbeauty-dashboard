@@ -10,18 +10,18 @@ import Segmented from "@/components/Segmented";
 import { Card, Loading, PageHead, Stat, Verdict } from "@/components/ui";
 import { Missing, Opens, Points } from "@/components/Detail";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
-import { ANCHOR_BRAND, FOCUS_BRANDS, ORIGIN_LABEL, TIER_LABEL, marketSet, norm, resolveBrand, type Tier } from "@/lib/brands";
+import { ANCHOR_BRAND, FOCUS_BRANDS, ORIGIN_LABEL, TIER_LABEL, marketSet, norm, resolveBrand, type Tier, ORIGIN_COLOR } from "@/lib/brands";
 import { useBrandDaily, useKoreanStore, useProductNames, useShareDaily, useShelf, useShelfDays } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, compact, inr, median, shortName } from "@/lib/format";
 import { useBrandSelection } from "@/lib/selection";
 import type { ShelfRow } from "@/lib/types";
 
 const ORIGINS = ["kbeauty", "local", "global", "unknown"] as const;
-const OC: Record<string, string> = { kbeauty: "#2a78d6", local: "#eb6834", global: "#1baf7a", unknown: "#c9c7bf" };
+const OC: Record<string, string> = Object.fromEntries(Object.entries(ORIGIN_COLOR).map(([k, v]) => [k, v.fill]));
 const day = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 const isFocus = (b: string) => FOCUS_BRANDS.some((f) => norm(f) === norm(b));
 const STORE_URL = "https://www.nykaa.com/korean-beauty/c/30710";
-const TIER_STYLE: Record<Tier, string> = { anchor: "bg-brand text-on-brand", kbeauty: "bg-[#e6effb] text-[#1f5fae]", watch: "bg-[#eef3fa] text-[#4a6b94]", rival: "bg-[#fdeee6] text-[#b4501f]" };
+const TIER_STYLE: Record<Tier, string> = { anchor: "bg-brand text-on-brand", kbeauty: "bg-[#e4f0eb] text-[#1f5646]", watch: "bg-[#eef4f1] text-[#4b6a5e]", rival: "bg-[#faefe2] text-[#8a5a22]" };
 function TierTag({ tier }: { tier: Tier | null }) {
   return tier ? <span className={`ml-1.5 rounded px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-[0.05em] ${TIER_STYLE[tier]}`}>{TIER_LABEL[tier]}</span> : null;
 }
@@ -174,7 +174,7 @@ function MarketPage() {
                     <div key={c} className="grid grid-cols-[130px_1fr_150px] items-center gap-4">
                       <span className="text-[13.5px] font-medium">{CATEGORY_LABEL[c]}</span>
                       <div className="flex h-7 overflow-hidden rounded-lg bg-sunken">
-                        {ORIGINS.map((o) => s[o] > 0 && <div key={o} title={`${ORIGIN_LABEL[o]} ${(s[o] * 100).toFixed(0)}%`} className="flex items-center justify-center text-[11.5px] font-semibold text-white" style={{ width: `${s[o] * 100}%`, background: OC[o], borderRight: "2px solid #fff" }}>{s[o] >= 0.07 ? `${Math.round(s[o] * 100)}%` : ""}</div>)}
+                        {ORIGINS.map((o) => s[o] > 0 && <div key={o} title={`${ORIGIN_LABEL[o]} ${(s[o] * 100).toFixed(0)}%`} className="flex items-center justify-center text-[11.5px] font-semibold" style={{ width: `${s[o] * 100}%`, background: OC[o], color: ORIGIN_COLOR[o].text, borderRight: "2px solid #fff" }}>{s[o] >= 0.07 ? `${Math.round(s[o] * 100)}%` : ""}</div>)}
                       </div>
                       <span className="text-[12.5px] text-ink-2 tabular">K-beauty in top 20: <b>{Math.round(k20 * 100)}%</b></span>
                     </div>

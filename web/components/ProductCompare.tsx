@@ -126,7 +126,7 @@ export default function ProductCompare({ picks, colors, asOf, onChoose, extras =
               </div>
               {p.product ? (
                 <a href={nykaa(p.product)} target="_blank" rel="noreferrer" className="group block">
-                  <div className="grid aspect-square place-items-center overflow-hidden rounded-xl bg-page">
+                  <div className="grid aspect-square place-items-center overflow-hidden rounded-xl bg-sunken">
                     {/* eslint-disable-next-line @next/next/no-img-element -- static export: images come straight from Nykaa's CDN */}
                     {p.product.image_url ? <img src={p.product.image_url} alt="" className="h-[82%] w-[82%] object-contain transition duration-300 group-hover:scale-[1.04]" /> : <span className="text-[12px] text-muted">No image</span>}
                   </div>
@@ -139,13 +139,13 @@ export default function ProductCompare({ picks, colors, asOf, onChoose, extras =
                   rating: p.product!.rating, rating_count: p.product!.rating_count, usp: p.product!.usp_summary, phrases: p.product!.review_key_phrases, splitup: p.product!.review_splitup, madeIn: p.product!.country_name })}
                   className="mt-2 rounded-lg px-2.5 py-1 text-[12px] text-ink-2 ring-1 ring-line hover:bg-sunken">Demand, rank &amp; reviews →</button>
               ) : (
-                <div className="grid aspect-square place-items-center rounded-xl bg-page px-6 text-center text-[12.5px] text-muted">{p.brand} has no product in this category on Nykaa</div>
+                <div className="grid aspect-square place-items-center rounded-xl bg-sunken px-6 text-center text-[12.5px] text-muted">{p.brand} has no product in this category on Nykaa</div>
               )}
             </div>
           ))}
         </div>
         {rows.filter((row) => !row.has || live.some(row.has)).map((row) => (
-          <div key={row.label} className="grid border-b border-line last:border-0 hover:bg-page/50" style={{ gridTemplateColumns: cols }}>
+          <div key={row.label} className="grid border-b border-line last:border-0 hover:bg-sunken/60" style={{ gridTemplateColumns: cols }}>
             <div className="px-5 py-3.5 text-[13px] text-ink-2">{row.label}</div>
             {picks.map((p) => <div key={p.brand} className="border-l border-line px-5 py-3.5">{!p.product ? <span className="text-[12px] text-muted">—</span> : row.has && !row.has(p.product) ? <span className="text-[12.5px] text-muted">None for this product</span> : row.render(p.product)}</div>)}
           </div>
