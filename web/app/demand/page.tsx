@@ -14,7 +14,7 @@ import { Basis, Def, TieredList } from "@/components/Tiered";
 import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ORIGIN_LABEL, norm } from "@/lib/brands";
 import { useCatalog, useDemand, useEvents, useReviewMonths, useSearchHistory, useShelf, useSuggestions } from "@/lib/data";
-import { demandRows, demandWindow } from "@/lib/analysis";
+import { demandRows, demandWindow, growthOf, type DemandRow } from "@/lib/analysis";
 import { compact, inr, shortName } from "@/lib/format";
 import { demandLines, momentumWord, monthsWindow, type DemandLine } from "@/lib/metrics";
 import { noteMarkers, unusual, useDataNotes } from "@/lib/notes";
@@ -97,13 +97,19 @@ function DemandPage() {
   const open = useOpenProduct(); const detail = useDetail();
 
   /* ---- demand (reviews) */
-  // one product per review pool (sizes and variants share Nykaa's reviews), the same count as Analysis
+  // one product per review pool (sizes and variants share Nykaa's reviews), counted exactly as on Analysis:
+  // reviews = every tracked product's last 3 months; growth = only products with complete history (lib/analysis)
+  const drows = useMemo(() => (months.data && demandView.data && shelf.data && catalog.data ? demandRows(months.data, demandView.data, shelf.data, catalog.data) : []), [months.data, demandView.data, shelf.data, catalog.data]);
   const data = useMemo(() => {
-    if (!months.data) return [];
-    if (!demandView.data || !shelf.data || !catalog.data) return months.data;
-    const keep = new Set(demandRows(months.data, demandView.data, shelf.data, catalog.data).map((r) => r.product_id));
+    if (!months.data || !drows.length) return months.data ?? [];
+    const keep = new Set(drows.map((r) => r.product_id));
     return months.data.filter((m) => keep.has(m.product_id));
-  }, [months.data, demandView.data, shelf.data, catalog.data]);
+  }, [months.data, drows]);
+  const aggBy = useMemo(() => {
+    const by = new Map<string, DemandRow[]>(); drows.forEach((r) => { const k = norm(r.brand); by.set(k, [...(by.get(k) ?? []), r]); });
+    return by;
+  }, [drows]);
+  const rowBy = useMemo(() => new Map(drows.map((r) => [r.product_id, r])), [drows]);
   const known = useMemo(() => [...new Set(data.map((m) => m.brand))], [data]);
   const tiers = useTiers(known);
   const A = tiers.pinned;
@@ -111,9 +117,18 @@ function DemandPage() {
   const focus = useMemo(() => [tiers.pinned, ...tiers.focus].filter((b) => known.includes(b)), [tiers, known]);
   const { selected, colors, toggle } = useBrandSelection(known);
   const [mode, setMode] = useState<"reviews" | "index">("reviews");
-  const brands = useMemo(() => demandLines(data, "brand"), [data]);
-  const products = useMemo(() => demandLines(data, "product"), [data]);
-  const market = useMemo(() => demandLines(data.map((m) => ({ ...m, brand: "All tracked brands" })), "brand")[0] as DemandLine | undefined, [data]);
+  const brands = useMemo(() => demandLines(data, "brand").map((b) => {
+    const rs = aggBy.get(norm(b.brand)) ?? []; if (!rs.length) return b; const g = growthOf(rs);
+    return { ...b, last3: rs.reduce((a, r) => a + r.recent, 0), prev3: g.products ? g.prior : null, growth: g.growth };
+  }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, aggBy]);
+  const products = useMemo(() => demandLines(data, "product").map((p) => {
+    const r = rowBy.get(p.key); if (!r) return p;
+    return { ...p, last3: r.recent, prev3: r.complete ? r.prior : null, growth: r.complete && r.prior > 0 ? r.recent / r.prior - 1 : null };
+  }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, rowBy]);
+  const market = useMemo(() => {
+    const m = demandLines(data.map((x) => ({ ...x, brand: "All tracked brands" })), "brand")[0] as DemandLine | undefined; if (!m) return m;
+    const g = growthOf(drows); return { ...m, last3: drows.reduce((a, r) => a + r.recent, 0), prev3: g.prior, growth: g.growth };
+  }, [data, drows]);
   const origin = useMemo(() => { const m = new Map<string, string>(); (shelf.data ?? []).forEach((r) => m.set(r.brand, r.origin)); return m; }, [shelf.data]);
   const win = monthsWindow(12);
   const dw = demandWindow(); const period = `${dw.recent} vs ${dw.prior}`;
@@ -221,7 +236,7 @@ function DemandPage() {
   const verdict = anchorD ? `${A}'s demand is ${anchorD.growth === null ? "too thinly tracked to read" : `${anchorD.growth >= (mkt ?? 0) ? "growing faster than" : "lagging"} the market (${signed(anchorD.growth)} vs ${signed(mkt)})`}, #${anchorRank} of ${setRanked.length} focus brands by reviews; ${gap === null ? "" : gap < -0.005 ? `but shoppers who search find it less than buyers choose it (${pct(anchorSos!.search)} of search vs ${pct(anchorSos!.demand)} of demand)` : gap > 0.005 ? `and shoppers find it more often than buyers choose it (${pct(anchorSos!.search)} of search vs ${pct(anchorSos!.demand)} of demand), a lead indicator of growth` : `and its search share matches its demand (${pct(anchorSos!.search)})`}.` : "";
   const soWhat = !anchorD ? null : gap !== null && gap < -0.005 ? `Search is the gap: ${A} is outside the unpaid top 10 on ${absent} of ${keywords.length} keywords. Winning those searches is the cheapest demand to add.`
     : anchorD.growth !== null && mkt !== null && anchorD.growth < mkt ? `Demand is losing momentum against the market; check its top products' prices and stock first.`
-    : `Demand and search both support ${A}; protect the products driving it (${topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A).split(/,| - /)[0] : "its leaders"}) and keep them in stock.`;
+    : `${A}'s search share is level with its demand share, and demand is growing faster than the market; protect the products driving it (${topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A).split(/,| - /)[0] : "its leaders"}) and keep them in stock.`;
 
   return (
     <Shell active="Demand" asOf={latest ? day(latest) : undefined}>

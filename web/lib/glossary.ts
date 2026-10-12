@@ -69,9 +69,9 @@ export const GLOSSARY = {
   paid: {
     name: "Paid share",
     plain: "How much of a brand's visibility is bought.",
-    formula: "Sponsored (AD) slots ÷ all the brand's appearances in tracked searches.",
+    formula: "The brand's sponsored (AD) slots ÷ its sponsored slots plus its unpaid top-10 places, across tracked searches.",
     source: "Nykaa search results; ads as shown to our collector at about 07:00 IST.",
-    window: "Last 7 days.",
+    window: "Today.",
   },
 } satisfies Record<string, Metric>;
 

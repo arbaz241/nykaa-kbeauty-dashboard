@@ -1,6 +1,6 @@
 import { norm } from "./brands";
 import { monthsWindow } from "./metrics";
-import type { BrandDaily, BrandShare, CatalogRow, ProductDemand, ReviewMonth, ShelfRow } from "./types";
+import type { BrandDaily, BrandShare, CatalogRow, ProductDemand, ReviewMonth, SearchRow, ShelfRow } from "./types";
 
 /** Round 3 analysis layer (docs/round3 plan, owner decisions 12 Oct 2026). Every figure here comes with the
  *  basis it is computed on, so the page can show "compared with what" right next to the number. */
@@ -94,18 +94,33 @@ export interface Scoreboard {
   demandTotal: number; market: ReturnType<typeof growthOf>;
 }
 
-export function scoreboard(brands: string[], daily: BrandDaily[], shares: BrandShare[], rows: DemandRow[]): Scoreboard {
+/** Share of search, as the glossary defines it: each brand's places among the unpaid top 10 of every keyword
+ *  collected that day (one sample per keyword), over all those places. Paid slots are counted separately. */
+export function searchShares(search: SearchRow[], day: string) {
+  const byQ = new Map<string, SearchRow[]>();
+  for (const r of search) if (r.scrape_date === day) byQ.set(r.query, [...(byQ.get(r.query) ?? []), r]);
+  const by = new Map<string, number>(); const paid = new Map<string, number>(); let total = 0;
+  for (const rs of byQ.values()) {
+    const minS = Math.min(...rs.map((r) => r.sample));
+    const unpaid = rs.filter((r) => !r.is_ad && r.sample === minS).sort((a, b) => a.rank - b.rank).slice(0, 10);
+    unpaid.forEach((r) => { const k = norm(r.brand); by.set(k, (by.get(k) ?? 0) + 1); total++; });
+    rs.filter((r) => r.is_ad).forEach((r) => { const k = norm(r.brand); paid.set(k, (paid.get(k) ?? 0) + 1); });
+  }
+  return { total, share: (b: string) => (total ? (by.get(norm(b)) ?? 0) / total : 0), paidSlots: (b: string) => paid.get(norm(b)) ?? 0, places: (b: string) => by.get(norm(b)) ?? 0 };
+}
+
+export function scoreboard(brands: string[], daily: BrandDaily[], shares: BrandShare[], rows: DemandRow[], search: SearchRow[]): Scoreboard {
   const days = shelfDays(daily); const today = days.at(-1) ?? "";
   const then = days.length > 14 ? days.at(-15)! : days.length > 1 ? days[0] : null;
   const catsOn = (d: string) => new Set(daily.filter((r) => r.scrape_date === d && r.subcategory !== "kbeauty_store").map((r) => r.subcategory));
   const both = then ? new Set([...catsOn(today)].filter((c) => catsOn(then).has(c))) : undefined;
   const now = shelfShare(daily, today); const nowL = both ? shelfShare(daily, today, both) : null; const thenL = then && both ? shelfShare(daily, then, both) : null;
 
-  const sDays = [...new Set(shares.map((s) => s.scrape_date))].sort(); const sToday = sDays.at(-1) ?? ""; const sThen = sDays.length > 7 ? sDays.at(-8)! : null;
-  const onDay = (d: string | null) => new Map(d ? shares.filter((s) => s.scrape_date === d).map((s) => [norm(s.brand), s]) : []);
-  const sNow = onDay(sToday); const sBefore = onDay(sThen);
-  const voice = (b: string, m: Map<string, BrandShare>) => Number(m.get(norm(b))?.share_of_voice ?? 0);
-  const paid = (b: string) => sNow.get(norm(b))?.paid_dependency ?? null;
+  void shares;
+  const sDays = [...new Set(search.map((s) => s.scrape_date))].sort(); const sToday = sDays.at(-1) ?? ""; const sThen = sDays.length > 7 ? sDays.at(-8)! : null;
+  const sNow = searchShares(search, sToday); const sBefore = sThen ? searchShares(search, sThen) : null;
+  const voice = (b: string, m: ReturnType<typeof searchShares> | null) => (m ? m.share(b) : 0);
+  const paid = (b: string) => { const p = sNow.paidSlots(b); const e = sNow.places(b); return p + e ? p / (p + e) : null; };
   const byBrand = new Map<string, DemandRow[]>(); for (const r of rows) { const k = norm(r.brand); byBrand.set(k, [...(byBrand.get(k) ?? []), r]); }
 
   const demandTotal = rows.reduce((a, r) => a + r.recent, 0);

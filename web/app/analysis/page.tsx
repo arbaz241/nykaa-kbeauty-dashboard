@@ -11,7 +11,7 @@ import Shell from "@/components/Shell";
 import { Basis, BrandSelect, Def, TieredList } from "@/components/Tiered";
 import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { norm } from "@/lib/brands";
-import { useAvailability, useBrandDaily, useBrandShares, useCatalog, useCategoryCoverage, useDemand, useMovement, useReviewMonths, useSearch, useShelf } from "@/lib/data";
+import { useAvailability, useBrandDaily, useBrandShares, useCatalog, useCategoryCoverage, useDemand, useMovement, useReviewMonths, useSearch, useSearchHistory, useShelf } from "@/lib/data";
 import { BANDS, QUAD, categoryMap, demandRows, demandWindow, rangeGrid, rankOn, scoreboard, type CategoryCell, type DemandRow, type GapCell, type ScoreRow } from "@/lib/analysis";
 import { buildFindings, type Finding } from "@/lib/findings";
 import { CATEGORY_LABEL, compact, inr, shortName } from "@/lib/format";
@@ -52,7 +52,7 @@ export default function AnalysisPage() {
 
 function Analysis() {
   const shelf = useShelf(); const movement = useMovement(); const shares = useBrandShares(); const demand = useDemand(); const months = useReviewMonths();
-  const daily = useBrandDaily(); const availability = useAvailability(); const catalog = useCatalog(); const coverage = useCategoryCoverage(); const search = useSearch();
+  const daily = useBrandDaily(); const availability = useAvailability(); const catalog = useCatalog(); const coverage = useCategoryCoverage(); const search = useSearch(); const searchHist = useSearchHistory();
   const detail = useDetail(); const open = useOpenProduct();
 
   const known = useMemo(() => [...new Set([...(shelf.data ?? []).map((r) => r.brand), ...(months.data ?? []).map((m) => m.brand)])].sort(), [shelf.data, months.data]);
@@ -65,7 +65,7 @@ function Analysis() {
   const [openTheme, setOpenTheme] = useState<string | null>(null);
   const win = demandWindow();
 
-  const ready = !!(shelf.data && movement.data && shares.data && demand.data && months.data && daily.data && catalog.data);
+  const ready = !!(shelf.data && movement.data && shares.data && demand.data && months.data && daily.data && catalog.data && searchHist.data);
   const rows = useMemo(() => (ready ? demandRows(months.data!, demand.data!, shelf.data!, catalog.data!) : []), [ready, months.data, demand.data, shelf.data, catalog.data]);
   const complete = useMemo(() => {
     // every product whose own history covers both windows (variants included), for the demand rules
@@ -76,8 +76,8 @@ function Analysis() {
   const board = useMemo(() => {
     if (!ready) return null;
     const others = known.filter((b) => !setBrands.some((x) => same(x, b)));
-    return scoreboard([...setBrands, ...others], daily.data!, shares.data!, rows);
-  }, [ready, known, setBrands, daily.data, shares.data, rows]);
+    return scoreboard([...setBrands, ...others], daily.data!, shares.data!, rows, searchHist.data!);
+  }, [ready, known, setBrands, daily.data, shares.data, rows, searchHist.data]);
   const setRows = useMemo(() => (board ? board.rows.filter((r) => setBrands.some((b) => same(b, r.brand))) : []), [board, setBrands]);
   const me = setRows.find((r) => same(r.brand, anchor));
   const cmap = useMemo(() => (ready ? categoryMap(anchor, rows, (b) => tiers.inSet(b)) : null), [ready, anchor, rows, tiers]);
@@ -108,10 +108,15 @@ function Analysis() {
   const gapCells = gaps.flatMap((g) => g.bands.filter((b) => b.gap).map((b) => ({ category: g.category, ...b })));
   const oos = (availability.data ?? []).filter((a) => same(a.brand, anchor));
   const opps = cmap.cells.filter((c) => c.quadrant === "opportunity").sort((a, b) => b.recent - a.recent);
-  const lever = rQ > rD + 3 ? { text: `shoppers who search do not find ${anchor} as often as buyers choose it, so search visibility is the first lever`, href: "#standing" }
-    : rS > rD + 3 ? { text: `buyers choose ${anchor} more often than Nykaa's lists show it, so shelf visibility (offers, ads, listing quality) is the first lever`, href: "#standing" }
-    : rD > Math.min(rS, rQ) + 3 ? { text: `${anchor} is seen more than it is bought, so the offer itself (price, range, claims) is the first lever`, href: "#gaps" }
-    : { text: `visibility and buying are in line, so growth has to come from the categories where it under-indexes${opps[0] ? `, starting with ${cat(opps[0].category).toLowerCase()}` : ""}`, href: "#portfolio" };
+  // the lever: whichever of the three shares is weakest against the focus brands' median (same index as the scoreboard title)
+  const idx = me ? (["shelf", "search", "demand"] as const).map((k) => ({ k, r: me[k] / (median(setRows.map((x) => x[k])) || 1e-9) })).sort((a, b) => a.r - b.r) : [];
+  const weakest = idx[0]; const fx = (r: number) => `${r.toFixed(1)}× the focus median`;
+  const word = { shelf: "the shelf", search: "search", demand: "buying" } as const;
+  const lever = !weakest ? { text: "", href: "#standing" }
+    : idx[1].r - weakest.r < 0.15 ? { text: `against the focus brands, ${anchor} is equally weak on ${word[weakest.k]} and ${word[idx[1].k]} (${fx(weakest.r)} and ${idx[1].r.toFixed(1)}×) and stronger on ${word[idx[2].k]} (${idx[2].r.toFixed(1)}×), so no single channel is the bottleneck: grow where the category is rising and ${anchor} under-indexes${opps[0] ? `, starting with ${cat(opps[0].category).toLowerCase()}` : ""}`, href: "#portfolio" }
+    : weakest.k === "demand" ? { text: `against the focus brands, ${anchor} is weakest on buying (${fx(weakest.r)}, vs ${fx(idx[1].r)} on ${idx[1].k}): it is seen more than it is bought, so the offer itself (price, range, claims) is the first lever`, href: "#gaps" }
+    : weakest.k === "search" ? { text: `against the focus brands, ${anchor} is weakest in search (${fx(weakest.r)}, vs ${fx(idx[1].r)} on ${idx[1].k}): shoppers who search rarely find it, so search visibility is the first lever`, href: "#standing" }
+    : { text: `against the focus brands, ${anchor} is weakest on the shelf (${fx(weakest.r)}, vs ${fx(idx[1].r)} on ${idx[1].k}): Nykaa's lists show it less than buyers choose it, so shelf visibility (offers, ads, listing quality) is the first lever`, href: "#standing" };
   const priority = me && mkt !== null && me.growth !== null && (me.growth < mkt - 0.05 || avgRank > n * 0.6) ? "High" : me && mkt !== null && me.growth !== null && (me.growth < mkt || avgRank > n / 3) ? "Medium" : "Watch";
   const headline = me ? `${anchor} is ${standing} among the ${n} focus brands on Nykaa (#${rS} on the shelf, #${rQ} in search, #${rD} in demand), and its demand is ${me.growth === null || mkt === null ? "too thinly tracked to call" : me.growth >= mkt ? `growing faster than the market (${signed(me.growth)} vs ${signed(mkt)})` : `growing slower than the market (${signed(me.growth)} vs ${signed(mkt)})`}.` : `${anchor} has no listing or tracked demand today.`;
   const verdictPoints = me ? [
