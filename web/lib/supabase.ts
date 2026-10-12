@@ -83,9 +83,24 @@ async function flush() {
   const batch = queue; queue = []; flushTimer = undefined;
   const { data, error } = await supabase().rpc("web_bundle", { names: [...new Set(batch.map((b) => b.view))] });
   for (const b of batch) {
-    const rows = error ? undefined : (data as Record<string, never[]> | null)?.[b.view];
-    if (rows) b.resolve(rows); else fetchFresh<never>(b.view, "*", 1000).then(b.resolve, b.reject);
+    const doc = error ? undefined : (data as Record<string, Doc> | null)?.[b.view];
+    if (doc) b.resolve(rowsOf(doc) as never[]); else fetchFresh<never>(b.view, "*", 1000).then(b.resolve, b.reject);
   }
+}
+
+/** A bundle document: plain rows (021), or the compact column form (022) — one array per column, and a repeating
+ *  text column as its distinct values ("k") plus each row's position in them ("i"). */
+type Doc = unknown[] | { v: 2; n: number; c: Record<string, unknown[] | { k: unknown[]; i: (number | null)[] }> };
+function rowsOf(doc: Doc): unknown[] {
+  if (Array.isArray(doc)) return doc;
+  const cols = Object.entries(doc.c).map(([name, v]) => [name, Array.isArray(v) ? v : v.i.map((i) => (i === null ? null : v.k[i]))] as const);
+  const rows: Record<string, unknown>[] = new Array(doc.n);
+  for (let r = 0; r < doc.n; r++) {
+    const row: Record<string, unknown> = {};
+    for (const [name, vals] of cols) row[name] = vals[r];
+    rows[r] = row;
+  }
+  return rows;
 }
 
 /** Fetch every row of a view, paging past Supabase's 1,000-row response cap. The first page also returns the row
