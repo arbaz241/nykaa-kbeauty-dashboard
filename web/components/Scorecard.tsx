@@ -77,7 +77,7 @@ export default function Scorecard({ scores, colors }: { scores: BrandScore[]; co
                         {r.label === "12-month trend" ? <Sparkline values={s.spark} color={colors[s.brand]} /> : (
                           <div className="flex items-baseline">
                             {r.show(s)}
-                            {isBest && <span className="ml-2 rounded-full bg-ink px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-white">lead</span>}
+                            {isBest && <span className="ml-2 rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-ink">lead</span>}
                           </div>
                         )}
                         {r.bar && v !== null && max > 0 && (

@@ -1,25 +1,80 @@
 @import "tailwindcss";
 
-/* Light, editorial-grade product UI. Tokens used by utilities as e.g. bg-surface, text-ink-2, border-line. */
+/* Nykaa Market Intelligence design system (redesign v2).
+ * Editorial consulting-grade look: warm paper, deep forest green, ONE blue accent. Fonts stay Inter + Inter Tight.
+ * Utilities read these as bg-surface, text-ink-2, border-line, bg-brand, bg-accent ...
+ * Components never use raw hex for UI chrome; data series may (lib/brands.ts SLOT_COLORS). */
 @theme {
-  --color-page: #f6f5f1;
+  /* surfaces */
+  --color-page: #f4f2ee;
   --color-surface: #ffffff;
-  --color-sunken: #f1f0eb;
-  --color-ink: #121211;
-  --color-ink-2: #4f4e49;
-  --color-muted: #8a8880;
-  --color-line: #e6e4dd;
-  --color-line-2: #d9d7cf;
-  --color-good: #0b7a3b;
-  --color-bad: #c0352b;
-  --color-accent: #121211;
+  --color-sunken: #ece9e2;
+  --color-hero: #faf9f6;
+  /* text, four levels: ink, ink-2 (supporting), muted (metadata, AA on page and surface), faint (disabled only) */
+  --color-ink: #14201a;
+  --color-ink-2: #3d4a43;
+  --color-muted: #5f6b64;
+  --color-faint: #98a09b;
+  /* edges */
+  --color-line: #e3e0d8;
+  --color-line-2: #d3cfc4;
+  /* brand: deep forest green carries the editorial weight (callouts, primary buttons, active states, the anchor brand) */
+  --color-brand: #0e3b2e;
+  --color-brand-2: #17503f;
+  --color-on-brand: #f4f2ee;
+  --color-on-brand-muted: #b9cdc4;
+  /* accent: the single blue. Fill = pale blue behind dark text; strong = links, focus rings, blue text on white (AA) */
+  --color-accent: #a9c8ff;
+  --color-accent-soft: #e4eeff;
+  --color-accent-strong: #2456c9;
+  /* meaning */
+  --color-good: #1b7f4b;
+  --color-good-soft: #e1f2e8;
+  --color-bad: #b8382e;
+  --color-bad-soft: #f8e4e1;
+  --color-warn: #96610f;
+  --color-warn-soft: #f8ecd2;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: var(--font-display-face), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --shadow-card: 0 1px 2px rgba(18, 18, 17, 0.04), 0 1px 1px rgba(18, 18, 17, 0.02);
-  --shadow-pop: 0 12px 32px -8px rgba(18, 18, 17, 0.18), 0 2px 6px rgba(18, 18, 17, 0.06);
+
+  --radius-card: 16px;
+  --radius-inner: 12px;
+  --shadow-card: 0 0 0 1px rgba(20, 32, 26, 0.04);
+  --shadow-lift: 0 14px 34px -14px rgba(20, 32, 26, 0.22), 0 2px 6px rgba(20, 32, 26, 0.05);
+  --shadow-pop: 0 18px 44px -12px rgba(20, 32, 26, 0.24), 0 2px 8px rgba(20, 32, 26, 0.06);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-html { background: var(--color-page); color: var(--color-ink); }
+html { background: var(--color-page); color: var(--color-ink); -webkit-font-smoothing: antialiased; scroll-padding-top: 128px; }
 body { font-family: var(--font-sans); font-feature-settings: "cv11", "ss01"; }
+h1 { text-wrap: balance; }
+h2, h3, p { text-wrap: pretty; }
 .tabular { font-variant-numeric: tabular-nums; }
-::selection { background: #121211; color: #fff; }
+::selection { background: var(--color-brand); color: #fff; }
+
+/* One focus language everywhere: blue ring, never removed. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent-strong); outline-offset: 2px; border-radius: 8px;
+}
+
+/* Page grid: content sits in the centre column (max 1272px, 24px gutters); a hero band (.bleed) spans all three. */
+.page-grid { display: grid; grid-template-columns: minmax(24px, 1fr) minmax(0, 1272px) minmax(24px, 1fr); }
+.page-grid > * { grid-column: 2; min-width: 0; }
+.page-grid > .bleed { grid-column: 1 / -1; }
+.page-grid > :first-child:not(.bleed) { margin-top: 32px; }
+
+/* Motion: fast, transform + opacity only, off for reduced-motion users. */
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.rise { animation: rise 260ms var(--ease-out) both; }
+.lift { transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out); }
+.lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.press:active { transform: scale(0.97); }
+.skeleton { background: linear-gradient(90deg, var(--color-sunken) 25%, #f6f4ef 50%, var(--color-sunken) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rise, .skeleton { animation: none; }
+  .lift, .press { transition: none; }
+  .lift:hover { transform: none; }
+  html { scroll-behavior: auto; }
+}

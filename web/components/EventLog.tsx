@@ -35,7 +35,7 @@ export default function EventLog() {
         {isAdmin && (
           <button
             onClick={() => setOpen((v) => !v)}
-            className="ml-auto rounded-lg bg-ink px-3 py-1.5 text-[13px] font-medium text-page transition hover:opacity-90"
+            className="ml-auto rounded-lg bg-brand px-3 py-1.5 text-[13px] font-medium text-on-brand transition hover:opacity-90"
           >
             {open ? "Cancel" : "Log an event"}
           </button>
@@ -151,7 +151,7 @@ function EventForm({ onDone }: { onDone: () => void }) {
       </div>
       <div className="flex items-center gap-3 border-t border-line px-5 py-3">
         <button onClick={save} disabled={!valid || busy}
-          className="rounded-lg bg-ink px-4 py-2 text-[13.5px] font-medium text-page transition hover:opacity-90 disabled:opacity-40">
+          className="rounded-lg bg-brand px-4 py-2 text-[13.5px] font-medium text-on-brand transition hover:opacity-90 disabled:opacity-40">
           {busy ? "Saving…" : "Save event"}
         </button>
         {error && <span className="text-[12.5px] text-bad">{error}</span>}

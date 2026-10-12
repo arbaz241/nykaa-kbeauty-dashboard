@@ -20,7 +20,7 @@ function StarBars({ split }: { split: Record<string, number> | null }) {
       {["5", "4", "3", "2", "1"].map((k) => (
         <div key={k} className="flex items-center gap-2 text-[11px] text-muted tabular">
           <span className="w-3">{k}</span>
-          <div className="h-1.5 flex-1 rounded-full bg-sunken"><div className="h-1.5 rounded-full" style={{ width: `${((split[k] ?? 0) / tot) * 100}%`, background: Number(k) >= 4 ? "#121211" : Number(k) === 3 ? "#8a8880" : "#c0352b" }} /></div>
+          <div className="h-1.5 flex-1 rounded-full bg-sunken"><div className="h-1.5 rounded-full" style={{ width: `${((split[k] ?? 0) / tot) * 100}%`, background: Number(k) >= 4 ? "#0e3b2e" : Number(k) === 3 ? "#8a8880" : "#c0352b" }} /></div>
           <span className="w-9 text-right">{Math.round(((split[k] ?? 0) / tot) * 100)}%</span>
         </div>
       ))}
@@ -77,7 +77,7 @@ export default function ProductCompare({ picks, colors, asOf, onChoose, extras =
     return v.length > 1 ? (dir === "high" ? Math.max(...v) : Math.min(...v)) : null;
   };
   const bests = { rank: bestOf((r) => r.rank, "low"), rating: bestOf((r) => r.rating, "high"), ratings: bestOf((r) => r.rating_count, "high"), perMl: bestOf((r) => perMl(r as ShelfRow), "low"), price: bestOf((r) => r.price, "low") };
-  const Lead = ({ on }: { on: boolean }) => (on ? <span className="ml-2 rounded-full bg-ink px-1.5 py-px align-middle text-[10px] font-semibold uppercase tracking-wide text-white">lead</span> : null);
+  const Lead = ({ on }: { on: boolean }) => (on ? <span className="ml-2 rounded-full bg-accent px-1.5 py-px align-middle text-[10px] font-semibold uppercase tracking-wide text-ink">lead</span> : null);
 
   const pos = (r: CompareRow) => praise(r, extras.aspects?.get(r.product_id), "pos");
   const neg = (r: CompareRow) => praise(r, extras.aspects?.get(r.product_id), "neg");

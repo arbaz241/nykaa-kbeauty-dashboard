@@ -55,13 +55,13 @@ export default function Login() {
         <form onSubmit={submit} className="mt-8 space-y-3">
           {mode !== "reset" && (
             <input type="email" required autoComplete="username" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-ink" />
+              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-accent-strong" />
           )}
           {mode !== "forgot" && (
             <input type="password" required minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} placeholder={mode === "reset" ? "New password (8+ characters)" : "Password"} value={pw} onChange={(e) => setPw(e.target.value)}
-              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-ink" />
+              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-accent-strong" />
           )}
-          <button disabled={busy} className="w-full rounded-xl bg-ink px-4 py-3 text-[15px] font-medium text-white transition hover:opacity-90 disabled:opacity-50">
+          <button disabled={busy} className="w-full rounded-xl bg-brand px-4 py-3 text-[15px] font-medium text-on-brand transition hover:opacity-90 disabled:opacity-50">
             {busy ? "…" : ACTION[mode]}
           </button>
         </form>

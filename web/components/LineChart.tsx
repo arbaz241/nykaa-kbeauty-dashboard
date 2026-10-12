@@ -59,7 +59,7 @@ export default function LineChart({ labels, series, height = 260, format = (v: n
             </g>
           );
         })}
-        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={H - B} stroke="#121211" strokeOpacity={0.25} />}
+        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={H - B} stroke="#0e3b2e" strokeOpacity={0.25} />}
         {series.map((s) => {
           const pts = s.values.map((v, i) => (v === null ? null : [x(i), y(v)] as const));
           const segs: string[] = []; let cur = "";

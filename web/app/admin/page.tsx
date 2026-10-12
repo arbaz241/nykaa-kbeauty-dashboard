@@ -65,17 +65,17 @@ function AdminPage() {
 
   return (
     <Shell active="Admin">
-      <PageHead title="Brand classification" sub="Every share on the dashboard depends on each brand's origin. New brands are classified automatically from Nykaa's country of origin and the Korean Beauty store; confirm or correct them here. Confirmed brands are never overwritten by the nightly run." />
+      <PageHead eyebrow="Admin" title="Brand classification" sub="Every share on the dashboard depends on each brand's origin. New brands are classified automatically from Nykaa's country of origin and the Korean Beauty store; confirm or correct them here. Confirmed brands are never overwritten by the nightly run." />
       {!isAdmin ? <p className="mt-8 text-[14px] text-muted">Only admins can open this page.</p> : !brands.data ? <Loading what="brands" /> : (
         <>
           <div className="mt-6 flex flex-wrap items-center gap-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand" className="w-56 rounded-xl border border-line bg-surface px-3.5 py-2 text-[13px] outline-none focus:border-ink" />
-            <button onClick={() => setOnlyOpen(!onlyOpen)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 ${onlyOpen ? "bg-ink text-white ring-ink" : "text-ink-2 ring-line"}`}>Unconfirmed only ({counts.open})</button>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand" className="w-56 rounded-xl border border-line bg-surface px-3.5 py-2 text-[13px] outline-none focus:border-accent-strong" />
+            <button onClick={() => setOnlyOpen(!onlyOpen)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 ${onlyOpen ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line"}`}>Unconfirmed only ({counts.open})</button>
             <select value={origin} onChange={(e) => setOrigin(e.target.value)} className="rounded-xl border border-line bg-surface px-3 py-2 text-[13px]">
               <option value="all">All origins</option>{ORIGINS.map((o) => <option key={o} value={o}>{ORIGIN_LABEL[o]}{o === "unknown" ? ` (${counts.unknown})` : ""}</option>)}
             </select>
             <span className="text-[12.5px] text-muted">{list.length} of {counts.all} brands</span>
-            <button disabled={!changed.length || busy} onClick={save} className="ml-auto rounded-xl bg-ink px-4 py-2 text-[13px] font-medium text-white disabled:opacity-40">
+            <button disabled={!changed.length || busy} onClick={save} className="ml-auto rounded-xl bg-brand px-4 py-2 text-[13px] font-medium text-on-brand disabled:opacity-40">
               {busy ? "Saving…" : `Save ${changed.length} change${changed.length === 1 ? "" : "s"}`}
             </button>
           </div>

@@ -11,7 +11,7 @@ import { ActionSection, SectionNav, ShowAll, type NavItem } from "@/components/R
 import { Missing, Opens, Points, useDetail } from "@/components/Detail";
 import Shell from "@/components/Shell";
 import Sparkline from "@/components/Sparkline";
-import { Card, Loading } from "@/components/ui";
+import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ANCHOR_BRAND, FOCUS_BRANDS, ORIGIN_LABEL, norm, resolveBrand } from "@/lib/brands";
 import { useCatalog, useEvents, useReviewMonths, useSearchHistory, useShelf, useSuggestions } from "@/lib/data";
 import { compact, inr, shortName, signed } from "@/lib/format";
@@ -167,7 +167,7 @@ function DemandPage() {
   const Tile = ({ r, pos, paid }: { r: SearchRow; pos: number; paid?: boolean }) => (
     <button onClick={() => open({ product_id: r.product_id, name: r.name, brand: r.brand, image: imgFor(r.product_id), price: r.price, url: `https://www.nykaa.com/search/result/?q=${encodeURIComponent(r.name)}` })}
       className={`group flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-page ${isAnchor(r.brand) ? "bg-[#eef4fc]" : ""}`}>
-      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-semibold ${paid ? "bg-[#fff4e5] text-[#8a5a00]" : "bg-ink text-white"}`}>{paid ? "AD" : pos}</span>
+      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-semibold ${paid ? "bg-[#fff4e5] text-[#8a5a00]" : "bg-brand text-on-brand"}`}>{paid ? "AD" : pos}</span>
       <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-page ring-1 ring-line">
         {/* eslint-disable-next-line @next/next/no-img-element -- Nykaa CDN image */}
         {imgFor(r.product_id) ? <img src={imgFor(r.product_id)!} alt="" className="h-9 w-9 object-contain" /> : null}
@@ -182,8 +182,8 @@ function DemandPage() {
   const keywordChips = (
     <div className="mb-4 flex flex-wrap gap-1.5">
       {keywords.map((k) => (
-        <button key={k} onClick={() => setKw(k)} className={`rounded-full px-3 py-1 text-[12.5px] transition ${active === k ? "bg-ink font-medium text-white" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>
-          {k}{!CORE.includes(k) && <span className={`ml-1.5 text-[10.5px] ${active === k ? "text-white/60" : "text-muted"}`}>suggested</span>}
+        <button key={k} onClick={() => setKw(k)} className={`rounded-full px-3 py-1 text-[12.5px] transition ${active === k ? "bg-brand font-medium text-on-brand" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>
+          {k}{!CORE.includes(k) && <span className={`ml-1.5 text-[10.5px] ${active === k ? "text-on-brand-muted" : "text-muted"}`}>suggested</span>}
         </button>
       ))}
     </div>
@@ -198,14 +198,13 @@ function DemandPage() {
 
   return (
     <Shell active="Demand" asOf={latest ? day(latest) : undefined}>
-      <h1 className="font-display text-[30px] font-semibold leading-tight tracking-[-0.02em]">Demand</h1>
-      <p className="mt-1 max-w-[860px] text-[14px] text-ink-2">Who is selling more (monthly reviews as the sales signal), and who shoppers find when they search for K-beauty on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type.</p>
+      <PageHead eyebrow="Sales signal and search" title="Demand" sub={<>Who is selling more (monthly reviews as the sales signal), and who shoppers find when they search for K-beauty on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type.</>} />
       {(!months.data || !hist.data) ? <Loading what="demand and search data" /> : (
         <>
           <SectionNav items={NAV} />
 
           <section id="summary" className="mt-6 scroll-mt-32">
-            {verdict && <Card className="px-6 py-5"><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Verdict for {ANCHOR_BRAND}</div><p className="mt-2 max-w-[110ch] font-display text-[18px] font-medium leading-snug tracking-tight">{verdict}</p></Card>}
+            {verdict && <Verdict eyebrow={<>Verdict for {ANCHOR_BRAND}</>}>{verdict}</Verdict>}
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <Kpi href="#demand" label={`${ANCHOR_BRAND} reviews, last 3 mo`} value={anchorD?.last3 != null ? compact(anchorD.last3) : <Missing>not tracked</Missing>} delta={anchorD?.growth ?? null} sub={anchorD?.last3 != null ? `#${anchorRank} of ${ranked.length} brands` : "not tracked"} />
               <Kpi href="#demand" label="Fastest-rising brand" value={up?.brand ?? <Missing>too little history</Missing>} delta={up?.growth ?? null} sub={up ? `${compact(up.last3)} reviews in 3 months` : undefined} />
@@ -287,7 +286,7 @@ function DemandPage() {
                 return (
                   <div key={x.brand} className={`grid grid-cols-[minmax(160px,1.2fr)_1fr_1fr_120px] items-center border-b border-line px-4 py-2 text-[12.5px] last:border-0 ${isAnchor(x.brand) ? "bg-page/70 font-semibold" : ""}`}>
                     <span>{x.brand} <span className="text-[11px] font-normal text-muted">{ORIGIN_LABEL[x.origin]}{!x.tracked ? " · demand not tracked" : ""}</span></span>
-                    <span className="flex items-center gap-2 pr-4 tabular"><span className="w-10">{(x.search * 100).toFixed(1)}%</span><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-ink" style={{ width: `${(x.search / mx) * 100}%` }} /></span></span>
+                    <span className="flex items-center gap-2 pr-4 tabular"><span className="w-10">{(x.search * 100).toFixed(1)}%</span><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-brand" style={{ width: `${(x.search / mx) * 100}%` }} /></span></span>
                     <span className="flex items-center gap-2 pr-4 tabular"><span className="w-10">{(x.demand * 100).toFixed(1)}%</span><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-[#2a78d6]" style={{ width: `${(x.demand / mx) * 100}%` }} /></span></span>
                     <span className={`text-right tabular ${x.excess > 0.02 ? "text-good" : x.excess < -0.02 ? "text-bad" : "text-ink-2"}`}>{x.excess > 0 ? "+" : ""}{(x.excess * 100).toFixed(1)} pts</span>
                   </div>
@@ -332,7 +331,7 @@ function DemandPage() {
                 return (
                   <div key={s.brand} className={`grid grid-cols-[minmax(180px,1.5fr)_1fr_1fr] items-center border-b border-line px-5 py-2 text-[13px] last:border-0 ${isAnchor(s.brand) ? "bg-page/70 font-semibold" : ""}`}>
                     <span className="flex items-center gap-2"><span>{s.brand}</span><span className="text-[11px] font-normal text-muted">{ORIGIN_LABEL[s.origin]}</span>{isFocus(s.brand) && <span className="rounded bg-sunken px-1 text-[10px] font-normal text-muted">focus</span>}</span>
-                    <span className="flex items-center gap-2 pr-6 tabular"><b className="w-6">{s.top5}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-ink" style={{ width: `${(s.top5 / mx) * 100}%` }} /></span></span>
+                    <span className="flex items-center gap-2 pr-6 tabular"><b className="w-6">{s.top5}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-brand" style={{ width: `${(s.top5 / mx) * 100}%` }} /></span></span>
                     <span className="tabular">{s.top10}</span>
                   </div>
                 );

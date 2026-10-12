@@ -36,7 +36,7 @@ export default function BrandPicker({ focus, all, selected, colors, onToggle, ma
       <div className="relative">
         <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="+ Add any brand" disabled={full}
-          className="w-44 rounded-full bg-transparent px-3.5 py-1.5 text-[13px] ring-1 ring-dashed ring-line-2 outline-none placeholder:text-muted focus:bg-surface focus:ring-ink disabled:opacity-40" />
+          className="w-44 rounded-full bg-transparent px-3.5 py-1.5 text-[13px] ring-1 ring-dashed ring-line-2 outline-none placeholder:text-muted focus:bg-surface focus:ring-accent-strong disabled:opacity-40" />
         {open && matches.length > 0 && (
           <div className="absolute left-0 top-10 z-20 w-64 overflow-hidden rounded-xl bg-surface shadow-pop ring-1 ring-line">
             {matches.map((m) => (

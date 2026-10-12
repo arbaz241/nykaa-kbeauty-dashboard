@@ -69,7 +69,7 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
                 {p.price != null && <span><b className="text-[18px]">{inr(p.price)}</b>{p.mrp && p.price && p.mrp > p.price ? <span className="ml-1.5 text-muted line-through">{inr(p.mrp)}</span> : null}</span>}
                 {p.rating != null && <span>★ {p.rating.toFixed(1)} <span className="text-muted">· {compact(p.rating_count)} ratings</span></span>}
               </div>
-              {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-lg bg-ink px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-90">Open on Nykaa ↗</a>}
+              {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-lg bg-brand px-3.5 py-2 text-[13px] font-medium text-on-brand hover:opacity-90">Open on Nykaa ↗</a>}
             </div>
           </div>
           {p.usp && <p className="mt-6 text-[14.5px] leading-relaxed">{p.usp}</p>}
@@ -89,7 +89,7 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
 
           {priceSeries.some((v) => v !== null) && (
             <Block title="Selling price" note="As listed on each collection day.">
-              <LineChart labels={days.map((d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" }))} series={[{ name: "Price", color: "#121211", values: priceSeries }]} height={160} format={(v) => inr(v)} />
+              <LineChart labels={days.map((d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" }))} series={[{ name: "Price", color: "#0e3b2e", values: priceSeries }]} height={160} format={(v) => inr(v)} />
             </Block>
           )}
 
@@ -97,7 +97,7 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
             <Block title="Star split" note="Share of all ratings.">
               {["5", "4", "3", "2", "1"].map((k) => (
                 <div key={k} className="flex items-center gap-3 py-0.5 text-[12px] text-muted tabular">
-                  <span className="w-3">{k}★</span><div className="h-2 flex-1 rounded-full bg-sunken"><div className="h-2 rounded-full bg-ink" style={{ width: `${((p.splitup![k] ?? 0) / tot) * 100}%`, opacity: Number(k) >= 4 ? 1 : 0.45 }} /></div>
+                  <span className="w-3">{k}★</span><div className="h-2 flex-1 rounded-full bg-sunken"><div className="h-2 rounded-full bg-brand" style={{ width: `${((p.splitup![k] ?? 0) / tot) * 100}%`, opacity: Number(k) >= 4 ? 1 : 0.45 }} /></div>
                   <span className="w-10 text-right">{Math.round(((p.splitup![k] ?? 0) / tot) * 100)}%</span>
                 </div>
               ))}

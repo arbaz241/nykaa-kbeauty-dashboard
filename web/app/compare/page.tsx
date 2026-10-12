@@ -10,7 +10,7 @@ import { Brands, PriceBasket, WhereCompete } from "@/components/compete/Brands";
 import { SectionNav, type NavItem } from "@/components/Report";
 import Segmented from "@/components/Segmented";
 import Shell from "@/components/Shell";
-import { Card, Loading } from "@/components/ui";
+import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ANCHOR_BRAND, SLOT_COLORS, resolveBrand } from "@/lib/brands";
 import { HERO_ORDER, brandFacts, productFacts, productOptions, searchCounts, shelfCat, shortTitle, standardSize, type Sources } from "@/lib/competeData";
 import { useReviewsFor, useVariants, useAssortment, useCatalog, useDemand, useLastPrices, useMovement, useReviewMonths, useSearch, useShelf, useThumbnails } from "@/lib/data";
@@ -77,7 +77,7 @@ function CompetitivePage() {
     if (b === anchor) return;
     setBrandOverride(brands.includes(b) ? brands.filter((x) => x !== b) : brands.length >= 6 ? brands : [...brands, b]);
   };
-  const colors = useMemo(() => Object.fromEntries(brands.map((b, i) => [b, i === 0 ? "#121211" : SLOT_COLORS[(i - 1) % SLOT_COLORS.length]])), [brands]);
+  const colors = useMemo(() => Object.fromEntries(brands.map((b, i) => [b, i === 0 ? "#0e3b2e" : SLOT_COLORS[(i - 1) % SLOT_COLORS.length]])), [brands]);
 
   // products in view: the hero and its analysed rivals, else each brand's best-ranked product here
   const productIds = useMemo(() => {
@@ -107,8 +107,7 @@ function CompetitivePage() {
 
   return (
     <Shell active="Competitive Analysis" asOf={asOf ? new Date(asOf).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : undefined}>
-      <h1 className="font-display text-[30px] font-semibold leading-tight tracking-[-0.02em]">Competitive Analysis</h1>
-      <p className="mt-1 max-w-[860px] text-[14px] text-ink-2">Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail.</p>
+      <PageHead eyebrow="Innisfree vs its rivals" title="Competitive Analysis" sub={<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail.</>} />
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">Could not load data: {String(err.message ?? err)}</div>}
       {loading && !err ? <Loading what="the comparison" /> : !err && (
         <>
@@ -118,8 +117,8 @@ function CompetitivePage() {
                 const n = (uspC.data ?? []).filter((g) => shelfCat(g.category) === c).length;
                 return (
                   <button key={c} onClick={() => { setCat(c); setHeroPick(null); setBrandOverride(null); }}
-                    className={`rounded-full px-3 py-1.5 text-[13px] transition ${cat === c ? "bg-ink font-medium text-white" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>
-                    {CATEGORY_LABEL[c]}{n > 0 && <span className={`ml-1.5 text-[11px] ${cat === c ? "text-white/70" : "text-muted"}`}>{n} hero{n > 1 ? "es" : ""}</span>}
+                    className={`rounded-full px-3 py-1.5 text-[13px] transition ${cat === c ? "bg-brand font-medium text-on-brand" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>
+                    {CATEGORY_LABEL[c]}{n > 0 && <span className={`ml-1.5 text-[11px] ${cat === c ? "text-on-brand-muted" : "text-muted"}`}>{n} hero{n > 1 ? "es" : ""}</span>}
                   </button>
                 );
               })}
@@ -128,7 +127,7 @@ function CompetitivePage() {
               <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">Innisfree hero</span>
               {heroes.length ? heroes.map((g) => (
                 <button key={g.anchor_product_id} onClick={() => { setHeroPick(g.anchor_product_id); setBrandOverride(null); }}
-                  className={`rounded-full px-3 py-1 text-[12.5px] ring-1 transition ${g === hero ? "bg-ink text-white ring-ink" : "bg-surface text-ink-2 ring-line hover:text-ink"}`}>
+                  className={`rounded-full px-3 py-1 text-[12.5px] ring-1 transition ${g === hero ? "bg-brand text-on-brand ring-brand" : "bg-surface text-ink-2 ring-line hover:text-ink"}`}>
                   {shortTitle(g.anchor_name, "Innisfree")}
                 </button>
               )) : <span className="text-[12.5px] text-muted">No Innisfree hero analysed in {CATEGORY_LABEL[cat]}: each brand&rsquo;s best-ranked product is compared instead, without the USP sections.</span>}

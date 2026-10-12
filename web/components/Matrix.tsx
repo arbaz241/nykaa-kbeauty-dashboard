@@ -36,8 +36,8 @@ export default function Matrix({ rows, split, onPick, anchor }: { rows: Category
       {placed.sort((a, b) => b.total - a.total).map((r) => (
         <g key={r.category} onClick={() => onPick(r)} className="cursor-pointer">
           <title>{`${CATEGORY_LABEL[r.category] ?? r.category}: ${r.relShare.toFixed(2)}× ${r.leader.brand}, category ${r.growth >= 0 ? "+" : ""}${Math.round(r.growth * 100)}%, ${compact(r.total)} reviews`}</title>
-          <circle cx={X(r.relShare)} cy={Y(r.growth)} r={R(r.total)} fill="#121211" fillOpacity={0.12} stroke="#121211" strokeWidth={1.2} />
-          <text x={X(r.relShare)} y={Y(r.growth) - R(r.total) - 4} textAnchor="middle" className="fill-[#121211] text-[11.5px] font-medium">{CATEGORY_LABEL[r.category] ?? r.category}</text>
+          <circle cx={X(r.relShare)} cy={Y(r.growth)} r={R(r.total)} fill="#0e3b2e" fillOpacity={0.12} stroke="#0e3b2e" strokeWidth={1.2} />
+          <text x={X(r.relShare)} y={Y(r.growth) - R(r.total) - 4} textAnchor="middle" className="fill-ink text-[11.5px] font-medium">{CATEGORY_LABEL[r.category] ?? r.category}</text>
         </g>
       ))}
     </svg>

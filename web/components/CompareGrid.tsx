@@ -69,7 +69,7 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
                   return (
                     <div key={i} className={`border-l border-line px-3 py-2 ${i === ai ? "bg-page/70" : ""}`}>
                       <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[13px] font-semibold tabular ${t ? TONE_CLASS[t] : ""}`}>{cr.cell ? cr.cell(x) : cr.show(x)}</span>
-                      {best !== null && v === best && <span className="ml-1.5 rounded-full bg-ink px-1.5 py-px align-middle text-[9.5px] font-semibold uppercase tracking-wide text-white">lead</span>}
+                      {best !== null && v === best && <span className="ml-1.5 rounded-full bg-accent px-1.5 py-px align-middle text-[9.5px] font-semibold uppercase tracking-wide text-ink">lead</span>}
                       {sub && <div className="mt-0.5 text-[11px] leading-tight text-muted">{sub}</div>}
                       {cr.bar && v !== null && max > 0 && <div className="mt-1.5 h-1 w-full max-w-[150px] rounded-full bg-sunken"><div className="h-1 rounded-full" style={{ width: `${Math.max(2, (Math.abs(v) / max) * 100)}%`, background: colors?.[i] ?? "#8a8880" }} /></div>}
                     </div>

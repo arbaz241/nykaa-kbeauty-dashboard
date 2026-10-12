@@ -53,7 +53,7 @@ function StarSplit({ split }: { split: Record<string, number> }) {
   return (
     <div className="w-full max-w-[150px]">
       <div className="flex h-2 overflow-hidden rounded-full">
-        {["5", "4", "3", "2", "1"].map((k) => <span key={k} style={{ width: `${((split[k] ?? 0) / tot) * 100}%`, background: Number(k) >= 4 ? (k === "5" ? "#121211" : "#5c5b56") : k === "3" ? "#b9b7ae" : "#c0352b" }} />)}
+        {["5", "4", "3", "2", "1"].map((k) => <span key={k} style={{ width: `${((split[k] ?? 0) / tot) * 100}%`, background: Number(k) >= 4 ? (k === "5" ? "#0e3b2e" : "#5c5b56") : k === "3" ? "#b9b7ae" : "#c0352b" }} />)}
       </div>
       <div className="mt-0.5 text-[11px] text-muted tabular">{Math.round((((split["5"] ?? 0) + (split["4"] ?? 0)) / tot) * 100)}% 4–5★ · {Math.round(low * 100)}% 1–2★</div>
     </div>

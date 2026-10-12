@@ -95,20 +95,20 @@ function CategoriesPage() {
   const asOf = rows[0] ? new Date(rows[0].scrape_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : undefined;
   return (
     <Shell active="Top by category" asOf={asOf}>
-      <PageHead title="Top by category" sub="Each tracked category's top 100 on Nykaa, in the order the Nykaa app shows them today, with who holds it by origin." />
+      <PageHead eyebrow="Category shelves" title="Top by category" sub="Each tracked category's top 100 on Nykaa, in the order the Nykaa app shows them today, with who holds it by origin." />
       {!shelf.data ? <Loading what="the shelves" /> : (
         <>
           <div className="mt-7 flex flex-wrap gap-2">
             {CATEGORIES.map((c) => (
               <button key={c} onClick={() => { setCat(c); setConcern(null); }}
-                className={`rounded-full px-4 py-2 text-[13.5px] transition ${cat === c ? "bg-ink font-medium text-white" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>{CATEGORY_LABEL[c]}</button>
+                className={`rounded-full px-4 py-2 text-[13.5px] transition ${cat === c ? "bg-brand font-medium text-on-brand" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>{CATEGORY_LABEL[c]}</button>
             ))}
           </div>
 
           <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{CATEGORY_LABEL[cat]} · who holds the top 100{noAds ? ", sponsored slots removed" : ""}</div>
-              <h2 className="mt-1 font-display text-[21px] font-semibold leading-snug tracking-tight">{(() => {
+              <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · who holds the top 100{noAds ? ", sponsored slots removed" : ""}</div>
+              <h2 className="mt-2 font-display text-[22px] font-semibold leading-snug tracking-[-0.015em] md:text-[25px]">{(() => {
                 const by = ORIGIN_CARDS.map((o) => ({ o, n: summaryRows.filter((r) => r.origin === o.key).length })).sort((a, b) => b.n - a.n);
                 const best = summaryRows.find((r) => r.origin === "kbeauty");
                 return `${by[0].o.title} hold ${by[0].n} of the ${summaryRows.length} places${best ? `; the top K-beauty product is ${best.brand} at #${noAds ? base.find((b) => b.r === best)?.pos : best.rank}` : "; no K-beauty product ranks"}${anchorRows.length ? `, and ${set.anchor}'s best is #${anchorRows[0].rank}` : `, and ${set.anchor} is not in this top 100`}.`;
@@ -151,18 +151,18 @@ function CategoriesPage() {
 
           <Card className="mt-5">
             <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand or product" className="w-64 rounded-xl border border-line bg-page px-3.5 py-2 text-[13px] outline-none focus:border-ink" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand or product" className="w-64 rounded-xl border border-line bg-page px-3.5 py-2 text-[13px] outline-none focus:border-accent-strong" />
               <button onClick={() => setNoAds(!noAds)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${noAds ? "bg-[#fbecea] text-bad ring-bad/40" : "text-ink-2 ring-line hover:bg-sunken"}`}>⊘ Hide sponsored slots</button>
               <Chips value={origin} onChange={setOrigin} options={[["all", "All origins"], ["kbeauty", "K-beauty"], ["local", "Indian"], ["global", "Global"]]} />
               <Chips value={badge} onChange={setBadge} options={[["all", "All"], ["bestseller", "Bestseller"], ["new", "New"], ["paid", "Sponsored"]]} />
-              <button onClick={() => setInView(!inView)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${inView ? "bg-ink text-white ring-ink" : "text-ink-2 ring-line hover:bg-sunken"}`}>Brands in view only</button>
+              <button onClick={() => setInView(!inView)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${inView ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>Brands in view only</button>
               <span className="ml-auto text-[12.5px] text-muted tabular"><b className="text-ink">{shown.length}</b> / {base.length} shown</span>
               <button onClick={exportCsv} className="rounded-lg px-3 py-1.5 text-[12.5px] text-ink-2 ring-1 ring-line hover:bg-sunken">⇩ CSV</button>
             </div>
             {concerns.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-4 py-2.5 text-[12px]">
                 <span className="mr-1 text-muted">Targets:</span>
-                {concerns.map((c) => <button key={c} onClick={() => setConcern(concern === c ? null : c)} className={`rounded-full px-2.5 py-1 ring-1 transition ${concern === c ? "bg-ink text-white ring-ink" : "text-ink-2 ring-line hover:bg-sunken"}`}>{c}</button>)}
+                {concerns.map((c) => <button key={c} onClick={() => setConcern(concern === c ? null : c)} className={`rounded-full px-2.5 py-1 ring-1 transition ${concern === c ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>{c}</button>)}
                 <span className="ml-2 text-[11px] text-muted">from Nykaa&apos;s product pages; products without them never match</span>
               </div>
             )}

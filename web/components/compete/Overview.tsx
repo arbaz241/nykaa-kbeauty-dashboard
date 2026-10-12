@@ -3,7 +3,7 @@
 import { Chip } from "@/components/CompareGrid";
 import { DetailHead, LEVEL_SCORE, LEVEL_WORD, Opens, Points, useDetail, type DetailContent } from "@/components/Detail";
 import { useOpenProduct } from "@/components/ProductDrawer";
-import { Card } from "@/components/ui";
+import { Card, Verdict } from "@/components/ui";
 import { TONE_CLASS, TONE_WORD, tone, type Criterion, type Standing } from "@/lib/compete";
 import { ROLE_LABEL, shortTitle, type ProductFacts, type ProductOption } from "@/lib/competeData";
 import { CATEGORY_LABEL, compact, inr, signed } from "@/lib/format";
@@ -144,15 +144,14 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
   );
   return (
     <section id="summary" className="mt-6 scroll-mt-32">
-      <Card className="px-6 py-5">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Verdict for Innisfree · {name}</div>
-        <p className="mt-2 max-w-[110ch] font-display text-[19px] font-medium leading-snug tracking-tight">{headline}</p>
+      <Verdict eyebrow={<>Verdict for Innisfree · {name}</>}>{headline}</Verdict>
+      <Card className="mt-3 px-6 py-4">
         {hero && (
-          <Opens className="mt-2 text-[12px] text-ink-2" detail={{ kicker: "AI read of the message, in full", title: "Message verdict", body: <Points items={hero.comparison.anchor_position.verdict.split(/(?<=[.!?])\s+/)} /> }}>
+          <Opens className="mb-3 text-[12.5px] font-medium text-accent-strong" detail={{ kicker: "AI read of the message, in full", title: "Message verdict", body: <Points items={hero.comparison.anchor_position.verdict.split(/(?<=[.!?])\s+/)} /> }}>
             Read the full message verdict
           </Opens>
         )}
-        <div className="mt-4 grid gap-3 border-t border-line pt-3 md:grid-cols-2">
+        <div className={`grid gap-3 md:grid-cols-2 ${hero ? "border-t border-line pt-3" : ""}`}>
           <div><div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-good">Strengths</div>
             <div className="flex flex-wrap gap-1.5">{strong.length ? strong.map((s) => chip(s, true)) : <span className="text-[12px] text-muted">No measure where it beats most rivals</span>}</div></div>
           <div><div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-bad">Gaps</div>
@@ -161,7 +160,7 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
       </Card>
       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {dims.map((d) => (
-          <a key={d.id} href={d.href} className="relative block overflow-hidden rounded-2xl bg-surface px-5 py-4 shadow-card ring-1 ring-line transition hover:ring-line-2">
+          <a key={d.id} href={d.href} className="lift relative block overflow-hidden rounded-[16px] bg-surface px-5 py-4 shadow-card ring-1 ring-line">
             <span className={`absolute left-0 top-0 h-full w-1 ${d.tone === "good" ? "bg-good" : d.tone === "bad" ? "bg-bad" : "bg-line-2"}`} />
             <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.1em] text-muted"><span>{d.label}</span><span className="font-normal normal-case tracking-normal">see ↓</span></div>
             <div className="mt-1.5 text-[13.5px] leading-snug">{d.point}</div>
@@ -209,7 +208,7 @@ export function ProductHead({ p, color, options, onSwap }: { p: ProductFacts; co
       </div>
       <div className="mt-2 flex items-start gap-2.5">
         <button onClick={() => detail(thumbDetail(p))} title="Larger image and how it looks on the shelf"
-          className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-page ring-1 ring-line transition hover:ring-ink">
+          className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-page ring-1 ring-line transition hover:ring-brand">
           {/* eslint-disable-next-line @next/next/no-img-element -- Nykaa CDN image */}
           {p.image ? <img src={p.image} alt="" className="h-12 w-12 object-contain" /> : <span className="text-[10px] text-muted">No image</span>}
         </button>

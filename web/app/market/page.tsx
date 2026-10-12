@@ -7,7 +7,7 @@ import LineChart from "@/components/LineChart";
 import { useOpenProduct, type ProductRef } from "@/components/ProductDrawer";
 import Shell from "@/components/Shell";
 import Segmented from "@/components/Segmented";
-import { Card, Loading, Stat } from "@/components/ui";
+import { Card, Loading, PageHead, Stat, Verdict } from "@/components/ui";
 import { Missing, Opens, Points } from "@/components/Detail";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import { ANCHOR_BRAND, FOCUS_BRANDS, ORIGIN_LABEL, TIER_LABEL, marketSet, norm, resolveBrand, type Tier } from "@/lib/brands";
@@ -21,7 +21,7 @@ const OC: Record<string, string> = { kbeauty: "#2a78d6", local: "#eb6834", globa
 const day = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 const isFocus = (b: string) => FOCUS_BRANDS.some((f) => norm(f) === norm(b));
 const STORE_URL = "https://www.nykaa.com/korean-beauty/c/30710";
-const TIER_STYLE: Record<Tier, string> = { anchor: "bg-ink text-white", kbeauty: "bg-[#e6effb] text-[#1f5fae]", watch: "bg-[#eef3fa] text-[#4a6b94]", rival: "bg-[#fdeee6] text-[#b4501f]" };
+const TIER_STYLE: Record<Tier, string> = { anchor: "bg-brand text-on-brand", kbeauty: "bg-[#e6effb] text-[#1f5fae]", watch: "bg-[#eef3fa] text-[#4a6b94]", rival: "bg-[#fdeee6] text-[#b4501f]" };
 function TierTag({ tier }: { tier: Tier | null }) {
   return tier ? <span className={`ml-1.5 rounded px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-[0.05em] ${TIER_STYLE[tier]}`}>{TIER_LABEL[tier]}</span> : null;
 }
@@ -141,22 +141,17 @@ function MarketPage() {
   const anchorRatings = anchorRows.reduce((a, r) => a + (r.rating_count ?? 0), 0);
   return (
     <Shell active="Market" asOf={last ? day(last) : undefined}>
-      <h1 className="font-display text-[30px] font-semibold leading-tight tracking-[-0.02em]">Market</h1>
-      <p className="mt-1 max-w-[860px] text-[14px] text-ink-2">The Nykaa shelf across {CATEGORIES.length} categories: who holds the top-100 places, how that moves day by day, who is climbing, the Korean store, and which launches are catching on.</p>
+      <PageHead eyebrow="The Nykaa shelf" title="Market" sub={<>The Nykaa shelf across {CATEGORIES.length} categories: who holds the top-100 places, how that moves day by day, who is climbing, the Korean store, and which launches are catching on.</>} />
       {!ready ? <Loading what="market data" /> : (
         <>
           <SectionNav items={NAV} />
           <section id="summary" className="mt-6 scroll-mt-32">
-          <Card className="px-6 py-5">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">The shelf today</div>
-            <p className="mt-2 max-w-[110ch] font-display text-[19px] font-medium leading-snug tracking-tight">
-              K-beauty holds {(kNow * 100).toFixed(1)}% of all top-100 places{days.length > 1 ? `, ${kNow >= kFirst ? "up" : "down"} ${Math.abs((kNow - kFirst) * 100).toFixed(1)} points since ${day(first)}` : ""}; {set.anchor} holds {anchorSlots} of them{anchorSlots ? `, best #${anchorBest}` : ""}{anchorInStore ? `, and ${anchorInStore.n} of the Korean store's top 100` : ", and no place in the Korean store's top 100"}.
-            </p>
-            <Points className="mt-3 text-[13px] text-ink-2" items={[
+          <Verdict eyebrow="The shelf today" points={[
               <>{set.anchor}&rsquo;s listed products carry {compact(anchorRatings)} ratings in total.</>,
               <>The Korean store&rsquo;s top three brands hold {storeLeaders.slice(0, 3).reduce((a, s) => a + s.n, 0)} of its 100 places; {storeLeaders.slice(0, 10).filter((s) => isFocus(s.b)).length} of its top 10 brands are in the focus set.</>,
-            ]} />
-          </Card>
+            ]}>
+              K-beauty holds {(kNow * 100).toFixed(1)}% of all top-100 places{days.length > 1 ? `, ${kNow >= kFirst ? "up" : "down"} ${Math.abs((kNow - kFirst) * 100).toFixed(1)} points since ${day(first)}` : ""}; {set.anchor} holds {anchorSlots} of them{anchorSlots ? `, best #${anchorBest}` : ""}{anchorInStore ? `, and ${anchorInStore.n} of the Korean store's top 100` : ", and no place in the Korean store's top 100"}.
+            </Verdict>
           <div className="mt-3 grid gap-3 md:grid-cols-4">
             <Stat label="K-beauty share of the shelf" value={`${(kNow * 100).toFixed(1)}%`} sub={days.length > 1 ? `${kNow >= kFirst ? "▲" : "▼"} ${Math.abs((kNow - kFirst) * 100).toFixed(1)} pts since ${day(first)} · ${days.length} days tracked` : "first day of data"} />
             <Stat label="Focus brands' listings" value={String(focusSlots)} sub={`${((focusSlots / Math.max(1, rows.length)) * 100).toFixed(1)}% of all top-100 slots`} />

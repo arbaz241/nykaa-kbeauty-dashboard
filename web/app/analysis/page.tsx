@@ -10,7 +10,7 @@ import Presentation from "@/components/Presentation";
 import { useOpenProduct } from "@/components/ProductDrawer";
 import { ActionSection, SectionNav, ShowAll, type NavItem } from "@/components/Report";
 import Shell from "@/components/Shell";
-import { Card, Loading } from "@/components/ui";
+import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ANCHOR_BRAND, FOCUS_BRANDS, norm, resolveBrand } from "@/lib/brands";
 import { useAvailability, useBrandShares, useCatalog, useCategoryCoverage, useDemand, useMovement, useShelf, useThumbnails } from "@/lib/data";
 import { buildFindings, portfolioGaps, threeShares, type Finding } from "@/lib/findings";
@@ -129,25 +129,17 @@ function Analysis() {
 
   return (
     <Shell active="Analysis" asOf={shelf.data?.[0]?.scrape_date}>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[30px] font-semibold leading-tight tracking-[-0.02em]">Analysis</h1>
-          <p className="mt-1 max-w-[860px] text-[14px] text-ink-2">The executive summary: where {anchor} stands, which categories to back, what changed today, and what to do next. Every figure is a stored observation; click anything with › for the numbers.</p>
-        </div>
-        <label className="flex items-center gap-2 text-[13px] text-muted">Seen from
-          <select value={anchor} onChange={(e) => setAnchorInput(e.target.value)} className="rounded-lg border border-line bg-surface px-3 py-1.5 text-[13.5px] font-medium text-ink">
+      <PageHead eyebrow="Executive summary" title="Analysis" sub={<>The executive summary: where {anchor} stands, which categories to back, what changed today, and what to do next. Every figure is a stored observation; click anything with › for the numbers.</>}
+        right={<label className="flex items-center gap-2 text-[13px] text-muted">Seen from
+          <select value={anchor} onChange={(e) => setAnchorInput(e.target.value)} className="rounded-full border border-line bg-surface px-3.5 py-2 text-[13.5px] font-medium text-ink">
             {[...new Set([...FOCUS_BRANDS.map((b) => resolveBrand(b, known) ?? b), ...known])].filter(Boolean).slice(0, 60).map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
-        </label>
-      </div>
+        </label>} />
       {!ready ? <Loading what="today's analysis" /> : (<>
         <SectionNav items={NAV} />
 
         <section id="summary" className="mt-6 scroll-mt-32">
-          <Card className="px-6 py-5">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Verdict for {anchor}</div>
-            <p className="mt-2 max-w-[110ch] font-display text-[19px] font-medium leading-snug tracking-tight">{headline}</p>
-          </Card>
+          <Verdict eyebrow={<>Verdict for {anchor}</>}>{headline}</Verdict>
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Where it stands" href="#standing" tone={stance && stance.demand > stance.shelf ? "good" : undefined}>
               {stance ? <>Shelf <b>{pctS(stance.shelf)}</b> · search <b>{pctS(stance.voice)}</b> · demand <b>{pctS(stance.demand)}</b></> : <Missing>Not on any shelf today</Missing>}
@@ -208,7 +200,7 @@ function Analysis() {
         <ActionSection id="changes" kicker="What changed · today's findings" title={findings.length ? `${findings.length} moves crossed a threshold today: ${counts.threat} threats, ${counts.opening} openings, ${counts.watch} to watch.` : "Nothing crossed a threshold today."}
           note="Each line is a rule applied to stored observations (rank moves, review counts, paid slots, price at an unchanged pack size, stock), grouped by theme. Click a line for the numbers behind it."
           right={<div className="flex gap-1.5">{(["all", "threat", "opening", "watch"] as const).map((t) => (
-            <button key={t} onClick={() => setFilter(t)} className={`rounded-full px-3 py-1 text-[12.5px] capitalize ring-1 transition ${filter === t ? "bg-ink text-page ring-ink" : "bg-surface text-ink-2 ring-line hover:text-ink"}`}>
+            <button key={t} onClick={() => setFilter(t)} className={`rounded-full px-3 py-1 text-[12.5px] capitalize ring-1 transition ${filter === t ? "bg-brand text-on-brand ring-brand" : "bg-surface text-ink-2 ring-line hover:text-ink"}`}>
               {t === "all" ? `All ${findings.length}` : `${t === "watch" ? "watch" : `${t}s`} ${counts[t]}`}</button>))}</div>}>
           <div className="grid gap-3 lg:grid-cols-2">
             {THEMES.map((th) => {
@@ -307,7 +299,7 @@ function Heroes({ anchor, heroes }: { anchor: string; heroes: ReturnType<typeof 
               {h.factors.map((f) => (
                 <div key={f.label} className="flex items-center gap-2.5">
                   <span className="w-[104px] shrink-0 text-[11.5px] text-muted">{f.label}</span>
-                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-sunken"><span className="block h-full rounded-full bg-ink/70" style={{ width: `${Math.round(f.value * 100)}%` }} /></span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-sunken"><span className="block h-full rounded-full bg-brand/70" style={{ width: `${Math.round(f.value * 100)}%` }} /></span>
                 </div>
               ))}
             </div>
