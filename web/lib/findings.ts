@@ -12,6 +12,8 @@ export interface Finding {
   weight: number;
   headline: string;
   detail: string;
+  /** One line: why this matters for the anchor. */
+  soWhat: string;
   evidence: { label: string; value: string }[];
   brand?: string;
   category?: string | null;
@@ -33,13 +35,15 @@ interface Input {
   availability: Availability[];
   /** Days each shelf has been tracked. A shelf added yesterday has no past to compare against. */
   coverage: { category: string; days_tracked: number }[];
+  /** Products whose review history covers both 3-month windows; others never fire a demand rule. */
+  complete?: Set<string>;
 }
 
-export function buildFindings({ anchor, movement, shares, demand: demandAll, availability, coverage }: Input): Finding[] {
+export function buildFindings({ anchor, movement, shares, demand: demandAll, availability, coverage, complete }: Input): Finding[] {
   const out: Finding[] = [];
   // One row per review pool: a product and its variants serve the same reviews, so reporting both
   // would state the same demand twice. Keep the listing with the most reviews of its own pool.
-  const demand = dedupePools(demandAll);
+  const demand = dedupePools(demandAll).filter((d) => !complete || complete.has(d.product_id));
   // Rules that compare today against two weeks ago can only run on shelves that existed two weeks ago —
   // otherwise every product on a newly added shelf reads as a new entrant.
   const settled = new Set(coverage.filter((c) => c.days_tracked >= 15).map((c) => c.category));
@@ -59,6 +63,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     const passed = anchorBest !== Infinity && m.rank < anchorBest;
     out.push({
       id: `climb-${m.product_id}-${m.category}`,
+      soWhat: passed ? `A rival now outranks ${anchor}'s best product in ${cat(m.category)}, so shoppers browsing that list reach it first.` : `A rival is gaining visibility in a category ${anchor} sells in.`,
       tone: passed ? "threat" : "watch",
       weight: m.gain_14d + (passed ? 40 : 0),
       headline: `${m.brand} climbed ${m.gain_14d} places in ${cat(m.category)}${passed ? ` — now ahead of ${anchor}` : ""}`,
@@ -79,6 +84,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (!hasPast(m.category) || !m.gain_14d || m.gain_14d > -20) continue;
     out.push({
       id: `slip-${m.product_id}-${m.category}`,
+      soWhat: `${anchor} is losing visibility in ${cat(m.category)}; check this product's price, stock and offers.`,
       tone: "threat",
       weight: Math.abs(m.gain_14d) + 30,
       headline: `${anchor} fell ${Math.abs(m.gain_14d)} places in ${cat(m.category)}`,
@@ -94,6 +100,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     const isAnchor = same(d.brand, anchor);
     out.push({
       id: `demand-${d.product_id}`,
+      soWhat: isAnchor ? `A product to back: buying is accelerating.` : `A rival is winning buyers in ${cat(d.category)}; compare its price and claims with ${anchor}'s nearest product.`,
       tone: isAnchor ? "opening" : "threat",
       weight: 60 + Math.min(d.momentum, 8) * 12 + (isAnchor ? 0 : 15),
       headline: `${d.brand}\u2019s ${shorten(d.name, d.brand)} is converting — reviews up ${pct(d.momentum)}`,
@@ -112,6 +119,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (d.momentum === null || d.momentum > -0.45 || d.prior < 80) continue;
     out.push({
       id: `fade-${d.product_id}`,
+      soWhat: same(d.brand, anchor) ? `Find out why buying is falling (price, stock or a rival) before it shows on the shelf.` : `A rival is losing buyers in ${cat(d.category)}: an opening for ${anchor}'s product there.`,
       tone: same(d.brand, anchor) ? "threat" : "opening",
       weight: 55 + Math.abs(d.momentum) * 20,
       headline: `${d.brand}\u2019s ${shorten(d.name, d.brand)} is fading — reviews down ${pct(d.momentum)}`,
@@ -142,6 +150,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (dep < 0.45) continue;
     out.push({
       id: `paid-${brand}`,
+      soWhat: same(brand, anchor) ? `${anchor}'s search visibility depends on spend.` : `Its visibility stops when its spend does: those searches can be won organically or with targeted ads.`,
       tone: same(brand, anchor) ? "watch" : "opening",
       weight: 50 + dep * 40,
       headline: `${brand} is paying for ${Math.round(dep * 100)}% of its search presence`,
@@ -164,6 +173,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (!anchorCats.has(m.category) && anchorCats.size > 0) continue;
     out.push({
       id: `price-${m.product_id}-${m.category}`,
+      soWhat: same(m.brand, anchor) ? `Check the margin impact of this cut.` : `${anchor}'s products in ${cat(m.category)} now look relatively more expensive.`,
       tone: same(m.brand, anchor) ? "watch" : "threat",
       weight: 45 + Math.abs(m.price_change_14d) * 100,
       headline: `${m.brand} cut ${shorten(m.name, m.brand)} by ${pct(m.price_change_14d)} in ${cat(m.category)}`,
@@ -183,6 +193,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (!isAnchor && (a.rating_count ?? 0) < 5000) continue;
     out.push({
       id: `oos-${a.product_id}`,
+      soWhat: isAnchor ? `Every day out of stock sends buyers to rivals: restock first.` : `Its buyers need a substitute now: a chance for ${anchor}'s alternative.`,
       tone: isAnchor ? "threat" : "opening",
       weight: isAnchor ? 70 + Math.min((a.rating_count ?? 0) / 1000, 30) : 40 + Math.min((a.rating_count ?? 0) / 2000, 25),
       headline: isAnchor
@@ -210,6 +221,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     const cats = [...new Set(list.map((m) => cat(m.category)))];
     out.push({
       id: `entry-${brand}`,
+      soWhat: `A coordinated push into the top lists; expect more competition for the same places.`,
       tone: "watch",
       weight: 35 + list.length * 8,
       headline: `${brand} put ${list.length} new products into the top 60 in two weeks`,
@@ -233,6 +245,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (Math.abs(delta) >= 0.005) {
       out.push({
         id: "origin-shift",
+      soWhat: `The bar any claim about Korean brands has to beat.`,
         tone: delta > 0 ? "opening" : "watch",
         weight: 30 + Math.abs(delta) * 400,
         headline: `K-beauty's share of shelf ${delta > 0 ? "rose" : "slipped"} to ${(nowShare * 100).toFixed(1)}%`,

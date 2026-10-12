@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { DefinitionsButton } from "./Tiered";
 import { useIsAdmin, useSession } from "./AuthGate";
 
 const NAV = [
@@ -78,6 +79,7 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
           </nav>
           <div className="ml-auto flex items-center gap-3">
             {asOf && <span className="hidden items-center gap-2 whitespace-nowrap rounded-full bg-accent-soft px-3 py-1.5 text-[12.5px] font-medium text-accent-strong sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-accent-strong" />Data as of {asOf}</span>}
+            <DefinitionsButton className="hidden whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-medium text-ink-2 ring-1 ring-line hover:bg-sunken hover:text-ink md:block" />
             <UserMenu />
             <button type="button" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(!menu)} className="press grid h-9 w-9 place-items-center rounded-full ring-1 ring-line lg:hidden">
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d={menu ? "M3 3l10 10M13 3L3 13" : "M2 4h12M2 8h12M2 12h12"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -98,7 +100,7 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
             <div className="mb-2 flex items-center gap-2.5 text-ink"><LogoMark size={22} /><span className="font-display text-[14px] font-semibold">Nykaa Market Intelligence</span></div>
             Built from public Nykaa India listings, reviews and search results, collected every night. Rankings are Nykaa&apos;s own order; shares and demand are derived from them.
           </div>
-          <div className="sm:text-right">{asOf ? <>Data as of <span className="font-medium text-ink-2">{asOf}</span></> : "Refreshed nightly"}<br />Prices in ₹ · ratings out of 5</div>
+          <div className="sm:text-right">{asOf ? <>Data as of <span className="font-medium text-ink-2">{asOf}</span></> : "Refreshed nightly"}<br />Prices in ₹ · ratings out of 5<br /><DefinitionsButton className="font-medium text-accent-strong underline-offset-2 hover:underline" /></div>
         </div>
       </footer>
     </div>

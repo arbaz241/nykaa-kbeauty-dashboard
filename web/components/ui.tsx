@@ -27,7 +27,7 @@ export function PageHead({ title, sub, right, eyebrow }: { title: string; sub: R
 }
 
 /** The page's single most important conclusion: a forest-green band. Children (points, links) sit under the headline. */
-export function Verdict({ eyebrow, children, points }: { eyebrow: React.ReactNode; children: React.ReactNode; points?: React.ReactNode[] }) {
+export function Verdict({ eyebrow, children, points, foot }: { eyebrow: React.ReactNode; children: React.ReactNode; points?: React.ReactNode[]; foot?: React.ReactNode }) {
   return (
     <section className="rise rounded-[20px] bg-brand px-6 py-7 text-on-brand md:px-9 md:py-8">
       <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent">{eyebrow}</div>
@@ -37,6 +37,7 @@ export function Verdict({ eyebrow, children, points }: { eyebrow: React.ReactNod
           {points.map((x, i) => <li key={i} className="flex gap-2.5"><span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /><span className="min-w-0">{x}</span></li>)}
         </ul>
       )}
+      {foot && <div className="mt-5 border-t border-on-brand/15 pt-4 text-[14px] leading-snug">{foot}</div>}
     </section>
   );
 }
