@@ -64,8 +64,8 @@ function Opt({ b, on, onPick, tag }: { b: string; on: boolean; onPick: (b: strin
 }
 
 /** Pinned + focus list with a search box for everyone else. `rows` must already be sorted the way to show them. */
-export function TieredList<T>({ rows, brandOf, tiers, render, top, noun = "brands" }: {
-  rows: T[]; brandOf: (r: T) => string; tiers: Tiers; render: (r: T, i: number) => React.ReactNode; top?: number; noun?: string;
+export function TieredList<T>({ rows, brandOf, tiers, render, top, noun = "brands", setNoun = "focus brands" }: {
+  rows: T[]; brandOf: (r: T) => string; tiers: Tiers; render: (r: T, i: number) => React.ReactNode; top?: number; noun?: string; setNoun?: string;
 }) {
   const [q, setQ] = useState(""); const [more, setMore] = useState(false);
   const inSet = rows.filter((r) => tiers.inSet(brandOf(r)));
@@ -77,9 +77,9 @@ export function TieredList<T>({ rows, brandOf, tiers, render, top, noun = "brand
       {shown.map(render)}
       {found.map((r, i) => render(r, shown.length + i))}
       <div className="flex flex-wrap items-center gap-3 px-4 py-2.5">
-        {top && inSet.length > top && <button onClick={() => setMore(!more)} className="text-[12px] font-medium text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">{more ? "Fewer focus brands" : `All ${inSet.length} focus brands`}</button>}
+        {top && inSet.length > top && <button onClick={() => setMore(!more)} className="text-[12px] font-medium text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">{more ? `Fewer ${setNoun}` : `All ${inSet.length} ${setNoun}`}</button>}
         {rest.length > 0 && (
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Find one of ${rest.length} other ${noun}`}
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={noun === "brands" ? `Find one of ${new Set(rest.map(brandOf)).size} other brands` : `Find another brand's ${noun}`}
             className="w-56 rounded-full border border-line bg-page px-3 py-1 text-[12.5px] outline-none focus:border-accent-strong" />
         )}
         {q && !found.length && <span className="text-[12px] text-muted">No match</span>}
