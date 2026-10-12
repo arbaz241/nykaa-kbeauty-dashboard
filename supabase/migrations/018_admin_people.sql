@@ -82,7 +82,8 @@ language plpgsql security definer set search_path = '' as $$
 begin
   if not public.is_app_admin() then raise exception 'admins only'; end if;
   if p_user = auth.uid() then raise exception 'You cannot block your own account'; end if;
-  update auth.users set banned_until = case when p_on then 'infinity'::timestamptz else null end where id = p_user;
+  -- a far-future date, not 'infinity': the sign-in service cannot read 'infinity' and fails with a database error
+  update auth.users set banned_until = case when p_on then '2999-01-01'::timestamptz else null end where id = p_user;
   if p_on then delete from auth.sessions where user_id = p_user; end if;
 end $$;
 
