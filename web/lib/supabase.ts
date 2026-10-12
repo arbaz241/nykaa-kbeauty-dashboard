@@ -52,7 +52,7 @@ export function fetchAll<T>(view: string, columns = "*", pageSize = 1000): Promi
   const key = `${view}|${columns}`;
   if (memory.has(key)) return Promise.resolve(memory.get(key) as T[]);
   if (!inflight.has(key)) {
-    const fresh = () => fetchFresh<T>(view, columns, pageSize).then((rows) => { memory.set(key, rows); writeCached(key, rows); return rows; });
+    const fresh = () => (SNAPSHOT.has(view) && columns === "*" ? fromBundle<T>(view) : fetchFresh<T>(view, columns, pageSize)).then((rows) => { memory.set(key, rows); writeCached(key, rows); return rows; });
     inflight.set(key, (async () => {
       const saved = await readCached<T>(key);
       if (!saved) return fresh();
@@ -66,6 +66,26 @@ export function fetchAll<T>(view: string, columns = "*", pageSize = 1000): Promi
     })().finally(() => inflight.delete(key)));
   }
   return inflight.get(key) as Promise<T[]>;
+}
+
+/** Whole-view reads that start together (one page's hooks) go out as ONE request: web_bundle returns each view's
+ *  ready-made JSON document (migration 021). The API serves only a few requests at a time, so ~30 paged reads
+ *  queued for seconds. Any view the bundle cannot supply is read page by page as before. */
+let queue: { view: string; resolve: (rows: never[]) => void; reject: (e: unknown) => void }[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | undefined;
+function fromBundle<T>(view: string): Promise<T[]> {
+  return new Promise<T[]>((resolve, reject) => {
+    queue.push({ view, resolve: resolve as (rows: never[]) => void, reject });
+    flushTimer ??= setTimeout(flush, 10); // the cache reads of one page finish a few ms apart
+  });
+}
+async function flush() {
+  const batch = queue; queue = []; flushTimer = undefined;
+  const { data, error } = await supabase().rpc("web_bundle", { names: [...new Set(batch.map((b) => b.view))] });
+  for (const b of batch) {
+    const rows = error ? undefined : (data as Record<string, never[]> | null)?.[b.view];
+    if (rows) b.resolve(rows); else fetchFresh<never>(b.view, "*", 1000).then(b.resolve, b.reject);
+  }
 }
 
 /** Fetch every row of a view, paging past Supabase's 1,000-row response cap. The first page also returns the row
