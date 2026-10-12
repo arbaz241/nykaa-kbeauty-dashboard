@@ -4,8 +4,9 @@ on:
   schedule:
     # 01:30 UTC = 07:00 IST. The job itself adds up to 15 min of random jitter.
     - cron: "30 1 * * *"
-    # Backup: GitHub's scheduler is best effort and dropped the 12 Oct run without a trace. At 03:30 UTC the guard
-    # job below checks for a run from today; it starts the scrape only if there is none (costs ~1 min otherwise).
+    # Backup: GitHub's scheduler is best effort; on 12 Oct it started the 01:30 run six hours late (07:39). Both
+    # schedules pass the guard job below, which starts the scrape only if today has no run yet (~1 min otherwise),
+    # so whichever arrives first scrapes and a late one stands down.
     - cron: "30 3 * * *"
   workflow_dispatch:
     inputs:
@@ -35,14 +36,14 @@ jobs:
     outputs:
       run: ${{ steps.check.outputs.run }}
     steps:
-      # Every trigger runs except the backup schedule, which runs only when today has no other run (in progress,
+      # Manual runs always go ahead; a scheduled run goes ahead only when today has no other run (in progress,
       # queued or finished; cancelled ones don't count). A failed run is not retried: that needs a look first.
       - name: Check for an earlier run today
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ github.event.schedule }}" != "30 3 * * *" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           today=$(date -u +%F)
           n=$(gh api "repos/${{ github.repository }}/actions/workflows/scrape.yml/runs?created=%3E%3D${today}&per_page=50" \
             --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }} and .conclusion != "cancelled")] | length')
