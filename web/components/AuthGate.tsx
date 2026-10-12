@@ -31,6 +31,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (session === null) window.location.replace("/login/");
   }, [session]);
+  // One row per page opened, for Admin › People. Best effort: a failure never affects the page.
+  const uid = session?.user.id;
+  useEffect(() => {
+    if (uid) supabase().from("app_visits").insert({ path: window.location.pathname }).then(() => {}, () => {});
+  }, [uid]);
   if (!session) return <div className="grid min-h-screen place-items-center text-sm text-muted">Loading…</div>;
   // The drawer provider wraps whole pages, so any component on a page (not only inside Shell) can open a product.
   return <SessionCtx.Provider value={session}><ProductDrawerProvider><DetailProvider>{children}</DetailProvider></ProductDrawerProvider></SessionCtx.Provider>;

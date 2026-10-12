@@ -38,7 +38,8 @@ export default function Login() {
     setBusy(false);
     if (res.error) {
       const m = res.error.message;
-      setMsg({ kind: "err", text: /Invalid login/i.test(m) ? "Invalid email or password." : /not confirmed/i.test(m) ? "Confirm your email first: open the link we sent you." : m });
+      setMsg({ kind: "err", text: /Invalid login/i.test(m) ? "Invalid email or password." : /not confirmed/i.test(m) ? "Confirm your email first: open the link we sent you."
+        : /banned/i.test(m) ? "This account has been blocked. Contact the admin." : m });
     } else if (res.data.session) window.location.replace("/compare/");
     else setMsg({ kind: "ok", text: "Account created. Check your inbox for the confirmation link, then sign in." });
   }

@@ -6,6 +6,7 @@ import AuthGate, { useIsAdmin, useSession } from "@/components/AuthGate";
 import Shell from "@/components/Shell";
 import { Card, Loading, PageHead } from "@/components/ui";
 import { ORIGIN_LABEL } from "@/lib/brands";
+import People from "@/components/admin/People";
 import { useShelf } from "@/lib/data";
 import { fetchAll, supabase } from "@/lib/supabase";
 
@@ -28,6 +29,7 @@ function AdminPage() {
   const [origin, setOrigin] = useState<string>("all");
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<"people" | "brands">("people");
 
   const slots = useMemo(() => {
     const m = new Map<string, number>(); (shelf.data ?? []).forEach((r) => m.set(r.brand, (m.get(r.brand) ?? 0) + 1)); return m;
@@ -65,8 +67,17 @@ function AdminPage() {
 
   return (
     <Shell active="Admin">
-      <PageHead eyebrow="Admin" title="Brand classification" sub="Every share on the dashboard depends on each brand's origin. New brands are classified automatically from Nykaa's country of origin and the Korean Beauty store; confirm or correct them here. Confirmed brands are never overwritten by the nightly run." />
-      {!isAdmin ? <p className="mt-8 text-[14px] text-muted">Only admins can open this page.</p> : !brands.data ? <Loading what="brands" /> : (
+      <PageHead eyebrow="Admin" title={tab === "people" ? "People" : "Brand classification"} sub={tab === "people"
+        ? "Everyone who has an account: when they joined, their account id, when they were last on the dashboard and what they opened. Make or remove admins, and block or delete accounts."
+        : "Every share on the dashboard depends on each brand's origin. New brands are classified automatically from Nykaa's country of origin and the Korean Beauty store; confirm or correct them here. Confirmed brands are never overwritten by the nightly run."} />
+      {isAdmin && (
+        <div className="mt-6 flex gap-1.5">
+          {([["people", "People"], ["brands", "Brand classification"]] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)} className={`rounded-full px-3.5 py-1.5 text-[13px] ring-1 ${tab === k ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:text-ink"}`}>{l}</button>
+          ))}
+        </div>
+      )}
+      {!isAdmin ? <p className="mt-8 text-[14px] text-muted">Only admins can open this page.</p> : tab === "people" ? <People /> : !brands.data ? <Loading what="brands" /> : (
         <>
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brand" className="w-56 rounded-xl border border-line bg-surface px-3.5 py-2 text-[13px] outline-none focus:border-accent-strong" />
