@@ -1,6 +1,6 @@
 -- Admin › People (owner request 2026-10-12): the admin sees every account (who joined, when, their id,
--- last activity, pages opened) and controls access: make or remove admins, block or delete an account,
--- and open or close new sign-ups (with an invite list that may still join while closed).
+-- last activity, pages opened) and controls access: make or remove admins, block or delete an account.
+-- Sign-up stays open to anyone (owner decision 2026-09-14, reconfirmed 2026-10-12).
 -- The site is a static page with only the public key, so every admin action is a database function that
 -- checks the caller is in app_admins before doing anything. Apply after 002. Idempotent.
 
@@ -10,24 +10,6 @@ language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.app_admins a
                  where lower(a.email) = lower(coalesce(auth.jwt() ->> 'email', '')));
 $$;
-
--- Site settings (one row per key). Read and changed only through the admin functions below.
-create table if not exists app_settings (
-  key        text primary key,
-  value      jsonb not null,
-  updated_at timestamptz not null default now(),
-  updated_by text
-);
-alter table app_settings enable row level security;
-insert into app_settings (key, value) values ('signup_open', 'true') on conflict (key) do nothing;
-
--- Emails allowed to create an account while sign-ups are closed.
-create table if not exists app_invites (
-  email    text primary key,
-  added_at timestamptz not null default now(),
-  added_by text
-);
-alter table app_invites enable row level security;
 
 -- One row per dashboard page opened. Users may only add their own rows; only admins read them (via functions).
 create table if not exists app_visits (
@@ -42,23 +24,6 @@ alter table app_visits enable row level security;
 drop policy if exists "log own visit" on app_visits;
 create policy "log own visit" on app_visits for insert to authenticated with check (user_id = auth.uid());
 grant insert on app_visits to authenticated;
-
--- Closed sign-ups: refuse new accounts unless the email is invited (or already an admin).
-create or replace function public.enforce_signup_policy() returns trigger
-language plpgsql security definer set search_path = '' as $$
-begin
-  if coalesce((select value::text = 'true' from public.app_settings where key = 'signup_open'), true) then
-    return new;
-  end if;
-  if exists (select 1 from public.app_invites i where lower(i.email) = lower(new.email))
-     or exists (select 1 from public.app_admins a where lower(a.email) = lower(new.email)) then
-    return new;
-  end if;
-  raise exception 'SIGNUPS_CLOSED: new sign-ups are closed; ask the admin for an invite';
-end $$;
-drop trigger if exists enforce_signup_policy on auth.users;
-create trigger enforce_signup_policy before insert on auth.users
-  for each row execute function public.enforce_signup_policy();
 
 -- ---------- admin functions (each refuses non-admins) ----------
 
@@ -93,38 +58,6 @@ begin
   select w.at, coalesce(u.email::text, '(deleted account)'), w.path
   from public.app_visits w left join auth.users u on u.id = w.user_id
   order by w.at desc limit least(greatest(p_limit, 1), 1000);
-end $$;
-
-create or replace function public.admin_settings()
-returns table (signup_open boolean, invites jsonb)
-language plpgsql stable security definer set search_path = '' as $$
-begin
-  if not public.is_app_admin() then raise exception 'admins only'; end if;
-  return query
-  select coalesce((select value::text = 'true' from public.app_settings where key = 'signup_open'), true),
-         coalesce((select jsonb_agg(jsonb_build_object('email', i.email, 'added_at', i.added_at) order by i.added_at desc)
-                   from public.app_invites i), '[]'::jsonb);
-end $$;
-
-create or replace function public.admin_set_signup(p_open boolean) returns void
-language plpgsql security definer set search_path = '' as $$
-begin
-  if not public.is_app_admin() then raise exception 'admins only'; end if;
-  insert into public.app_settings (key, value, updated_at, updated_by)
-  values ('signup_open', to_jsonb(p_open), now(), auth.jwt() ->> 'email')
-  on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by;
-end $$;
-
-create or replace function public.admin_set_invite(p_email text, p_on boolean) returns void
-language plpgsql security definer set search_path = '' as $$
-begin
-  if not public.is_app_admin() then raise exception 'admins only'; end if;
-  if p_on then
-    insert into public.app_invites (email, added_by) values (lower(trim(p_email)), auth.jwt() ->> 'email')
-    on conflict (email) do nothing;
-  else
-    delete from public.app_invites where lower(email) = lower(trim(p_email));
-  end if;
 end $$;
 
 create or replace function public.admin_set_admin(p_email text, p_on boolean) returns void
@@ -164,8 +97,8 @@ end $$;
 
 -- Only signed-in users may call these (and each function then checks for admin).
 do $$ declare f text; begin
-  foreach f in array array['is_app_admin()', 'admin_users()', 'admin_visits(int)', 'admin_settings()',
-    'admin_set_signup(boolean)', 'admin_set_invite(text, boolean)', 'admin_set_admin(text, boolean)',
+  foreach f in array array['is_app_admin()', 'admin_users()', 'admin_visits(int)', 
+    'admin_set_admin(text, boolean)',
     'admin_set_blocked(uuid, boolean)', 'admin_delete_user(uuid)'] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);

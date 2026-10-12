@@ -68,7 +68,7 @@ function AdminPage() {
   return (
     <Shell active="Admin">
       <PageHead title="Admin" sub={tab === "people"
-        ? "Everyone who has an account: when they joined, their account id, when they were last on the dashboard and what they opened. Make or remove admins, block or delete accounts, and decide whether new people can sign up."
+        ? "Everyone who has an account: when they joined, their account id, when they were last on the dashboard and what they opened. Make or remove admins, and block or delete accounts."
         : "Every share on the dashboard depends on each brand's origin. New brands are classified automatically from Nykaa's country of origin and the Korean Beauty store; confirm or correct them here. Confirmed brands are never overwritten by the nightly run."} />
       {isAdmin && (
         <div className="mt-6 flex gap-1.5">

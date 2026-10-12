@@ -11,7 +11,6 @@ interface Person {
   blocked: boolean; is_admin: boolean; visits_30d: number; last_page: string | null;
 }
 interface Visit { at: string; email: string; path: string }
-interface Settings { signup_open: boolean; invites: { email: string; added_at: string }[] }
 
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase().rpc(fn, args);
@@ -39,29 +38,26 @@ export default function People() {
   const me = useSession()?.user;
   const people = useSWR("admin_users", () => rpc<Person[]>("admin_users"), { revalidateOnFocus: false });
   const visits = useSWR("admin_visits", () => rpc<Visit[]>("admin_visits", { p_limit: 150 }), { revalidateOnFocus: false });
-  const settings = useSWR("admin_settings", async () => (await rpc<Settings[]>("admin_settings"))[0], { revalidateOnFocus: false });
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [invite, setInvite] = useState("");
   const [q, setQ] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
   const [week] = useState(() => Date.now() - 7 * 864e5);
 
   async function act(key: string, fn: string, args: Record<string, unknown>, ok: string) {
     setBusy(key); setMsg(null);
-    try { await rpc(fn, args); setMsg({ kind: "ok", text: ok }); await Promise.all([people.mutate(), settings.mutate()]); }
+    try { await rpc(fn, args); setMsg({ kind: "ok", text: ok }); await people.mutate(); }
     catch (e) { setMsg({ kind: "err", text: (e as Error).message }); }
     setBusy(null); setConfirmDelete(null);
   }
 
-  const err = people.error ?? settings.error;
+  const err = people.error;
   if (err) return <p className="mt-8 text-[14px] text-bad">Could not load accounts: {(err as Error).message}</p>;
-  if (!people.data || !settings.data) return <Loading what="accounts" />;
+  if (!people.data) return <Loading what="accounts" />;
 
   const all = people.data;
   const list = all.filter((p) => !q || p.email.toLowerCase().includes(q.toLowerCase()) || p.id.startsWith(q.toLowerCase()));
-  const s = settings.data;
 
   return (
     <>
@@ -73,38 +69,6 @@ export default function People() {
       </div>
 
       {msg && <p className={`mt-4 text-[13px] ${msg.kind === "ok" ? "text-good" : "text-bad"}`}>{msg.text}</p>}
-
-      <Card className="mt-4 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-[14px] font-semibold">New sign-ups are {s.signup_open ? "open" : "closed"}</div>
-            <p className="mt-0.5 max-w-[640px] text-[12.5px] text-ink-2">
-              {s.signup_open ? "Anyone with the link can create an account and see the dashboard." : "Only the invited emails below (and admins) can create an account. Existing accounts are not affected."}
-            </p>
-          </div>
-          <button disabled={busy === "signup"} onClick={() => act("signup", "admin_set_signup", { p_open: !s.signup_open }, s.signup_open ? "Sign-ups closed." : "Sign-ups opened.")}
-            className={`rounded-xl px-4 py-2 text-[13px] font-medium disabled:opacity-40 ${s.signup_open ? "bg-ink text-white" : "ring-1 ring-line text-ink"}`}>
-            {s.signup_open ? "Close sign-ups" : "Open sign-ups"}
-          </button>
-        </div>
-        {!s.signup_open && (
-          <div className="mt-4 border-t border-line pt-4">
-            <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (invite.includes("@")) { act("invite", "admin_set_invite", { p_email: invite, p_on: true }, `${invite} can now create an account.`); setInvite(""); } }}>
-              <input type="email" value={invite} onChange={(e) => setInvite(e.target.value)} placeholder="Invite an email" className="w-64 rounded-xl border border-line bg-surface px-3.5 py-2 text-[13px] outline-none focus:border-ink" />
-              <button disabled={!invite.includes("@") || busy === "invite"} className="rounded-xl bg-ink px-4 py-2 text-[13px] font-medium text-white disabled:opacity-40">Invite</button>
-            </form>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {s.invites.length === 0 && <span className="text-[12.5px] text-muted">No invites yet.</span>}
-              {s.invites.map((i) => (
-                <span key={i.email} className="flex items-center gap-2 rounded-full bg-sunken px-3 py-1 text-[12.5px]">
-                  {i.email}
-                  <button title="Remove invite" onClick={() => act("invite", "admin_set_invite", { p_email: i.email, p_on: false }, `Invite for ${i.email} removed.`)} className="text-muted hover:text-bad">×</button>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </Card>
 
       <div className="mt-8 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-[20px] font-semibold tracking-tight">Accounts</h2>
@@ -163,7 +127,7 @@ export default function People() {
         </table>
       </Card>
       <p className="mt-2 text-[12px] text-muted">
-        Block: the account cannot sign in again, and any page it already has open stops working within an hour. Delete: removes the account; the email could sign up again unless sign-ups are closed.
+        Block: the account cannot sign in again, and any page it already has open stops working within an hour. Delete: removes the account; the same email could sign up again later.
         Page counts start from the day this admin view went live.
       </p>
 
