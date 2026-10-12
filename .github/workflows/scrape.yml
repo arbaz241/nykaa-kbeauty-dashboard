@@ -1,4 +1,6 @@
 name: Daily Nykaa scrape
+# the guard counts only runs titled "Daily Nykaa scrape": dry runs write nothing and partial runs only repair
+run-name: ${{ inputs.mode == 'dry-run' && 'Nykaa scrape (dry run)' || inputs.categories != '' && 'Nykaa scrape (some categories)' || 'Daily Nykaa scrape' }}
 
 on:
   schedule:
@@ -19,6 +21,10 @@ on:
         description: "comma-separated category keys (blank = all)"
         required: false
         default: ""
+      force:
+        description: "run even if today already has a full run (a full run normally stands down)"
+        type: boolean
+        default: false
 
 concurrency:
   group: nykaa-scrape
@@ -36,18 +42,21 @@ jobs:
     outputs:
       run: ${{ steps.check.outputs.run }}
     steps:
-      # Manual runs always go ahead; a scheduled run goes ahead only when today has no other run (in progress,
-      # queued or finished; cancelled ones don't count). A failed run is not retried: that needs a look first.
+      # One full run per UTC day, scheduled or manual: a full run goes ahead only when today has no other full run
+      # (in progress, queued or finished; cancelled ones don't count). Dry runs, partial runs and "force" always go
+      # ahead. A failed run is not retried: that needs a look first.
       - name: Check for an earlier run today
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "${{ inputs.mode }}" = "dry-run" ] || [ -n "${{ inputs.categories }}" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "dry run, partial run or forced: going ahead"; echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           today=$(date -u +%F)
           n=$(gh api "repos/${{ github.repository }}/actions/workflows/scrape.yml/runs?created=%3E%3D${today}&per_page=50" \
-            --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }} and .conclusion != "cancelled")] | length')
-          echo "runs today besides this one: $n"
+            --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }} and .conclusion != "cancelled" and .display_title == "Daily Nykaa scrape")] | length')
+          echo "full runs today besides this one: $n"
           if [ "$n" = "0" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
 
   scrape:
