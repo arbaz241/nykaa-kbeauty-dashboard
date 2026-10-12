@@ -7,7 +7,8 @@ import { ActionSection, Finding } from "@/components/Report";
 import Sparkline from "@/components/Sparkline";
 import { Card } from "@/components/ui";
 import { Missing, Points, useDetail } from "@/components/Detail";
-import { FOCUS_BRANDS, ORIGIN_LABEL, norm, resolveBrand } from "@/lib/brands";
+import { ORIGIN_LABEL, norm } from "@/lib/brands";
+import { demandWindow } from "@/lib/analysis";
 import { standings, strongestWeakest, type Criterion } from "@/lib/compete";
 import { productOptions, shelfCat, shortTitle, type BrandFacts } from "@/lib/competeData";
 import { CATEGORIES, CATEGORY_LABEL, compact, inr, pct, signed } from "@/lib/format";
@@ -42,9 +43,9 @@ function criteriaFor(cat: string, anchor: string): Criterion<BrandFacts>[] {
     { key: "rating", label: "Star rating", help: "Average star rating of its top-100 products", better: "high", value: (f) => f.rating, show: (f) => `★ ${f.rating!.toFixed(2)}`,
       missing: (f) => (f.rating ? null : "No rated product in today's top 100") },
     { key: "ratings", label: "Ratings, all time", help: "Total star ratings on its top-100 products", better: "high", value: (f) => f.ratings, show: (f) => compact(f.ratings), bar: true },
-    { key: "demand", label: "Reviews, last 3 months", help: "Dated reviews on its tracked products in the last 3 complete months: a stand-in for recent sales", better: "high", value: (f) => f.last3, show: (f) => compact(f.last3),
-      sub: (f) => `${f.demandProducts} products`, bar: true, missing: (f) => (f.last3 === null ? "Not in review tracking" : null) },
-    { key: "momentum", label: "Review growth", help: "Reviews in the last 3 months against the 3 months before", better: "high", value: (f) => f.growth, show: (f) => signed(f.growth),
+    { key: "demand", label: "Reviews, last 3 months", help: "Dated reviews on its tracked products in the last 3 complete months (one count per product, sizes pooled): a stand-in for recent sales", better: "high", value: (f) => f.last3, show: (f) => compact(f.last3),
+      sub: (f) => `${DW.recent} · ${f.demandProducts} products`, bar: true, missing: (f) => (f.last3 === null ? "Not in review tracking" : null) },
+    { key: "momentum", label: "Review growth", help: `Reviews ${DW.recent} against ${DW.prior}, products with complete history only`, better: "high", value: (f) => f.growth, show: (f) => signed(f.growth), sub: () => `vs ${DW.prior}`,
       missing: (f) => (f.growth === null ? (f.last3 === null ? "Not in review tracking" : "Too new to compare") : null) },
     { key: "search", label: "K-beauty searches", help: "Tracked Korean-beauty searches where it shows in the first 10 unpaid results", better: "high", value: (f) => f.searchTerms,
       show: (f) => (f.searchTerms ? String(f.searchTerms) : "In none"), sub: (f) => (f.bestSearch ? `best #${f.bestSearch}` : null), bar: true },
@@ -56,9 +57,10 @@ const GROUPS = { price: "Price and promotion", listings: "Shelf visibility", rat
 
 /* ---------------------------------------------------------------- §7 brands */
 
-export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHeroSet, onToggle, onReset }: {
+const DW = demandWindow();
+export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHeroSet, onToggle, onReset, focusSet, inSet }: {
   facts: BrandFacts[]; anchor: string; cat: string; colors: Record<string, string>; brands: string[]; known: string[]; rows: ShelfRow[];
-  isHeroSet: boolean; onToggle: (b: string) => void; onReset: () => void;
+  isHeroSet: boolean; onToggle: (b: string) => void; onReset: () => void; focusSet: string[]; inSet: (b: string) => boolean;
 }) {
   const criteria = criteriaFor(cat, anchor);
   const a = facts.find((f) => f.brand === anchor);
@@ -74,12 +76,12 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
   const byPrice = [...facts].filter((f) => f.basket.overall !== null).sort((x, y) => x.basket.overall! - y.basket.overall!);
   const mom = facts.filter((f) => f.growth !== null && (f.last3 ?? 0) >= 30).sort((x, y) => y.growth! - x.growth!);
   const srch = [...facts].sort((x, y) => y.searchTerms - x.searchTerms);
-  const focus = FOCUS_BRANDS.map((b) => resolveBrand(b, known) ?? b).filter((b) => known.includes(b));
+  const focus = focusSet.filter((b) => known.includes(b));
   const all = [...new Set(rows.map((r) => r.brand))].map((b) => ({ brand: b, slots: rows.filter((r) => r.brand === b).length })).sort((x, y) => y.slots - x.slots);
 
   const cols: GridCol[] = facts.map((f) => ({ key: f.brand, anchor: f.brand === anchor, head: (
     <div>
-      <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colors[f.brand] }} /><span className="text-[14px] font-semibold">{f.brand}</span></div>
+      <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colors[f.brand] }} /><span className="text-[14px] font-semibold">{f.brand}</span>{!inSet(f.brand) && <span className="whitespace-nowrap rounded bg-sunken px-1 text-[10px] font-normal text-muted ring-1 ring-line">not in focus set</span>}</div>
       <div className="mt-0.5 text-[11px] leading-snug text-muted">{ORIGIN_LABEL[f.origin]}{f.madeIn ? ` · made in ${f.madeIn}` : ""}{f.kMarketing ? " · sells as Korean" : ""}{f.basket.source === "shelf" ? " · prices from today's top 100 until its full range is crawled" : ""}</div>
     </div>
   ) }));
@@ -101,7 +103,7 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
         <div className="mb-4 grid gap-3 md:grid-cols-2">
           <Finding label="Shelf presence"><b>{widest[0].brand}</b> has the widest presence: {widest[0].slots} top-100 listings across {widest[0].categories.length} categories, against {widest[widest.length - 1].slots} for {widest[widest.length - 1].brand}.</Finding>
           {byPrice.length >= 2 && <Finding label="Price (core basket)"><b>{byPrice[0].brand}</b> is the most affordable at {inr(byPrice[0].basket.overall)}; <b>{byPrice[byPrice.length - 1].brand}</b> the most premium at {inr(byPrice[byPrice.length - 1].basket.overall)}.</Finding>}
-          {mom.length >= 2 && <Finding label="Demand momentum" tone={norm(mom[0].brand) === norm(anchor) ? "good" : undefined}>Momentum favours <b>{mom[0].brand}</b> ({signed(mom[0].growth)} reviews, last 3 months vs the 3 before); <b>{mom[mom.length - 1].brand}</b> is weakest ({signed(mom[mom.length - 1].growth)}).</Finding>}
+          {mom.length >= 2 && <Finding label="Demand momentum" tone={norm(mom[0].brand) === norm(anchor) ? "good" : undefined}>Momentum favours <b>{mom[0].brand}</b> ({signed(mom[0].growth)} reviews, {DW.recent} vs {DW.prior}); <b>{mom[mom.length - 1].brand}</b> is weakest ({signed(mom[mom.length - 1].growth)}).</Finding>}
           {srch[0]?.searchTerms > 0 && <Finding label="Search"><b>{srch[0].brand}</b> shows up in the most K-beauty searches: top 10 unpaid for {srch[0].searchTerms} tracked terms{a ? `, against ${a.searchTerms} for Innisfree` : ""}.</Finding>}
         </div>
       )}

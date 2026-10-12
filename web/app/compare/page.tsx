@@ -16,6 +16,8 @@ import { HERO_ORDER, brandFacts, productFacts, productOptions, searchCounts, she
 import { useReviewsFor, useVariants, useAssortment, useCatalog, useDemand, useLastPrices, useMovement, useReviewMonths, useSearch, useShelf, useThumbnails } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/format";
 import { monthsWindow } from "@/lib/metrics";
+import { demandRows } from "@/lib/analysis";
+import { useTiers } from "@/lib/tiers";
 import { kBeautyBenchmark } from "@/lib/price";
 import type { ReviewMonth } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
@@ -25,7 +27,6 @@ import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp
  *  brand-vs-brand lives in its own Brand view so the two never repeat each other. Detail opens in the side panel. */
 
 const ORDER = [...HERO_ORDER, ...CATEGORIES.filter((c) => !HERO_ORDER.includes(c))];
-const DEFAULT_RIVALS = ["Beauty of Joseon", "Laneige", "The Face Shop", "COSRX"];
 const readUrl = () => (typeof window === "undefined" ? {} : Object.fromEntries(new URLSearchParams(window.location.search).entries())) as Record<string, string>;
 
 const PRODUCT_NAV: NavItem[] = [
@@ -49,7 +50,8 @@ function CompetitivePage() {
   const rows = useMemo(() => shelf.data ?? [], [shelf.data]);
   const cat0 = useMemo(() => catalog.data ?? [], [catalog.data]);
   const known = useMemo(() => [...new Set([...rows.map((r) => r.brand), ...cat0.map((r) => r.brand)])], [rows, cat0]);
-  const anchor = resolveBrand(ANCHOR_BRAND, known) ?? ANCHOR_BRAND;
+  const tiers = useTiers(known);
+  const anchor = resolveBrand(tiers.pinned || ANCHOR_BRAND, known) ?? ANCHOR_BRAND;
 
   const [url] = useState(readUrl);
   const [cat, setCat] = useState<string>(url.cat && ORDER.includes(url.cat) ? url.cat : "toner");
@@ -67,12 +69,19 @@ function CompetitivePage() {
     window.history.replaceState(null, "", `?${p.toString()}${window.location.hash}`);
   }, [cat, hero, view]);
 
-  // brands in view: the hero's rival brands, else a default set; the brand picker (§7) overrides either
+  // without an analysed hero: the focus brands selling best in this category (2 Korean, 1 Indian, 1 global where they exist)
+  const focusRivals = useMemo(() => {
+    const best = (b: string) => Math.min(...rows.filter((r) => r.subcategory === cat && r.brand === b).map((r) => r.rank), 999);
+    const sells = tiers.focus.filter((b) => productOptions(b, cat, rows, cat0).length).sort((a, b) => best(a) - best(b));
+    const pick = [...sells.filter((b) => tiers.group(b) === "korean").slice(0, 2), ...sells.filter((b) => tiers.group(b) === "indian").slice(0, 1), ...sells.filter((b) => tiers.group(b) === "global").slice(0, 1)];
+    return [...pick, ...sells.filter((b) => !pick.includes(b))].slice(0, 4);
+  }, [tiers, rows, cat0, cat]);
+  // brands in view: the hero's rival brands, else the focus rivals above; the brand picker (§7) overrides either
   const heroBrands = useMemo(() => hero ? [...new Set([anchor, ...hero.products.map((id) => uspBy.get(id)?.brand).filter((b): b is string => !!b)])] : null, [hero, uspBy, anchor]);
   const brands = useMemo(() => {
-    const base = brandOverride ?? heroBrands ?? [anchor, ...DEFAULT_RIVALS.map((b) => resolveBrand(b, known)).filter((b): b is string => !!b)];
+    const base = brandOverride ?? heroBrands ?? [anchor, ...focusRivals];
     return [anchor, ...base.filter((b) => b !== anchor)].slice(0, 6);
-  }, [brandOverride, heroBrands, anchor, known]);
+  }, [brandOverride, heroBrands, anchor, focusRivals]);
   const toggleBrand = (b: string) => {
     if (b === anchor) return;
     setBrandOverride(brands.includes(b) ? brands.filter((x) => x !== b) : brands.length >= 6 ? brands : [...brands, b]);
@@ -93,12 +102,19 @@ function CompetitivePage() {
   const lastPrices = useLastPrices(useMemo(() => ids.filter((id) => !rows.some((r) => r.product_id === id) && !cat0.some((r) => r.product_id === id)), [ids, rows, cat0]));
   const win = useMemo(() => monthsWindow(12), []);
   const monthsBy = useMemo(() => { const m = new Map<string, ReviewMonth[]>(); (months.data ?? []).forEach((r) => m.set(r.product_id, [...(m.get(r.product_id) ?? []), r])); return m; }, [months.data]);
+  // one row per review pool, the same counting as Analysis and Demand; every product of a pool gets the pool's numbers
+  const pooled = useMemo(() => {
+    if (!months.data || !demand.data || !shelf.data || !catalog.data) return undefined;
+    const byPool = new Map(demandRows(months.data, demand.data, shelf.data, catalog.data).map((r) => [demand.data!.find((d) => d.product_id === r.product_id)?.pool_id || r.product_id, r]));
+    return new Map(demand.data.map((d) => [d.product_id, byPool.get(d.pool_id || d.product_id)]).filter((x): x is [string, NonNullable<ReturnType<typeof byPool.get>>] => !!x[1]));
+  }, [months.data, demand.data, shelf.data, catalog.data]);
+  const poolMonths = useMemo(() => { if (!pooled || !months.data) return months.data ?? []; const keep = new Set([...pooled.values()].map((r) => r.product_id)); return months.data.filter((m) => keep.has(m.product_id)); }, [pooled, months.data]);
   const src: Sources = useMemo(() => ({
     cat, rows, catalog: cat0, demand: new Map((demand.data ?? []).map((d) => [d.product_id, d])), movement: movement.data ?? [], months: monthsBy, win,
-    search: searchCounts(search.data ?? []), thumbs: new Map((thumbs.data ?? []).map((t) => [t.product_id, t])), usp: uspBy, reviews: reviews.data, variants: variants.data, stdMl, lastPrices: lastPrices.data, hero,
-  }), [cat, rows, cat0, demand.data, movement.data, monthsBy, win, search.data, thumbs.data, uspBy, reviews.data, variants.data, stdMl, lastPrices.data, hero]);
+    search: searchCounts(search.data ?? []), thumbs: new Map((thumbs.data ?? []).map((t) => [t.product_id, t])), usp: uspBy, reviews: reviews.data, variants: variants.data, stdMl, lastPrices: lastPrices.data, hero, pooled,
+  }), [cat, rows, cat0, demand.data, movement.data, monthsBy, win, search.data, thumbs.data, uspBy, reviews.data, variants.data, stdMl, lastPrices.data, hero, pooled]);
   const products = useMemo(() => productIds.map(({ pid, brand, role }) => productFacts(pid, brand, role, src)), [productIds, src]);
-  const bfacts = useMemo(() => brandFacts(brands, anchor, cat, rows, cat0, months.data ?? [], search.data ?? [], assort.data ?? []), [brands, anchor, cat, rows, cat0, months.data, search.data, assort.data]);
+  const bfacts = useMemo(() => brandFacts(brands, anchor, cat, rows, cat0, poolMonths, search.data ?? [], assort.data ?? []), [brands, anchor, cat, rows, cat0, poolMonths, search.data, assort.data]);
 
   const asOf = rows[0]?.scrape_date;
   const err = shelf.error || catalog.error || uspC.error || uspP.error;
@@ -111,6 +127,7 @@ function CompetitivePage() {
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">Could not load data: {String(err.message ?? err)}</div>}
       {loading && !err ? <Loading what="the comparison" /> : !err && (
         <>
+          {hero && productIds.some((p) => !tiers.inSet(p.brand)) && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">This hero&rsquo;s rivals were picked for the AI comparison before the focus set existed: {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")} {productIds.filter((p) => !tiers.inSet(p.brand)).length === 1 ? "is" : "are"} outside your focus brands. The comparison stays as analysed; the brand view below uses the focus set when you change brands.</p>}
           <Card className="mt-5 px-4 py-3.5">
             <div className="flex flex-wrap gap-1.5">
               {ORDER.filter((c) => HERO_ORDER.includes(c) || sells(c)).map((c) => {
@@ -150,7 +167,7 @@ function CompetitivePage() {
             <Demand products={products} colors={colors} />
           </>) : (<>
             <SectionNav key="b" items={BRAND_NAV} />
-            <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isHeroSet={!brandOverride}
+            <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isHeroSet={!brandOverride} focusSet={[tiers.pinned, ...tiers.focus]} inSet={tiers.inSet}
               onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
             <WhereCompete facts={bfacts} anchor={anchor} rows={rows} catalog={cat0} uspBy={uspBy} comps={uspC.data ?? []} colors={colors} brands={brands}
               onPickCat={(c) => { setCat(c); setHeroPick(null); setView("product"); window.scrollTo({ top: 0, behavior: "smooth" }); }} />

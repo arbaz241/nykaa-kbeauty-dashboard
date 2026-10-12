@@ -137,7 +137,7 @@ export function Demand({ products, colors }: { products: ProductFacts[]; colors:
   ];
   const top = [...products].filter((p) => p.recent !== null).sort((x, y) => y.recent! - x.recent!)[0];
   const title = a?.recent != null
-    ? `${shortTitle(a.name, a.brand)} drew ${a.recent} reviews in 3 months${a.momentum !== null ? ` (${a.momentum >= 0 ? "+" : ""}${Math.round(a.momentum * 100)}% vs the 3 before)` : ""}${top && top !== a ? `; ${top.brand} leads with ${top.recent}` : "; the most in the group"}.`
+    ? `${shortTitle(a.name, a.brand)} drew ${a.recent} reviews in 3 months${a.momentum !== null ? ` (${a.momentum >= 0 ? "+" : ""}${Math.round(a.momentum * 100)}% vs Apr–Jun)` : ""}${top && top !== a ? `; ${top.brand} leads with ${top.recent}` : "; the most in the group"}.`
     : "Recent reviews, a stand-in for sales.";
   return (
     <ActionSection id="demand" kicker="Demand · reviews as a sales signal" title={title} note="Nykaa does not publish sales; new reviews per month track them closely. Products outside the review-history set are marked.">

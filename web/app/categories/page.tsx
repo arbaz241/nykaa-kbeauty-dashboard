@@ -6,7 +6,8 @@ import { useOpenProduct, type ProductRef } from "@/components/ProductDrawer";
 import Shell from "@/components/Shell";
 import { Card, Loading, PageHead } from "@/components/ui";
 import { Missing, Points } from "@/components/Detail";
-import { ORIGIN_LABEL, TIER_LABEL, marketSet, norm, type Tier } from "@/lib/brands";
+import { ORIGIN_LABEL, marketSet, norm } from "@/lib/brands";
+import { useTiers } from "@/lib/tiers";
 import { useShelf } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, compact, inr, median, shortName } from "@/lib/format";
 import type { ShelfRow } from "@/lib/types";
@@ -54,6 +55,9 @@ function CategoriesPage() {
   const shelf = useShelf(); const open = useOpenProduct();
   const rows = useMemo(() => shelf.data ?? [], [shelf.data]);
   const set = useMemo(() => marketSet(rows), [rows]);
+  const tiers = useTiers(useMemo(() => [...new Set(rows.map((r) => r.brand))], [rows]));
+  // the shared tiering: anchor, focus brand, another tracked Korean brand, or a rival holding many places in the anchor's categories
+  const tagOf = (b: string) => (tiers.isPinned(b) ? "Anchor" : tiers.isFocus(b) ? "Focus" : set.tier(b) === "rival" ? "Rival in its categories" : set.tier(b) ? "Other K-beauty" : null);
   const [cat, setCat] = useState<string>(CATEGORIES[0]);
   const [noAds, setNoAds] = useState(false);
   const [origin, setOrigin] = useState<OriginKey>("all");
@@ -76,7 +80,7 @@ function CategoriesPage() {
     (origin === "all" || r.origin === origin) &&
     (badge === "all" || (badge === "bestseller" ? r.is_bestseller : badge === "new" ? r.is_new_tag : r.is_ad)) &&
     (!concern || (r.concerns ?? []).includes(concern)) &&
-    (!inView || set.has(r.brand)) &&
+    (!inView || tiers.inSet(r.brand)) &&
     (!q || `${r.brand} ${r.name}`.toLowerCase().includes(q.toLowerCase())));
   const summaryRows = base.map((b) => b.r);
   const isSun = cat === "sunscreen";
@@ -111,7 +115,8 @@ function CategoriesPage() {
               <h2 className="mt-2 font-display text-[22px] font-semibold leading-snug tracking-[-0.015em] md:text-[25px]">{(() => {
                 const by = ORIGIN_CARDS.map((o) => ({ o, n: summaryRows.filter((r) => r.origin === o.key).length })).sort((a, b) => b.n - a.n);
                 const best = summaryRows.find((r) => r.origin === "kbeauty");
-                return `${by[0].o.title} hold ${by[0].n} of the ${summaryRows.length} places${best ? `; the top K-beauty product is ${best.brand} at #${noAds ? base.find((b) => b.r === best)?.pos : best.rank}` : "; no K-beauty product ranks"}${anchorRows.length ? `, and ${set.anchor}'s best is #${anchorRows[0].rank}` : `, and ${set.anchor} is not in this top 100`}.`;
+                const fN = summaryRows.filter((r) => tiers.inSet(r.brand)).length;
+                return `${by[0].o.title} hold ${by[0].n} of the ${summaryRows.length} places (the 20 focus brands hold ${fN})${best ? `; the top K-beauty product is ${best.brand} at #${noAds ? base.find((b) => b.r === best)?.pos : best.rank}` : "; no K-beauty product ranks"}${anchorRows.length ? `, and ${set.anchor}'s best is #${anchorRows[0].rank}` : `, and ${set.anchor} is not in this top 100`}.`;
               })()}</h2>
             </div>
             <a href={CATEGORY_URL[cat]} target="_blank" rel="noreferrer" className="text-[12.5px] text-ink-2 underline underline-offset-4 hover:text-ink">This listing on Nykaa ↗</a>
@@ -140,6 +145,9 @@ function CategoriesPage() {
                       <Points className="mt-4 border-t border-line pt-3 text-[12.5px] text-ink-2" items={[
                         <><b className="text-ink">{s.mostReviewed.b}</b>: most ratings ({compact(s.mostReviewed.ratings)}, ranks {s.mostReviewed.ranks.slice(0, 3).map((x) => `#${x}`).join(", ")})</>,
                         ...(s.mostListed.b !== s.mostReviewed.b ? [<><b className="text-ink">{s.mostListed.b}</b>: most listings ({s.mostListed.n})</>] : []),
+                        (() => { const fb = new Map<string, number[]>(); g.filter((r) => tiers.inSet(r.brand) && !tiers.isPinned(r.brand)).forEach((r) => fb.set(r.brand, [...(fb.get(r.brand) ?? []), r.rank]));
+                          const xs = [...fb.entries()].sort((a, b) => b[1].length - a[1].length || Math.min(...a[1]) - Math.min(...b[1]));
+                          return <><b className="text-ink">Focus brands here</b>: {xs.length ? xs.slice(0, 4).map(([b, rk]) => `${b} ${rk.length} (best #${Math.min(...rk)})`).join(" · ") : "none"}{xs.length > 4 ? ` · +${xs.length - 4} more` : ""}</>; })(),
                         ...(o.key === "kbeauty" ? [<><b className="text-ink">{set.anchor}</b>: {anchorHere.length ? `${anchorHere.length} listing${anchorHere.length === 1 ? "" : "s"}, ${anchorHere.map((r) => `#${r.rank}`).join(", ")}` : "not in this top 100"}</>] : []),
                       ]} />
                     </>
@@ -155,7 +163,7 @@ function CategoriesPage() {
               <button onClick={() => setNoAds(!noAds)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${noAds ? "bg-[#fbecea] text-bad ring-bad/40" : "text-ink-2 ring-line hover:bg-sunken"}`}>⊘ Hide sponsored slots</button>
               <Chips value={origin} onChange={setOrigin} options={[["all", "All origins"], ["kbeauty", "K-beauty"], ["local", "Indian"], ["global", "Global"]]} />
               <Chips value={badge} onChange={setBadge} options={[["all", "All"], ["bestseller", "Bestseller"], ["new", "New"], ["paid", "Sponsored"]]} />
-              <button onClick={() => setInView(!inView)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${inView ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>Brands in view only</button>
+              <button onClick={() => setInView(!inView)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${inView ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>Focus brands only</button>
               <span className="ml-auto text-[12.5px] text-muted tabular"><b className="text-ink">{shown.length}</b> / {base.length} shown</span>
               <button onClick={exportCsv} className="rounded-lg px-3 py-1.5 text-[12.5px] text-ink-2 ring-1 ring-line hover:bg-sunken">⇩ CSV</button>
             </div>
@@ -176,13 +184,13 @@ function CategoriesPage() {
                 </tr></thead>
                 <tbody>
                   {shown.map(({ r, pos }) => {
-                    const tier = set.tier(r.brand); const anchor = tier === "anchor";
+                    const tag = tagOf(r.brand); const anchor = tag === "Anchor";
                     return (
                       <tr key={r.product_id} onClick={() => open(ref(r))} className={`cursor-pointer border-b border-line/70 align-top hover:bg-page ${anchor ? "bg-[#f3f7fd]" : ""}`}>
                         <td className="px-4 py-2.5 text-right tabular"><b>{pos}</b>{noAds && pos !== r.rank && <div className="text-[10.5px] text-muted">Nykaa #{r.rank}</div>}</td>
                         <td className="px-2 py-2.5"><span className="rounded border border-line px-1.5 text-[11px] text-muted tabular">P{page(r.rank)}</span></td>
                         <td className="px-2 py-2.5"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${ORIGIN_CHIP[r.origin]}`}>{ORIGIN_LABEL[r.origin]}</span></td>
-                        <td className="px-3 py-2.5 font-medium">{r.brand}{tier && <div className="text-[10px] font-semibold uppercase tracking-[0.05em] text-muted">{TIER_LABEL[tier as Tier]}</div>}</td>
+                        <td className="px-3 py-2.5 font-medium">{r.brand}{tag && <div className={`text-[10px] font-semibold uppercase tracking-[0.05em] ${tag === "Focus" || tag === "Anchor" ? "text-accent-strong" : "text-muted"}`}>{tag}</div>}</td>
                         <td className="max-w-[340px] px-3 py-2.5 leading-snug">{shortName(r.name, r.brand)}</td>
                         <td className="px-2 py-2.5"><div className="flex flex-col items-start gap-1">
                           {r.is_ad && <span className="rounded bg-[#fff4d6] px-1.5 text-[10.5px] font-semibold text-[#8a6100]">SPONSORED</span>}

@@ -83,6 +83,8 @@ export interface Sources {
   months: Map<string, ReviewMonth[]>; win: string[]; search: Map<string, number>; thumbs: Map<string, Thumbnail>;
   usp: Map<string, UspProduct>; aspects?: Map<string, AspectStat[]>; reviews?: Map<string, ReviewLite[]>; variants?: Map<string, Variant[]>; stdMl: number | null; lastPrices?: Map<string, { price: number | null; mrp: number | null; scrape_date: string }>;
   hero: UspComparison | null;
+  /** Each product's review pool, counted as on every other tab (lib/analysis demandRows): growth only with complete history. */
+  pooled?: Map<string, { recent: number; prior: number; complete: boolean }>;
 }
 
 export function productFacts(pid: string, brandHint: string, role: string, s: Sources): ProductFacts {
@@ -107,7 +109,8 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
     rank: onCat?.rank ?? null, paid: !!(onCat?.is_ad || onCat?.is_pinned), rank7: mv?.rank_7d ?? null, rank14: mv?.rank_14d ?? null, gain7: mv?.gain_7d ?? null,
     rating: sh?.rating ?? c?.rating ?? null, ratings: sh?.rating_count ?? c?.rating_count ?? null,
     reviewsTotal: sh?.detail_review_count ?? c?.detail_review_count ?? null, split: sh?.review_splitup ?? c?.review_splitup ?? null,
-    recent: d?.recent ?? null, momentum: d?.momentum ?? null, spark: productSpark(s.months.get(pid) ?? [], s.win), search: s.search.get(pid) ?? 0,
+    recent: s.pooled?.get(pid)?.recent ?? d?.recent ?? null,
+    momentum: s.pooled?.has(pid) ? (s.pooled.get(pid)!.complete && s.pooled.get(pid)!.prior > 0 ? s.pooled.get(pid)!.recent / s.pooled.get(pid)!.prior - 1 : null) : d?.momentum ?? null, spark: productSpark(s.months.get(pid) ?? [], s.win), search: s.search.get(pid) ?? 0,
     whatItIs: sh?.usp_summary ?? c?.usp_summary ?? null, claims: sh?.usp_points ?? c?.usp_points ?? [], concerns: sh?.concerns ?? c?.concerns ?? [],
     ingredients: sh?.key_ingredients ?? c?.key_ingredients ?? [], skinTypes: sh?.skin_types ?? c?.skin_types ?? [],
     formulation: sh?.formulation ?? c?.formulation ?? null, madeIn: sh?.country_name ?? c?.country_name ?? null, since: sh?.first_review_date ?? null,

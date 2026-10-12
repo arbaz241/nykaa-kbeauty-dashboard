@@ -9,6 +9,10 @@ import { ROLE_LABEL, shortTitle, type ProductFacts, type ProductOption } from "@
 import { CATEGORY_LABEL, compact, inr, signed } from "@/lib/format";
 import type { Bench } from "@/lib/price";
 import type { UspComparison } from "@/lib/usp";
+import { demandWindow } from "@/lib/analysis";
+import { useTiers } from "@/lib/tiers";
+
+const DW = demandWindow();
 
 /* ---------------------------------------------------------------- product measures, one set per section */
 
@@ -29,10 +33,10 @@ export const VIS_CRITERIA: Criterion<ProductFacts>[] = [
 ];
 
 export const DEMAND_CRITERIA: Criterion<ProductFacts>[] = [
-  { key: "demand", label: "Reviews, last 3 months", help: "Dated reviews in the last 3 complete months: a stand-in for recent sales", better: "high", value: (p) => p.recent, show: (p) => compact(p.recent), bar: true,
+  { key: "demand", label: "Reviews, last 3 months", help: "Dated reviews in the last 3 complete months (sizes of one product pooled): a stand-in for recent sales", better: "high", value: (p) => p.recent, show: (p) => compact(p.recent), sub: () => DW.recent, bar: true,
     missing: (p) => (p.recent === null ? "Not in review tracking" : null), up: "More recent reviews (a sales signal) than", down: "Fewer recent reviews (a sales signal) than" },
-  { key: "momentum", label: "Review growth", help: "Reviews in the last 3 months against the 3 months before", better: "high", value: (p) => p.momentum, show: (p) => signed(p.momentum),
-    sub: () => "vs the 3 months before", missing: (p) => (p.momentum === null ? (p.recent === null ? "Not in review tracking" : "Too new to compare") : null),
+  { key: "momentum", label: "Review growth", help: `Reviews ${DW.recent} against ${DW.prior}; products with complete history only`, better: "high", value: (p) => p.momentum, show: (p) => signed(p.momentum),
+    sub: () => `vs ${DW.prior}`, missing: (p) => (p.momentum === null ? (p.recent === null ? "Not in review tracking" : "Too new to compare") : null),
     up: "Reviews growing faster than", down: "Reviews growing slower than" },
   { key: "ratings", label: "Ratings, all time", help: "Number of star ratings: lifetime popularity", better: "high", value: (p) => p.ratings, show: (p) => compact(p.ratings), bar: true,
     sub: (p) => (p.reviewsTotal ? `${compact(p.reviewsTotal)} written reviews` : null), missing: (p) => (p.ratings === null ? "No ratings yet" : null),
@@ -200,7 +204,7 @@ export function thumbDetail(p: ProductFacts): DetailContent {
 }
 
 export function ProductHead({ p, color, options, onSwap }: { p: ProductFacts; color?: string; options?: ProductOption[]; onSwap?: (pid: string) => void }) {
-  const open = useOpenProduct(); const detail = useDetail();
+  const open = useOpenProduct(); const detail = useDetail(); const tiers = useTiers();
   return (
     <div>
       <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted">
@@ -213,7 +217,7 @@ export function ProductHead({ p, color, options, onSwap }: { p: ProductFacts; co
           {p.image ? <img src={p.image} alt="" className="h-12 w-12 object-contain" /> : <span className="text-[10px] text-muted">No image</span>}
         </button>
         <span className="min-w-0">
-          <span className="block text-[12px] font-semibold text-ink-2">{p.brand}</span>
+          <span className="block text-[12px] font-semibold text-ink-2">{p.brand}{!tiers.inSet(p.brand) && <span className="ml-1.5 whitespace-nowrap rounded bg-sunken px-1 text-[10px] font-normal text-muted ring-1 ring-line">not in focus set</span>}</span>
           <span className="block text-[12.5px] leading-snug" title={p.name}>{shortTitle(p.name, p.brand)}</span>
         </span>
       </div>
