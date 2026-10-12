@@ -58,8 +58,10 @@ function AdminPage() {
       if (error) { setBusy(false); setMsg({ kind: "err", text: `${brand}: ${error.message}` }); return; }
       n += count ?? 0;
     }
+    // the tabs read ready-made copies (migration 020): rebuild them so the new origins show on the next load
+    const refreshed = n ? !(await supabase().rpc("refresh_web_snapshots")).error : true;
     setBusy(false); setEdits({}); await brands.mutate();
-    setMsg(n ? { kind: "ok", text: `Saved ${n} brand${n === 1 ? "" : "s"}. The dashboard uses the new labels on its next load.` } : { kind: "err", text: "Nothing was saved: this account is not allowed to edit." });
+    setMsg(n ? { kind: "ok", text: `Saved ${n} brand${n === 1 ? "" : "s"}. ${refreshed ? "The dashboard uses the new labels on its next load." : "The tabs will show the new labels after tonight's update."}` } : { kind: "err", text: "Nothing was saved: this account is not allowed to edit." });
   }
 
   const counts = useMemo(() => {

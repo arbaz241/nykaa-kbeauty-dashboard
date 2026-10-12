@@ -33,7 +33,7 @@ from pathlib import Path
 import httpx
 
 from . import config
-from .db import connect
+from .db import connect, refresh_snapshots
 
 log = logging.getLogger("usp")
 
@@ -490,9 +490,10 @@ def main() -> int:
     ap.add_argument("--force", action="store_true", help="re-analyse everything, changed or not")
     ap.add_argument("--dry-run", action="store_true", help="fetch inputs and print the estimate; send nothing")
     a = ap.parse_args()
-    if a.cmd == "pilot":
-        return pilot(a.spec)
-    return run(a.budget, force=a.force, dry_run=a.dry_run)
+    rc = pilot(a.spec) if a.cmd == "pilot" else run(a.budget, force=a.force, dry_run=a.dry_run)
+    if not a.dry_run:
+        refresh_snapshots()
+    return rc
 
 
 if __name__ == "__main__":

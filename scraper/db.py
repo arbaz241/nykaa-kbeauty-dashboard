@@ -97,6 +97,18 @@ def connect():
     return create_client(url, key)
 
 
+def refresh_snapshots(client=None) -> bool:
+    """Rebuild the dashboard's ready-made copies of the web_* views (migration 020) so the site shows what was just
+    written. Best effort: a failure is logged and the site keeps the previous copy until the next refresh."""
+    try:
+        (client or connect()).rpc("refresh_web_snapshots").execute()
+        log.info("dashboard copies refreshed")
+        return True
+    except Exception as e:  # noqa: BLE001 - never fail a data job over the copies
+        log.warning("dashboard copies NOT refreshed: %s", e)
+        return False
+
+
 def fetch_all(make_query, page: int = 1000) -> list[dict]:
     """Every row a query matches. PostgREST answers at most 1,000 rows per request whatever .limit() asks for,
     so one read of a big table is cut short without an error (on 3 Oct that hid 675 products' origin and
