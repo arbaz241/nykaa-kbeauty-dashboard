@@ -1,6 +1,8 @@
 "use client";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { mutate } from "swr";
+import { readCached, writeCached } from "./persist";
 
 let client: SupabaseClient | null = null;
 
@@ -37,15 +39,55 @@ const ORDER: Record<string, string[]> = {
   brand_classification: ["brand"],
 };
 
-/** Fetch every row of a view, paging past Supabase's 1,000-row response cap. */
-export async function fetchAll<T>(view: string, columns = "*", pageSize = 1000): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += pageSize) {
-    let q = supabase().from(view).select(columns);
-    for (const c of ORDER[view] ?? []) q = q.order(c);
-    const { data, error } = await q.range(from, from + pageSize - 1);
-    if (error) throw new Error(`${view}: ${error.message}`);
-    out.push(...((data ?? []) as T[]));
-    if (!data || data.length < pageSize) return out;
+const memory = new Map<string, unknown[]>();
+const inflight = new Map<string, Promise<unknown[]>>();
+let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Every row of a view. Opens on this browser's saved copy when there is one (lib/persist) and fetches the fresh
+ *  rows behind it; when they differ, the pages re-read them (one revalidation for all views that changed). */
+export function fetchAll<T>(view: string, columns = "*", pageSize = 1000): Promise<T[]> {
+  const key = `${view}|${columns}`;
+  if (memory.has(key)) return Promise.resolve(memory.get(key) as T[]);
+  if (!inflight.has(key)) {
+    const fresh = () => fetchFresh<T>(view, columns, pageSize).then((rows) => { memory.set(key, rows); writeCached(key, rows); return rows; });
+    inflight.set(key, (async () => {
+      const saved = await readCached<T>(key);
+      if (!saved) return fresh();
+      memory.set(key, saved);
+      fresh().then((rows) => {
+        if (JSON.stringify(rows) === JSON.stringify(saved)) return;
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => mutate(() => true), 200);
+      }).catch(() => { /* keep showing the saved copy; the next visit tries again */ });
+      return saved;
+    })().finally(() => inflight.delete(key)));
   }
+  return inflight.get(key) as Promise<T[]>;
+}
+
+/** Fetch every row of a view, paging past Supabase's 1,000-row response cap. The first page also returns the row
+ *  count, so the remaining pages are requested together rather than one after another (review months was 15
+ *  back-to-back pages, ~6.5 s). */
+async function fetchFresh<T>(view: string, columns: string, pageSize: number): Promise<T[]> {
+  const page = async (from: number, count = false) => {
+    let q = supabase().from(view).select(columns, count ? { count: "exact" } : undefined);
+    for (const c of ORDER[view] ?? []) q = q.order(c);
+    const { data, error, count: n } = await q.range(from, from + pageSize - 1);
+    if (error) throw new Error(`${view}: ${error.message}`);
+    return { rows: (data ?? []) as T[], n };
+  };
+  const first = await page(0, true);
+  if (first.rows.length < pageSize) return first.rows;
+  const total = first.n ?? 0;
+  const starts: number[] = [];
+  for (let from = pageSize; from < total; from += pageSize) starts.push(from);
+  const rest = await Promise.all(starts.map((from) => page(from)));
+  const out = [first.rows, ...rest.map((p) => p.rows)].flat();
+  // the count can be stale if rows were added between requests: finish any tail one page at a time
+  for (let from = pageSize * (starts.length + 1); out.length === from; from += pageSize) {
+    const p = await page(from);
+    out.push(...p.rows);
+    if (p.rows.length < pageSize) break;
+  }
+  return out;
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { clearCached } from "@/lib/persist";
 import { DefinitionsButton } from "./Tiered";
 import { useIsAdmin, useSession } from "./AuthGate";
 
@@ -46,7 +47,7 @@ function UserMenu() {
       {open && (
         <div role="menu" className="rise absolute right-0 top-full z-40 mt-2 w-64 rounded-2xl bg-surface p-1.5 shadow-pop ring-1 ring-line">
           <div className="truncate px-3.5 py-2.5 text-[13px] text-muted">{email}</div>
-          <button role="menuitem" type="button" onClick={async () => { await supabase().auth.signOut(); window.location.replace("/login/"); }}
+          <button role="menuitem" type="button" onClick={async () => { await clearCached(); await supabase().auth.signOut(); window.location.replace("/login/"); }}
             className="block w-full rounded-xl px-3.5 py-2.5 text-left text-[14px] text-ink-2 hover:bg-sunken hover:text-ink">Sign out</button>
         </div>
       )}
