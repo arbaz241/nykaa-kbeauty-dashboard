@@ -20,6 +20,7 @@ import { useBrandDaily, useKoreanStore, useProductNames, useShareDaily, useShelf
 import { CATEGORIES, CATEGORY_LABEL, compact, inr, median, shortName } from "@/lib/format";
 import { useBrandSelection } from "@/lib/selection";
 import type { ShelfRow } from "@/lib/types";
+import { push } from "@/lib/group";
 
 const ORIGINS = ["kbeauty", "local", "global", "unknown"] as const;
 const OC: Record<string, string> = Object.fromEntries(Object.entries(ORIGIN_COLOR).map(([k, v]) => [k, v.fill]));
@@ -98,7 +99,7 @@ function MarketPage() {
     const catsOn = (d: string) => new Set(bd.data!.filter((r) => r.scrape_date === d && r.subcategory !== "kbeauty_store").map((r) => r.subcategory));
     const both = new Set([...catsOn(last)].filter((c) => catsOn(then).has(c)));
     const nowL = shelfShare(bd.data, last, both); const thenL = shelfShare(bd.data, then, both);
-    const by = new Map<string, ShelfRow[]>(); rows.forEach((r) => by.set(r.brand, [...(by.get(r.brand) ?? []), r]));
+    const by = new Map<string, ShelfRow[]>(); rows.forEach((r) => push(by, r.brand, r));
     return [...by.entries()].map(([b, rs]) => ({ brand: b, rows: [...rs].sort((x, y) => x.rank - y.rank), n: rs.length, top20: rs.filter((r) => r.rank <= 20).length, best: Math.min(...rs.map((r) => r.rank)),
       paid: rs.filter((r) => r.is_ad).length, cats: new Set(rs.map((r) => r.subcategory)).size, change: nowL.count(b) - thenL.count(b), then, both: both.size }))
       .sort((a, b) => (tiers.isPinned(a.brand) ? -1 : tiers.isPinned(b.brand) ? 1 : b.n - a.n));
@@ -156,7 +157,7 @@ function MarketPage() {
 
   // the Korean Beauty store: one row per brand, ordered by how many of the store's top 100 it holds
   const store = useMemo(() => {
-    const k = kstore.data ?? []; const m = new Map<string, ShelfRow[]>(); k.forEach((r) => m.set(r.brand, [...(m.get(r.brand) ?? []), r]));
+    const k = kstore.data ?? []; const m = new Map<string, ShelfRow[]>(); k.forEach((r) => push(m, r.brand, r));
     return [...m.entries()].map(([b, rs]) => {
       const sorted = [...rs].sort((x, y) => x.rank - y.rank);
       const rated = rs.filter((r) => r.rating_count);

@@ -18,6 +18,7 @@ import { CATEGORY_LABEL, compact, inr, shortName } from "@/lib/format";
 import { heroProducts } from "@/lib/hero";
 import { useTiers } from "@/lib/tiers";
 import type { CatalogRow, SearchRow } from "@/lib/types";
+import { push } from "@/lib/group";
 
 /** Analysis: the landing page, as one story (Round 3 plan, owner decisions 12 Oct 2026).
  *  Verdict → scoreboard vs the focus set → where the anchor wins and loses by category → what changed →
@@ -432,7 +433,7 @@ function CatalogList({ rows }: { rows: CatalogRow[] }) {
 /* ================================================================ keyword view and next steps */
 
 function keywordView(search: SearchRow[], anchor: string, inSet: (b: string) => boolean) {
-  const byQ = new Map<string, SearchRow[]>(); search.forEach((r) => byQ.set(r.query, [...(byQ.get(r.query) ?? []), r]));
+  const byQ = new Map<string, SearchRow[]>(); search.forEach((r) => push(byQ, r.query, r));
   const out: { q: string; pos: number | null; leader: string | null; focusTop3: string | null }[] = [];
   for (const [q, rs] of byQ) {
     const minS = Math.min(...rs.map((r) => r.sample));

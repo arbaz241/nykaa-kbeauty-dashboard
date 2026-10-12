@@ -6,6 +6,7 @@ import { CATEGORY_LABEL, compact, inr, shortName } from "@/lib/format";
 import { monthsWindow } from "@/lib/metrics";
 import { VERDICT, useUspProducts } from "@/lib/usp";
 import LineChart from "./LineChart";
+import { push } from "@/lib/group";
 
 /** Minimal info a caller already has; the drawer fetches history on demand. */
 export interface ProductRef {
@@ -41,7 +42,7 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
   }, [data, win]);
   const byCat = useMemo(() => {
     const g = new Map<string, typeof data extends undefined ? never : NonNullable<typeof data>["history"]>();
-    (data?.history ?? []).forEach((h) => g.set(h.subcategory, [...(g.get(h.subcategory) ?? []), h]));
+    (data?.history ?? []).forEach((h) => push(g, h.subcategory, h));
     return g;
   }, [data]);
   const days = [...new Set((data?.history ?? []).map((h) => h.scrape_date))].sort();

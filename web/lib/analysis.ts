@@ -1,6 +1,7 @@
 import { norm } from "./brands";
 import { monthsWindow } from "./metrics";
 import type { BrandDaily, BrandShare, CatalogRow, ProductDemand, ReviewMonth, SearchRow, ShelfRow } from "./types";
+import { push } from "@/lib/group";
 
 /** Round 3 analysis layer (docs/round3 plan, owner decisions 12 Oct 2026). Every figure here comes with the
  *  basis it is computed on, so the page can show "compared with what" right next to the number. */
@@ -34,7 +35,7 @@ export function demandWindow(): DemandWindow {
 export function demandRows(months: ReviewMonth[], demand: ProductDemand[], shelf: ShelfRow[], catalog: CatalogRow[]): DemandRow[] {
   const win = demandWindow();
   const byProduct = new Map<string, ReviewMonth[]>();
-  for (const m of months) byProduct.set(m.product_id, [...(byProduct.get(m.product_id) ?? []), m]);
+  for (const m of months) push(byProduct, m.product_id, m);
   const dem = new Map(demand.map((d) => [d.product_id, d]));
   const catOf = (pid: string) => dem.get(pid)?.category ?? shelf.find((r) => r.product_id === pid)?.subcategory ?? catalog.find((r) => r.product_id === pid)?.subcategories?.[0] ?? null;
   const rows: (DemandRow & { pool: string; lifetime: number })[] = [];
@@ -98,7 +99,7 @@ export interface Scoreboard {
  *  collected that day (one sample per keyword), over all those places. Paid slots are counted separately. */
 export function searchShares(search: SearchRow[], day: string) {
   const byQ = new Map<string, SearchRow[]>();
-  for (const r of search) if (r.scrape_date === day) byQ.set(r.query, [...(byQ.get(r.query) ?? []), r]);
+  for (const r of search) if (r.scrape_date === day) push(byQ, r.query, r);
   const by = new Map<string, number>(); const paid = new Map<string, number>(); let total = 0;
   for (const rs of byQ.values()) {
     const minS = Math.min(...rs.map((r) => r.sample));
@@ -121,7 +122,7 @@ export function scoreboard(brands: string[], daily: BrandDaily[], shares: BrandS
   const sNow = searchShares(search, sToday); const sBefore = sThen ? searchShares(search, sThen) : null;
   const voice = (b: string, m: ReturnType<typeof searchShares> | null) => (m ? m.share(b) : 0);
   const paid = (b: string) => { const p = sNow.paidSlots(b); const e = sNow.places(b); return p + e ? p / (p + e) : null; };
-  const byBrand = new Map<string, DemandRow[]>(); for (const r of rows) { const k = norm(r.brand); byBrand.set(k, [...(byBrand.get(k) ?? []), r]); }
+  const byBrand = new Map<string, DemandRow[]>(); for (const r of rows) { const k = norm(r.brand); push(byBrand, k, r); }
 
   const demandTotal = rows.reduce((a, r) => a + r.recent, 0);
   const out = brands.map((b) => {
@@ -166,7 +167,7 @@ export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: stri
   const all = rows.reduce((a, r) => a + r.recent, 0);
   const usual = all ? rows.filter((r) => same(r.brand, anchor)).reduce((a, r) => a + r.recent, 0) / all : 0;
   const by = new Map<string, DemandRow[]>();
-  for (const r of rows) if (r.category && r.category !== "kbeauty_store") by.set(r.category, [...(by.get(r.category) ?? []), r]);
+  for (const r of rows) if (r.category && r.category !== "kbeauty_store") push(by, r.category, r);
   const cells: CategoryCell[] = [];
   for (const [category, rs] of by) {
     const recent = rs.reduce((a, r) => a + r.recent, 0);

@@ -28,6 +28,7 @@ const ORDER: Record<string, string[]> = {
   web_brand_daily: ["scrape_date", "brand", "subcategory"],
   web_search_history: ["scrape_date", "query", "sample", "rank", "product_id"],
   web_suggestions_latest: ["seed", "kind", "position"],
+  web_suggestion_history: ["scrape_date", "seed", "position"],
   web_movement: ["category", "product_id"],
   web_brand_shares: ["scrape_date", "brand"],
   web_product_demand: ["product_id"],

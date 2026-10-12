@@ -1,6 +1,7 @@
 import { CATEGORY_LABEL } from "./format";
 import { norm } from "./brands";
 import type { Availability, BrandShare, Movement, ProductDemand } from "./types";
+import { push } from "@/lib/group";
 
 /** A finding is a sentence the data supports, plus the numbers that support it.
  *  Rules are deliberately conservative: each one states its own threshold, and anything that
@@ -214,7 +215,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
   const entrants = new Map<string, Movement[]>();
   for (const m of movement) {
     if (!hasPast(m.category) || !m.new_since_14d || m.rank > 60) continue;
-    entrants.set(m.brand, [...(entrants.get(m.brand) ?? []), m]);
+    push(entrants, m.brand, m);
   }
   for (const [brand, list] of entrants) {
     if (list.length < 2 || same(brand, anchor)) continue;

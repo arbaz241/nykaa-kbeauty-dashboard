@@ -10,6 +10,7 @@ import { brandScore, type AspectStat, type BrandScore } from "./metrics";
 import { basketPrice, categoryPrice, withAnchor, type BasketPrice } from "./price";
 import type { AssortmentRow, CatalogRow, Movement, ProductDemand, ReviewMonth, ReviewPhrase, SearchRow, ShelfRow, Thumbnail } from "./types";
 import type { UspComparison, UspProduct } from "./usp";
+import { push } from "@/lib/group";
 
 export const HERO_ORDER = ["toner", "face_moisturizer", "serum", "sunscreen", "face_wash", "masks", "eye_care", "lip_care"];
 /** The USP analysis files lip balms as "lip_balm"; on the shelf they are the Lip care category. */
@@ -60,7 +61,7 @@ export type ProductOption = ReturnType<typeof productOptions>[number];
 
 /** Product id -> number of tracked searches where it is in the top 10 unpaid results (one sample per query). */
 export function searchCounts(rows: SearchRow[]) {
-  const byQ = new Map<string, SearchRow[]>(); rows.forEach((r) => byQ.set(r.query, [...(byQ.get(r.query) ?? []), r]));
+  const byQ = new Map<string, SearchRow[]>(); rows.forEach((r) => push(byQ, r.query, r));
   const out = new Map<string, number>();
   for (const rs of byQ.values()) {
     const minS = Math.min(...rs.map((r) => r.sample));

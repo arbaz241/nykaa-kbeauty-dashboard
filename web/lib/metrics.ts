@@ -1,5 +1,6 @@
 import { mean, median, packMl } from "./format";
 import type { AssortmentRow, ReviewAspect, ReviewMonth, SearchRow, ShelfRow } from "./types";
+import { push } from "@/lib/group";
 
 export interface BrandScore {
   brand: string; origin: string; kMarketing: boolean;
@@ -39,7 +40,7 @@ export function brandScore(brand: string, shelf: ShelfRow[], months: ReviewMonth
 
   // search: unpaid positions from one sample per query; ads counted across samples
   const queries = new Map<string, SearchRow[]>();
-  for (const s of search) queries.set(s.query, [...(queries.get(s.query) ?? []), s]);
+  for (const s of search) push(queries, s.query, s);
   let terms = 0; let best: number | null = null; let ads = 0;
   for (const rows of queries.values()) {
     const minSample = Math.min(...rows.map((r) => r.sample));
@@ -98,7 +99,7 @@ export interface DemandLine { key: string; label: string; brand: string; spark: 
 export function demandLines(months: ReviewMonth[], by: "brand" | "product"): DemandLine[] {
   const win = monthsWindow(12); const six = win[6];
   const groups = new Map<string, ReviewMonth[]>();
-  for (const m of months) { const k = by === "brand" ? m.brand : m.product_id; groups.set(k, [...(groups.get(k) ?? []), m]); }
+  for (const m of months) { const k = by === "brand" ? m.brand : m.product_id; push(groups, k, m); }
   const out: DemandLine[] = [];
   for (const [k, ms] of groups) {
     const ok = ms.filter((m) => m.month >= m.coverage_start);
