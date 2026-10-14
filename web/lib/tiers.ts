@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { norm } from "./brands";
 import { supabase } from "./supabase";
+import { labels } from "./i18n";
 
 /** One brand tiering for every tab (owner decision D1/D5, 12 Oct 2026), kept in Supabase `brand_tiers` and edited
  *  in Admin › Brand tiers. Pinned = the anchor, always first. Focus = the brands every tab leads with.
@@ -11,7 +12,7 @@ import { supabase } from "./supabase";
 export type TierGroup = "korean" | "indian" | "global";
 export interface TierRow { brand: string; tier: "pinned" | "focus"; grp: TierGroup; sort: number; note: string | null }
 
-export const GROUP_LABEL: Record<TierGroup, string> = { korean: "Korean", indian: "Indian", global: "Global" };
+export const GROUP_LABEL: Record<TierGroup, string> = labels({ korean: ["Korean", "한국"], indian: ["Indian", "인도"], global: ["Global", "글로벌"] });
 
 /** Used until the table answers (and if it cannot): the list the owner approved on 12 Oct 2026. */
 const FALLBACK: TierRow[] = [

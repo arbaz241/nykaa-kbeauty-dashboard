@@ -2,12 +2,13 @@ import { norm } from "./brands";
 import { monthsWindow } from "./metrics";
 import type { BrandDaily, BrandShare, CatalogRow, ProductDemand, ReviewMonth, SearchRow, ShelfRow } from "./types";
 import { push } from "@/lib/group";
+import { monthShort, tr } from "./i18n";
 
 /** Round 3 analysis layer (docs/round3 plan, owner decisions 12 Oct 2026). Every figure here comes with the
  *  basis it is computed on, so the page can show "compared with what" right next to the number. */
 
 const same = (a: string, b: string) => norm(a) === norm(b);
-const fmtMonth = (m: string) => new Date(m).toLocaleDateString("en-IN", { month: "short" });
+const fmtMonth = (m: string) => monthShort(new Date(m));
 
 /* ------------------------------------------------------------------ demand per product, with coverage */
 
@@ -27,7 +28,8 @@ export function demandWindow(): DemandWindow {
   const w = monthsWindow(12);
   const recentMonths = w.slice(9); const priorMonths = w.slice(6, 9);
   const yr = new Date(w[11]).getFullYear();
-  return { recentMonths, priorMonths, recent: `${fmtMonth(w[9])}–${fmtMonth(w[11])} ${yr}`, prior: `${fmtMonth(w[6])}–${fmtMonth(w[8])}` };
+  return { recentMonths, priorMonths, recent: tr(`${fmtMonth(w[9])}–${fmtMonth(w[11])} ${yr}`, `${yr}년 ${fmtMonth(w[9]).replace("월", "")}–${fmtMonth(w[11])}`),
+    prior: tr(`${fmtMonth(w[6])}–${fmtMonth(w[8])}`, `${fmtMonth(w[6]).replace("월", "")}–${fmtMonth(w[8])}`) };
 }
 
 /** One row per review pool (a product and its variants share reviews). Categories come from the demand view,
@@ -155,11 +157,13 @@ export interface CategoryCell {
   quadrant: "opportunity" | "invest" | "maintain" | "low" | null;
 }
 
+const quad = (label: [string, string], read: [string, string], tone: "good" | "bad" | "accent" | "muted") =>
+  ({ get label() { return tr(...label); }, get read() { return tr(...read); }, tone });
 export const QUAD: Record<NonNullable<CategoryCell["quadrant"]>, { label: string; read: string; tone: "good" | "bad" | "accent" | "muted" }> = {
-  opportunity: { label: "Opportunity", read: "Growing faster than the market, and the anchor does worse here than its usual share", tone: "accent" },
-  invest: { label: "Protect and invest", read: "Growing faster than the market, and the anchor does better here than usual", tone: "good" },
-  maintain: { label: "Maintain", read: "Growing slower than the market; the anchor does better here than usual", tone: "muted" },
-  low: { label: "Low priority", read: "Growing slower than the market, and the anchor does worse here than usual", tone: "bad" },
+  opportunity: quad(["Opportunity", "기회"], ["Growing faster than the market, and the anchor does worse here than its usual share", "시장보다 빠르게 성장하는데, 기준 브랜드는 평소 점유율보다 약한 곳"], "accent"),
+  invest: quad(["Protect and invest", "방어·투자"], ["Growing faster than the market, and the anchor does better here than usual", "시장보다 빠르게 성장하고, 기준 브랜드도 평소보다 강한 곳"], "good"),
+  maintain: quad(["Maintain", "유지"], ["Growing slower than the market; the anchor does better here than usual", "시장보다 느리게 성장하지만, 기준 브랜드는 평소보다 강한 곳"], "muted"),
+  low: quad(["Low priority", "낮은 우선순위"], ["Growing slower than the market, and the anchor does worse here than usual", "시장보다 느리게 성장하고, 기준 브랜드도 평소보다 약한 곳"], "bad"),
 };
 
 export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: string) => boolean) {
@@ -177,7 +181,7 @@ export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: stri
     const anchorRecent = ranked.find(([b]) => same(b, anchor))?.[1] ?? 0;
     const lead = ranked.find(([b]) => !same(b, anchor)) ?? ["", 0];
     const fl = ranked.find(([b]) => !same(b, anchor) && isFocus(b));
-    const thin = recent < 300 ? `only ${recent} reviews in 3 months` : g.products < 6 ? `growth rests on ${g.products} products` : null;
+    const thin = recent < 300 ? tr(`only ${recent} reviews in 3 months`, `3개월 리뷰 ${recent}건뿐`) : g.products < 6 ? tr(`growth rests on ${g.products} products`, `성장률이 제품 ${g.products}개에 기댐`) : null;
     const anchorShare = recent ? anchorRecent / recent : 0;
     const fast = g.growth !== null && market.growth !== null && g.growth >= market.growth;
     cells.push({
@@ -194,6 +198,8 @@ export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: stri
 /* ------------------------------------------------------------------ range gaps, with the products behind every cell */
 
 export const BANDS: [string, number, number][] = [["Under ₹500", 0, 500], ["₹500–999", 500, 1000], ["₹1,000–1,999", 1000, 2000], ["₹2,000+", 2000, Infinity]];
+/** A price band's label in the current language (the English label stays the band's id). */
+export const bandLabel = (l: string) => tr(l, l === "Under ₹500" ? "₹500 미만" : l === "₹2,000+" ? "₹2,000 이상" : l);
 
 export interface GapCell { label: string; anchor: CatalogRow[]; rivals: CatalogRow[]; rivalBrands: string[]; gap: boolean }
 export interface GapRow { category: string; bands: GapCell[] }

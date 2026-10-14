@@ -35,8 +35,9 @@
   --color-warn: #96610f;
   --color-warn-soft: #f8ecd2;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: var(--font-display-face), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* Korean letters fall through to Pretendard (public/fonts/pretendard, loaded in pieces by unicode range), drawn to sit with Inter */
+  --font-sans: var(--font-inter), "Pretendard Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-display-face), var(--font-inter), "Pretendard Variable", ui-sans-serif, system-ui, sans-serif;
 
   --radius-card: 16px;
   --radius-inner: 12px;
@@ -51,6 +52,10 @@ body { font-family: var(--font-sans); font-feature-settings: "cv11", "ss01"; }
 h1 { text-wrap: balance; }
 h2, h3, p { text-wrap: pretty; }
 .tabular { font-variant-numeric: tabular-nums; }
+/* Korean breaks between words, never inside one; very long English names may still wrap */
+:lang(ko) body { word-break: keep-all; overflow-wrap: anywhere; }
+/* small caps-style eyebrows: Hangul has no case, so the wide Latin letter-spacing only pulls the syllables apart */
+:lang(ko) .uppercase { letter-spacing: 0.02em; }
 ::selection { background: var(--color-brand); color: #fff; }
 
 /* One focus language everywhere: blue ring, never removed. */

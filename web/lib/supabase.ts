@@ -38,6 +38,8 @@ const ORDER: Record<string, string[]> = {
   web_usp_products: ["product_id"],
   web_usp_comparisons: ["anchor_product_id"],
   brand_classification: ["brand"],
+  // read only when the site is in Korean, so it has no nightly copy and is not prefetched with the tabs
+  ko_dictionary: ["en"],
 };
 
 /** Views with a ready-made nightly copy (migration 020, web_<view>_snap); whole-view reads go to the copy. */

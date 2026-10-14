@@ -1,3 +1,5 @@
+import { tr } from "@/lib/i18n";
+
 /* Shared building blocks (redesign v2): pages compose these rather than hand-rolling a header, card or callout. */
 
 export function SectionHead({ title, note }: { title: string; note?: string }) {
@@ -71,6 +73,6 @@ export const Loading = ({ what }: { what: string }) => (
   <div className="mt-8" role="status" aria-live="polite">
     <div className="skeleton h-28 rounded-[20px]" />
     <div className="mt-3 grid gap-3 md:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-24 rounded-[16px]" />)}</div>
-    <div className="mt-3 text-[13px] text-muted">Loading {what}…</div>
+    <div className="mt-3 text-[13px] text-muted">{tr(`Loading ${what}…`, `${what} 불러오는 중…`)}</div>
   </div>
 );

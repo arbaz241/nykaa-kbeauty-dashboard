@@ -3,6 +3,8 @@ import type React from "react";
  *  so the two always read the same way. Tones are from the anchor's side: "ahead" means Innisfree does better
  *  than that rival on the criterion. Price carries no tone: cheaper is a position, not a win. */
 
+import { labels, tr } from "./i18n";
+
 export type Tone = "ahead" | "behind" | "par" | null;
 export type Better = "high" | "low" | null;
 
@@ -26,6 +28,14 @@ export interface Criterion<T> {
   up?: string; down?: string;
 }
 
+type Pair = readonly [string, string];
+/** A criterion whose wording follows the language: label, help and the strength/gap phrases are [English, Korean]. */
+export function crit<T>(c: Omit<Criterion<T>, "label" | "help" | "up" | "down"> & { label: Pair; help: Pair | (() => string); up?: Pair; down?: Pair }): Criterion<T> {
+  const { label, help, up, down, ...rest } = c;
+  return { ...rest, get label() { return tr(...label); }, get help() { return typeof help === "function" ? help() : tr(...help); },
+    get up() { return up && tr(...up); }, get down() { return down && tr(...down); } } as Criterion<T>;
+}
+
 /** Within 5% (or 3 rank places) counts as on par. */
 export function tone(anchor: number | null, other: number | null, better: Better, kind: "rank" | "ratio" = "ratio"): Tone {
   if (!better || anchor === null || other === null) return null;
@@ -40,7 +50,7 @@ export const TONE_CLASS: Record<Exclude<Tone, null>, string> = {
   behind: "bg-[#fbecea] text-bad",
   par: "bg-sunken text-ink-2",
 };
-export const TONE_WORD: Record<Exclude<Tone, null>, string> = { ahead: "Innisfree ahead", behind: "Innisfree behind", par: "On par" };
+export const TONE_WORD: Record<Exclude<Tone, null>, string> = labels({ ahead: ["Innisfree ahead", "Innisfree 우위"], behind: ["Innisfree behind", "Innisfree 열세"], par: ["On par", "비슷함"] });
 
 export interface Standing { key: string; label: string; ahead: number; behind: number; of: number }
 

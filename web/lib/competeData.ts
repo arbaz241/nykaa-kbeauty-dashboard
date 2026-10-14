@@ -11,14 +11,16 @@ import { basketPrice, categoryPrice, withAnchor, type BasketPrice } from "./pric
 import type { AssortmentRow, CatalogRow, Movement, ProductDemand, ReviewMonth, ReviewPhrase, SearchRow, ShelfRow, Thumbnail } from "./types";
 import type { UspComparison, UspProduct } from "./usp";
 import { push } from "@/lib/group";
+import { dayMonth, labels, tr } from "./i18n";
+import { tx, txs } from "./dict";
 
 export const HERO_ORDER = ["toner", "face_moisturizer", "serum", "sunscreen", "face_wash", "masks", "eye_care", "lip_care"];
 /** The USP analysis files lip balms as "lip_balm"; on the shelf they are the Lip care category. */
 export const shelfCat = (c: string | null) => (c === "lip_balm" ? "lip_care" : c ?? "");
-export const ROLE_LABEL: Record<string, string> = {
-  anchor: "Innisfree", korean_rival_1: "K-beauty rival", korean_rival_2: "K-beauty rival", korean_rival_3: "K-beauty rival",
-  indian_leader: "Indian leader", global_rival: "Global rival", rival: "Rival",
-};
+export const ROLE_LABEL: Record<string, string> = labels({
+  anchor: ["Innisfree", "Innisfree"], korean_rival_1: ["K-beauty rival", "K-뷰티 경쟁 제품"], korean_rival_2: ["K-beauty rival", "K-뷰티 경쟁 제품"], korean_rival_3: ["K-beauty rival", "K-뷰티 경쟁 제품"],
+  indian_leader: ["Indian leader", "인도 선두 제품"], global_rival: ["Global rival", "글로벌 경쟁 제품"], rival: ["Rival", "경쟁 제품"],
+});
 
 /** Product title without the brand and without the trailing claim list. */
 export const shortTitle = (name: string, brand: string) => shortName(name, brand).split(/,| [-–|] | SPF | For /i)[0];
@@ -104,24 +106,25 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
     pid, brand: brandHint || sh?.brand || c?.brand || u?.brand || "", name, url: sh?.url ?? c?.url ?? u?.url ?? null,
     image: sh?.image_url ?? c?.best_image ?? s.thumbs.get(pid)?.image_url ?? null, role,
     price, mrp, discount: sh?.discount_pct ?? c?.discount_pct ?? (price && mrp && mrp > price ? ((mrp - price) / mrp) * 100 : null),
-    offer: (sh?.has_offer ? sh.offer_message ?? "Offer available" : null) ?? (c?.has_offer ? c.offer_message ?? "Offer available" : null),
+    offer: tx((sh?.has_offer ? sh.offer_message ?? tr("Offer available", "프로모션 있음") : null) ?? (c?.has_offer ? c.offer_message ?? tr("Offer available", "프로모션 있음") : null)),
     perHundred: ml && price ? (price / ml) * 100 : null, pack,
-    priceNote: !sh && !c && lp ? `last seen ${new Date(lp.scrape_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : null,
+    priceNote: !sh && !c && lp ? tr(`last seen ${dayMonth(lp.scrape_date)}`, `${dayMonth(lp.scrape_date)} 마지막 확인`) : null,
     rank: onCat?.rank ?? null, paid: !!(onCat?.is_ad || onCat?.is_pinned), rank7: mv?.rank_7d ?? null, rank14: mv?.rank_14d ?? null, gain7: mv?.gain_7d ?? null,
     rating: sh?.rating ?? c?.rating ?? null, ratings: sh?.rating_count ?? c?.rating_count ?? null,
     reviewsTotal: sh?.detail_review_count ?? c?.detail_review_count ?? null, split: sh?.review_splitup ?? c?.review_splitup ?? null,
     recent: s.pooled?.get(pid)?.recent ?? d?.recent ?? null,
     momentum: s.pooled?.has(pid) ? (s.pooled.get(pid)!.complete && s.pooled.get(pid)!.prior > 0 ? s.pooled.get(pid)!.recent / s.pooled.get(pid)!.prior - 1 : null) : d?.momentum ?? null, spark: productSpark(s.months.get(pid) ?? [], s.win), search: s.search.get(pid) ?? 0,
-    whatItIs: sh?.usp_summary ?? c?.usp_summary ?? null, claims: sh?.usp_points ?? c?.usp_points ?? [], concerns: sh?.concerns ?? c?.concerns ?? [],
-    ingredients: sh?.key_ingredients ?? c?.key_ingredients ?? [], skinTypes: sh?.skin_types ?? c?.skin_types ?? [],
-    formulation: sh?.formulation ?? c?.formulation ?? null, madeIn: sh?.country_name ?? c?.country_name ?? null, since: sh?.first_review_date ?? null,
+    // Nykaa's own page wording, shown in Korean when the site is (lib/dict); the logic below reads the English source
+    whatItIs: tx(sh?.usp_summary ?? c?.usp_summary ?? null), claims: txs(sh?.usp_points ?? c?.usp_points), concerns: txs(sh?.concerns ?? c?.concerns),
+    ingredients: txs(sh?.key_ingredients ?? c?.key_ingredients), skinTypes: txs(sh?.skin_types ?? c?.skin_types),
+    formulation: tx(sh?.formulation ?? c?.formulation ?? null), madeIn: tx(sh?.country_name ?? c?.country_name ?? null), since: sh?.first_review_date ?? null,
     phrases: sh?.review_key_phrases ?? c?.review_key_phrases ?? [],
     usp: u, thumb: s.thumbs.get(pid), aspects: s.aspects?.get(pid), groupRead,
     ...unitPrice(sizing(pack, name, mrp ?? price, s.variants?.get(pid), s.stdMl), PER_SHEET.has(s.cat), pack, name, mrp ?? price),
     themes: s.reviews?.has(pid) ? reviewThemes(s.reviews.get(pid)!) : null,
     proof: proofLevel(u), echo: echoLevel(u, s.reviews?.get(pid)),
     whoFor: whoFor(u, sh?.skin_types ?? c?.skin_types ?? [], sh?.concerns ?? c?.concerns ?? []),
-    promise: u ? clause(u.analysis.main_usp.brand_words || u.analysis.main_usp.statement, 12) : null,
+    promise: u ? clause(tx(u.analysis.main_usp.brand_words || u.analysis.main_usp.statement), 12) : null,
   };
 }
 
@@ -130,9 +133,9 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
 function unitPrice<T extends { mrpPer100: number | null; sizeUsed: { ml: number; how: string } | null; per100Why: string | null }>(sz: T, perSheet: boolean, pack: string | null, name: string, mrp: number | null) {
   if (perSheet) {
     const c = sheetCount(pack, name);
-    return { ...sz, unit: mrp ? mrp / c.n : null, unitNote: `${c.n} sheet${c.n === 1 ? "" : "s"}${c.est ? " (estimated from pack weight)" : ""}`, per100Why: mrp ? null : "MRP not shown" };
+    return { ...sz, unit: mrp ? mrp / c.n : null, unitNote: tr(`${c.n} sheet${c.n === 1 ? "" : "s"}${c.est ? " (estimated from pack weight)" : ""}`, `${c.n}매${c.est ? " (용량으로 추정)" : ""}`), per100Why: mrp ? null : tr("MRP not shown", "정가 표시 없음") };
   }
-  return { ...sz, unit: sz.mrpPer100, unitNote: sz.sizeUsed ? `at ${sz.sizeUsed.ml} ml/g${sz.sizeUsed.how === "matched" ? " (closest size)" : ""}` : null };
+  return { ...sz, unit: sz.mrpPer100, unitNote: sz.sizeUsed ? tr(`at ${sz.sizeUsed.ml} ml/g${sz.sizeUsed.how === "matched" ? " (closest size)" : ""}`, `${sz.sizeUsed.ml} ml/g 기준${sz.sizeUsed.how === "matched" ? " (가장 가까운 용량)" : ""}`) : null };
 }
 
 const MINI = 15;
@@ -158,7 +161,7 @@ function sizing(pack: string | null, name: string, listedMrp: number | null, var
     if (ml && mrp) sizeUsed = { ml, mrp, how: "listed" };
   }
   const pieces = packPieces(pack) ?? packPieces(name);
-  const per100Why = sizeUsed ? null : pieces ? null : !listedMrp ? "MRP not shown" : "Pack size not listed on Nykaa";
+  const per100Why = sizeUsed ? null : pieces ? null : !listedMrp ? tr("MRP not shown", "정가 표시 없음") : tr("Pack size not listed on Nykaa", "Nykaa에 용량 표시 없음");
   return {
     sizes: sizes.length ? sizes : pack ? [{ pack, ml: packMl(pack), mrp: listedMrp, price: null }] : [],
     sizeUsed, mrpPer100: sizeUsed ? (sizeUsed.mrp / sizeUsed.ml) * 100 : null,
@@ -168,29 +171,32 @@ function sizing(pack: string | null, name: string, listedMrp: number | null, var
 
 /* ---------------------------------------------------------------- levels (one scale: strong / moderate / weak) */
 
+/** The AI read's proof types (scraper/usp.py), in words. */
+const proofType = (k: string) => tr(k.replaceAll("_", " "), ({ ingredient_logic_only: "성분 논리만", consumer_perception_study: "소비자 체감 조사", instrumental_test: "기기 측정", before_after: "사용 전후 비교", clinical_number: "임상 수치", dermatologist_endorsement: "피부과 전문의 추천", time_to_result: "효과 발현 시간" } as Record<string, string>)[k] ?? k.replaceAll("_", " "));
+
 const sentences = (t: string) => t.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
 
 function proofLevel(u: UspProduct | undefined): { level: Lvl | null; reasons: string[] } {
   if (!u) return { level: null, reasons: [] };
   const a = u.analysis;
-  const types = new Map<string, number>(); a.key_benefits.forEach((b) => b.proof_type !== "none" && types.set(b.proof_type.replaceAll("_", " "), (types.get(b.proof_type.replaceAll("_", " ")) ?? 0) + 1));
+  const types = new Map<string, number>(); a.key_benefits.forEach((b) => b.proof_type !== "none" && types.set(proofType(b.proof_type), (types.get(proofType(b.proof_type)) ?? 0) + 1));
   const unproven = a.key_benefits.filter((b) => b.proof_type === "none").length;
   return {
     level: a.proof_strength.rating,
     reasons: [
-      ...sentences(a.proof_strength.reason).slice(0, 2),
-      types.size ? `Proof offered: ${[...types.entries()].map(([k, n]) => `${k} (${n})`).join(", ")}` : "No proof offered for any benefit",
-      ...(unproven ? [`${unproven} of ${a.key_benefits.length} claimed benefits have no proof at all`] : []),
+      ...sentences(tx(a.proof_strength.reason)).slice(0, 2),
+      types.size ? tr(`Proof offered: ${[...types.entries()].map(([k, n]) => `${k} (${n})`).join(", ")}`, `제시한 근거: ${[...types.entries()].map(([k, n]) => `${k} (${n})`).join(", ")}`) : tr("No proof offered for any benefit", "어떤 효능에도 근거를 제시하지 않음"),
+      ...(unproven ? [tr(`${unproven} of ${a.key_benefits.length} claimed benefits have no proof at all`, `주장한 효능 ${a.key_benefits.length}개 중 ${unproven}개는 근거가 전혀 없음`)] : []),
     ].slice(0, 4),
   };
 }
 
 /** Share of the product's checked claims that buyers repeat: ≥60% strong, 30–59% moderate, <30% weak (owner-approved). */
 function echoLevel(u: UspProduct | undefined, reviews: ReviewLite[] | undefined): { level: Lvl | null; reasons: string[]; none: string } {
-  if (!u) return { level: null, reasons: [], none: "Not analysed" };
+  if (!u) return { level: null, reasons: [], none: tr("Not analysed", "분석 안 됨") };
   const rc = u.analysis.review_check;
   const judged = rc.benefit_verdicts.filter((b) => b.verdict !== "insufficient_reviews");
-  if (rc.reviews_considered < 30 || !judged.length) return { level: null, reasons: [], none: `Too few reviews (${rc.reviews_considered} read)` };
+  if (rc.reviews_considered < 30 || !judged.length) return { level: null, reasons: [], none: tr(`Too few reviews (${rc.reviews_considered} read)`, `리뷰 부족 (${rc.reviews_considered}건 확인)`) };
   const echoed = judged.filter((b) => b.verdict === "echoed"); const contra = judged.filter((b) => b.verdict === "contradicted");
   const share = echoed.length / judged.length;
   const top = [...u.analysis.key_benefits].sort((x, y) => y.emphasis - x.emphasis)[0];
@@ -198,14 +204,14 @@ function echoLevel(u: UspProduct | undefined, reviews: ReviewLite[] | undefined)
   let mention: string | null = null;
   if (th && reviews?.length) {
     const t = reviewThemes(reviews).praise.find((x) => x.key === th.key);
-    mention = `${Math.round((t?.share ?? 0) * 100)}% of ${reviews.length} stored reviews mention its lead benefit ("${clause(top.benefit, 6)}")`;
+    mention = tr(`${Math.round((t?.share ?? 0) * 100)}% of ${reviews.length} stored reviews mention its lead benefit ("${clause(top.benefit, 6)}")`, `저장된 리뷰 ${reviews.length}건 중 ${Math.round((t?.share ?? 0) * 100)}%가 대표 효능("${clause(tx(top.benefit), 6)}")을 언급`);
   }
   return {
     level: share >= 0.6 ? "strong" : share >= 0.3 ? "moderate" : "weak", none: "",
     reasons: [
-      `Buyers repeat ${echoed.length} of ${judged.length} claims checked (${Math.round(share * 100)}%)`,
-      ...(contra.length ? [`Contradicted: ${contra.map((b) => clause(b.benefit, 6)).join("; ")}`] : []),
-      ...(judged.length > echoed.length + contra.length ? [`Rarely mentioned: ${judged.filter((b) => b.verdict === "rarely_mentioned").map((b) => clause(b.benefit, 6)).join("; ")}`] : []),
+      tr(`Buyers repeat ${echoed.length} of ${judged.length} claims checked (${Math.round(share * 100)}%)`, `확인한 소구점 ${judged.length}개 중 ${echoed.length}개를 구매자도 언급 (${Math.round(share * 100)}%)`),
+      ...(contra.length ? [`${tr("Contradicted", "반대 반응")}: ${contra.map((b) => clause(tx(b.benefit), 6)).join("; ")}`] : []),
+      ...(judged.length > echoed.length + contra.length ? [`${tr("Rarely mentioned", "거의 언급 안 됨")}: ${judged.filter((b) => b.verdict === "rarely_mentioned").map((b) => clause(tx(b.benefit), 6)).join("; ")}`] : []),
       ...(mention ? [mention] : []),
     ].slice(0, 4),
   };
@@ -220,10 +226,10 @@ function whoFor(u: UspProduct | undefined, skin: string[], concerns: string[]) {
   const attr = (d: string) => u?.analysis.target_consumer.attributes.filter((t) => t.dimension === d).map((t) => t.value) ?? [];
   const aiSkin = attr("skin_type").flatMap(splitList).filter((x) => /skin|dry|oily|normal|combination|sensitive|all|acne/i.test(x));
   return {
-    skin: dedupe([...skin, ...(skin.length ? [] : aiSkin)].map(cap)).slice(0, 4),
-    concerns: dedupe([...concerns, ...attr("concern").flatMap(splitList)].map(cap)).slice(0, 6),
-    age: attr("age_or_life_stage")[0] ? clause(attr("age_or_life_stage")[0], 6) : null,
-    use: attr("routine_role")[0] ? clause(attr("routine_role")[0], 7) : null,
+    skin: txs(dedupe([...skin, ...(skin.length ? [] : aiSkin)].map(cap)).slice(0, 4)),
+    concerns: txs(dedupe([...concerns, ...attr("concern").flatMap(splitList)].map(cap)).slice(0, 6)),
+    age: attr("age_or_life_stage")[0] ? clause(tx(attr("age_or_life_stage")[0]), 6) : null,
+    use: attr("routine_role")[0] ? clause(tx(attr("routine_role")[0]), 7) : null,
   };
 }
 

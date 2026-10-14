@@ -6,13 +6,16 @@ import { supabase } from "@/lib/supabase";
 import { clearCached } from "@/lib/persist";
 import { DefinitionsButton } from "./Tiered";
 import { useIsAdmin, useSession } from "./AuthGate";
+import LangToggle from "./LangToggle";
+import { dayMonth, tr } from "@/lib/i18n";
 
-const NAV = [
-  { label: "Analysis", href: "/analysis/" },
-  { label: "Competitive Analysis", href: "/compare/" },
-  { label: "Demand", href: "/demand/" },
-  { label: "Market", href: "/market/" },
-  { label: "Top by category", href: "/categories/" },
+/** `label` is the page's id (pages pass it as `active`); `text` is what the reader sees. */
+const NAV = () => [
+  { label: "Analysis", text: tr("Analysis", "분석"), href: "/analysis/" },
+  { label: "Competitive Analysis", text: tr("Competitive Analysis", "경쟁 분석"), href: "/compare/" },
+  { label: "Demand", text: tr("Demand", "수요"), href: "/demand/" },
+  { label: "Market", text: tr("Market", "시장"), href: "/market/" },
+  { label: "Top by category", text: tr("Top by category", "카테고리별 순위"), href: "/categories/" },
 ];
 
 /** The "N" tile (same mark as app/icon.svg). */
@@ -43,13 +46,13 @@ function UserMenu() {
   const email = session?.user.email ?? "";
   return (
     <div ref={ref} className="relative">
-      <button type="button" aria-label="Account menu" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}
+      <button type="button" aria-label={tr("Account menu", "계정 메뉴")} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}
         className="press grid h-9 w-9 place-items-center rounded-full bg-sunken text-[13px] font-semibold uppercase text-ink-2 ring-1 ring-line hover:bg-line">{email[0] ?? "·"}</button>
       {open && (
         <div role="menu" className="rise absolute right-0 top-full z-40 mt-2 w-64 rounded-2xl bg-surface p-1.5 shadow-pop ring-1 ring-line">
           <div className="truncate px-3.5 py-2.5 text-[13px] text-muted">{email}</div>
           <button role="menuitem" type="button" onClick={async () => { await clearCached(); await supabase().auth.signOut(); window.location.replace("/login/"); }}
-            className="block w-full rounded-xl px-3.5 py-2.5 text-left text-[14px] text-ink-2 hover:bg-sunken hover:text-ink">Sign out</button>
+            className="block w-full rounded-xl px-3.5 py-2.5 text-left text-[14px] text-ink-2 hover:bg-sunken hover:text-ink">{tr("Sign out", "로그아웃")}</button>
         </div>
       )}
     </div>
@@ -59,39 +62,40 @@ function UserMenu() {
 export default function Shell({ active, asOf: rawAsOf, children }: { active: string; asOf?: string; children: React.ReactNode }) {
   const isAdmin = useIsAdmin();
   // pages pass either a formatted date or an ISO day; show ISO days as "12 Oct"
-  const asOf = rawAsOf && /^\d{4}-\d{2}-\d{2}$/.test(rawAsOf) ? new Date(`${rawAsOf}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : rawAsOf;
+  const asOf = rawAsOf && /^\d{4}-\d{2}-\d{2}$/.test(rawAsOf) ? dayMonth(rawAsOf) : rawAsOf;
   const [menu, setMenu] = useState(false);
-  const nav = isAdmin ? [...NAV, { label: "Admin", href: "/admin/" }] : NAV;
+  const nav = isAdmin ? [...NAV(), { label: "Admin", text: tr("Admin", "관리"), href: "/admin/" }] : NAV();
   return (
     <div className="flex min-h-screen flex-col">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-brand focus:px-4 focus:py-2 focus:text-on-brand">Skip to content</a>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-brand focus:px-4 focus:py-2 focus:text-on-brand">{tr("Skip to content", "본문으로 건너뛰기")}</a>
       <header className="sticky top-0 z-30 border-b border-line bg-page/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-5 px-6">
-          <Link href="/analysis/" className="flex items-center gap-2.5" aria-label="Nykaa Market Intelligence, home">
+          <Link href="/analysis/" className="flex items-center gap-2.5" aria-label={tr("Nykaa Market Intelligence, home", "Nykaa Market Intelligence 홈")}>
             <LogoMark />
             <span className="hidden whitespace-nowrap font-display text-[15px] font-semibold tracking-tight sm:inline">Nykaa Market Intelligence</span>
           </Link>
-          <nav aria-label="Primary" className="ml-2 hidden items-center gap-1 lg:flex">
+          <nav aria-label={tr("Primary", "주 메뉴")} className="ml-2 hidden items-center gap-1 lg:flex">
             {nav.map((n) => (
               <Link key={n.label} href={n.href} aria-current={n.label === active ? "page" : undefined}
                 className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[13.5px] transition ${n.label === active ? "bg-brand font-medium text-on-brand" : "text-ink-2 hover:bg-sunken hover:text-ink"}`}>
-                {n.label}
+                {n.text}
               </Link>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            {asOf && <span className="hidden items-center gap-2 whitespace-nowrap rounded-full bg-accent-soft px-3 py-1.5 text-[12.5px] font-medium text-accent-strong sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-accent-strong" />Data as of {asOf}</span>}
+            {asOf && <span className="hidden items-center gap-2 whitespace-nowrap rounded-full bg-accent-soft px-3 py-1.5 text-[12.5px] font-medium text-accent-strong sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-accent-strong" />{tr(`Data as of ${asOf}`, `${asOf} 기준 데이터`)}</span>}
             <DefinitionsButton className="hidden whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-medium text-ink-2 ring-1 ring-line hover:bg-sunken hover:text-ink md:block" />
+            <LangToggle />
             <UserMenu />
-            <button type="button" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(!menu)} className="press grid h-9 w-9 place-items-center rounded-full ring-1 ring-line lg:hidden">
+            <button type="button" aria-label={tr("Menu", "메뉴")} aria-expanded={menu} onClick={() => setMenu(!menu)} className="press grid h-9 w-9 place-items-center rounded-full ring-1 ring-line lg:hidden">
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d={menu ? "M3 3l10 10M13 3L3 13" : "M2 4h12M2 8h12M2 12h12"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
             </button>
           </div>
         </div>
         {menu && (
-          <nav aria-label="Primary mobile" className="rise border-t border-line bg-page px-6 pb-4 pt-2 lg:hidden">
-            {nav.map((n) => <Link key={n.label} href={n.href} onClick={() => setMenu(false)} className={`block py-2.5 text-[16px] ${n.label === active ? "font-semibold text-brand" : "text-ink-2"}`}>{n.label}</Link>)}
-            {asOf && <div className="mt-2 text-[13px] text-muted">Data as of {asOf}</div>}
+          <nav aria-label={tr("Primary mobile", "주 메뉴 (모바일)")} className="rise border-t border-line bg-page px-6 pb-4 pt-2 lg:hidden">
+            {nav.map((n) => <Link key={n.label} href={n.href} onClick={() => setMenu(false)} className={`block py-2.5 text-[16px] ${n.label === active ? "font-semibold text-brand" : "text-ink-2"}`}>{n.text}</Link>)}
+            {asOf && <div className="mt-2 text-[13px] text-muted">{tr(`Data as of ${asOf}`, `${asOf} 기준 데이터`)}</div>}
           </nav>
         )}
       </header>
@@ -100,9 +104,10 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
         <div className="mx-auto flex max-w-[1320px] flex-wrap items-start justify-between gap-x-12 gap-y-4 px-6 py-8 text-[12.5px] leading-relaxed text-muted">
           <div className="max-w-[560px]">
             <div className="mb-2 flex items-center gap-2.5 text-ink"><LogoMark size={22} /><span className="font-display text-[14px] font-semibold">Nykaa Market Intelligence</span></div>
-            Built from public Nykaa India listings, reviews and search results, collected every night. Rankings are Nykaa&apos;s own order; shares and demand are derived from them.
+            {tr("Built from public Nykaa India listings, reviews and search results, collected every night. Rankings are Nykaa's own order; shares and demand are derived from them.",
+              "Nykaa 인도의 공개 상품 목록·리뷰·검색 결과를 매일 밤 수집해 만듭니다. 순위는 Nykaa가 정한 순서이며, 점유율과 수요는 이를 바탕으로 계산합니다.")}
           </div>
-          <div className="sm:text-right">{asOf ? <>Data as of <span className="font-medium text-ink-2">{asOf}</span></> : "Refreshed nightly"}<br />Prices in ₹ · ratings out of 5<br /><DefinitionsButton className="font-medium text-accent-strong underline-offset-2 hover:underline" /></div>
+          <div className="sm:text-right">{asOf ? tr(<>Data as of <span className="font-medium text-ink-2">{asOf}</span></>, <><span className="font-medium text-ink-2">{asOf}</span> 기준 데이터</>) : tr("Refreshed nightly", "매일 밤 갱신")}<br />{tr("Prices in ₹ · ratings out of 5", "가격 단위 ₹ · 평점 5점 만점")}<br /><DefinitionsButton className="font-medium text-accent-strong underline-offset-2 hover:underline" /></div>
         </div>
       </footer>
     </div>

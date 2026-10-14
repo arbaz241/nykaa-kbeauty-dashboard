@@ -22,6 +22,7 @@ import { kBeautyBenchmark } from "@/lib/price";
 import type { ReviewMonth } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
 import { push } from "@/lib/group";
+import { dayMonthYear, tr } from "@/lib/i18n";
 
 /** Competitive Analysis: the old USP and Compare tabs as one report (docs/restructure-v2-plan.md), layered in round 2
  *  (docs/competitive-round2-plan.md): Product view answers first, then price, message, buyers, visibility, demand;
@@ -30,18 +31,18 @@ import { push } from "@/lib/group";
 const ORDER = [...HERO_ORDER, ...CATEGORIES.filter((c) => !HERO_ORDER.includes(c))];
 const readUrl = () => (typeof window === "undefined" ? {} : Object.fromEntries(new URLSearchParams(window.location.search).entries())) as Record<string, string>;
 
-const PRODUCT_NAV: NavItem[] = [
-  { id: "summary", label: "Verdict" },
-  { id: "price", label: "Price" },
-  { id: "message", label: "Message" },
-  { id: "buyers", label: "What buyers say" },
-  { id: "visibility", label: "Visibility" },
-  { id: "demand", label: "Demand" },
+const PRODUCT_NAV = (): NavItem[] => [
+  { id: "summary", label: tr("Verdict", "결론") },
+  { id: "price", label: tr("Price", "가격") },
+  { id: "message", label: tr("Message", "메시지") },
+  { id: "buyers", label: tr("What buyers say", "구매자 반응") },
+  { id: "visibility", label: tr("Visibility", "노출") },
+  { id: "demand", label: tr("Demand", "수요") },
 ];
-const BRAND_NAV: NavItem[] = [
-  { id: "brands", label: "Brand scorecard" },
-  { id: "compete", label: "Where they compete" },
-  { id: "price", label: "Price basket" },
+const BRAND_NAV = (): NavItem[] => [
+  { id: "brands", label: tr("Brand scorecard", "브랜드 스코어카드") },
+  { id: "compete", label: tr("Where they compete", "경쟁 지점") },
+  { id: "price", label: tr("Price basket", "가격 바스켓") },
 ];
 type View = "product" | "brand";
 
@@ -123,12 +124,13 @@ function CompetitivePage() {
   const sells = (c: string) => brands.some((b) => productOptions(b, c, rows, cat0).length);
 
   return (
-    <Shell active="Competitive Analysis" asOf={asOf ? new Date(asOf).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : undefined}>
-      <PageHead eyebrow="Innisfree vs its rivals" title="Competitive Analysis" sub={<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail.</>} />
-      {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">Could not load data: {String(err.message ?? err)}</div>}
-      {loading && !err ? <Loading what="the comparison" /> : !err && (
+    <Shell active="Competitive Analysis" asOf={asOf ? dayMonthYear(asOf) : undefined}>
+      <PageHead eyebrow={tr("Innisfree vs its rivals", "Innisfree vs 경쟁사")} title={tr("Competitive Analysis", "경쟁 분석")} sub={tr(<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail.</>, <>한 카테고리 안에서 Innisfree와 직접 경쟁 제품을 비교합니다. 결론을 먼저, 근거를 뒤에 두었으며 › 표시를 누르면 상세가 나옵니다.</>)} />
+      {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">{tr("Could not load data", "데이터를 불러오지 못했습니다")}: {String(err.message ?? err)}</div>}
+      {loading && !err ? <Loading what={tr("the comparison", "비교 데이터")} /> : !err && (
         <>
-          {hero && productIds.some((p) => !tiers.inSet(p.brand)) && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">This hero&rsquo;s rivals were picked for the AI comparison before the focus set existed: {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")} {productIds.filter((p) => !tiers.inSet(p.brand)).length === 1 ? "is" : "are"} outside your focus brands. The comparison stays as analysed; the brand view below uses the focus set when you change brands.</p>}
+          {hero && productIds.some((p) => !tiers.inSet(p.brand)) && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">{tr(<>This hero&rsquo;s rivals were picked for the AI comparison before the focus set existed: {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")} {productIds.filter((p) => !tiers.inSet(p.brand)).length === 1 ? "is" : "are"} outside your focus brands. The comparison stays as analysed; the brand view below uses the focus set when you change brands.</>,
+            <>이 히어로의 경쟁 제품은 주요 브랜드 목록이 생기기 전에 AI 비교용으로 골랐습니다. {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")}는 주요 브랜드 밖입니다. 비교 결과는 분석된 그대로 두며, 아래 브랜드 보기에서 브랜드를 바꾸면 주요 브랜드 기준으로 보여 줍니다.</>)}</p>}
           <Card className="mt-5 px-4 py-3.5">
             <div className="flex flex-wrap gap-1.5">
               {ORDER.filter((c) => HERO_ORDER.includes(c) || sells(c)).map((c) => {
@@ -136,30 +138,30 @@ function CompetitivePage() {
                 return (
                   <button key={c} onClick={() => { setCat(c); setHeroPick(null); setBrandOverride(null); }}
                     className={`rounded-full px-3 py-1.5 text-[13px] transition ${cat === c ? "bg-brand font-medium text-on-brand" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>
-                    {CATEGORY_LABEL[c]}{n > 0 && <span className={`ml-1.5 text-[11px] ${cat === c ? "text-on-brand-muted" : "text-muted"}`}>{n} hero{n > 1 ? "es" : ""}</span>}
+                    {CATEGORY_LABEL[c]}{n > 0 && <span className={`ml-1.5 text-[11px] ${cat === c ? "text-on-brand-muted" : "text-muted"}`}>{tr(`${n} hero${n > 1 ? "es" : ""}`, `히어로 ${n}`)}</span>}
                   </button>
                 );
               })}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-line pt-3">
-              <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">Innisfree hero</span>
+              <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("Innisfree hero", "Innisfree 히어로")}</span>
               {heroes.length ? heroes.map((g) => (
                 <button key={g.anchor_product_id} onClick={() => { setHeroPick(g.anchor_product_id); setBrandOverride(null); }}
                   className={`rounded-full px-3 py-1 text-[12.5px] ring-1 transition ${g === hero ? "bg-brand text-on-brand ring-brand" : "bg-surface text-ink-2 ring-line hover:text-ink"}`}>
                   {shortTitle(g.anchor_name, "Innisfree")}
                 </button>
-              )) : <span className="text-[12.5px] text-muted">No Innisfree hero analysed in {CATEGORY_LABEL[cat]}: each brand&rsquo;s best-ranked product is compared instead, without the USP sections.</span>}
+              )) : <span className="text-[12.5px] text-muted">{tr(<>No Innisfree hero analysed in {CATEGORY_LABEL[cat]}: each brand&rsquo;s best-ranked product is compared instead, without the USP sections.</>, <>{CATEGORY_LABEL[cat]}에는 분석된 Innisfree 히어로가 없어, 브랜드별 최고 순위 제품을 소구점 섹션 없이 비교합니다.</>)}</span>}
             </div>
           </Card>
 
           <div className="mt-4">
             <Segmented value={view} onChange={(v) => { setView(v); window.scrollTo({ top: 0 }); }} options={[
-              { value: "product", label: "Product view", hint: hero ? `${shortTitle(hero.anchor_name, "Innisfree")} vs its rivals` : `Best product per brand in ${CATEGORY_LABEL[cat]}` },
-              { value: "brand", label: "Brand view", hint: "Innisfree vs the brands behind them" },
+              { value: "product", label: tr("Product view", "제품 보기"), hint: hero ? tr(`${shortTitle(hero.anchor_name, "Innisfree")} vs its rivals`, `${shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품`) : tr(`Best product per brand in ${CATEGORY_LABEL[cat]}`, `${CATEGORY_LABEL[cat]} 브랜드별 최고 제품`) },
+              { value: "brand", label: tr("Brand view", "브랜드 보기"), hint: tr("Innisfree vs the brands behind them", "Innisfree vs 경쟁 브랜드") },
             ]} />
           </div>
           {view === "product" ? (<>
-            <SectionNav key="p" items={PRODUCT_NAV} />
+            <SectionNav key="p" items={PRODUCT_NAV()} />
             <Summary hero={hero} products={products} bench={bench} cat={cat} />
             <PriceSection products={products} colors={colors} bench={bench} std={stdMl} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
             <Message hero={hero} products={products} colors={colors} />
@@ -167,7 +169,7 @@ function CompetitivePage() {
             <Visibility products={products} colors={colors} cat={cat} />
             <Demand products={products} colors={colors} />
           </>) : (<>
-            <SectionNav key="b" items={BRAND_NAV} />
+            <SectionNav key="b" items={BRAND_NAV()} />
             <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isHeroSet={!brandOverride} focusSet={[tiers.pinned, ...tiers.focus]} inSet={tiers.inSet}
               onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
             <WhereCompete facts={bfacts} anchor={anchor} rows={rows} catalog={cat0} uspBy={uspBy} comps={uspC.data ?? []} colors={colors} brands={brands}

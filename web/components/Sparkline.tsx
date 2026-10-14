@@ -1,6 +1,8 @@
+import { tr } from "@/lib/i18n";
+
 export default function Sparkline({ values, color, width = 120, height = 32 }: { values: (number | null)[]; color: string; width?: number; height?: number }) {
   const pts = values.map((v, i) => ({ v, i })).filter((p): p is { v: number; i: number } => p.v !== null);
-  if (pts.length < 2) return <span className="text-[11.5px] text-muted">not enough history</span>;
+  if (pts.length < 2) return <span className="text-[11.5px] text-muted">{tr("not enough history", "이력 부족")}</span>;
   const lo = Math.min(...pts.map((p) => p.v)); const hi = Math.max(...pts.map((p) => p.v)); const rng = hi - lo || 1;
   const x = (i: number) => 3 + (i * (width - 6)) / (values.length - 1);
   const y = (v: number) => height - 4 - ((v - lo) / rng) * (height - 8);

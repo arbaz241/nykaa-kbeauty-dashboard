@@ -1,3 +1,5 @@
+import { labels } from "./i18n";
+
 /** Owner's Korean brand set (widened 2026-09-27). Innisfree is the anchor. Keep in sync with scraper/config.py KBEAUTY_CORE. */
 export const FOCUS_BRANDS = ["Innisfree", "Laneige", "Etude", "Beauty of Joseon", "SKIN1004", "TIRTIR", "Anua",
   "The Face Shop", "Sulwhasoo", "Mamonde", "COSRX", "Klairs", "Dr.Althea", "Celimax", "d'Alba Piedmont",
@@ -17,7 +19,7 @@ export const ORIGIN_COLOR: Record<string, { fill: string; text: string; soft: st
   unknown: { fill: "#dde1df", text: "#3d4a43", soft: "#f2f4f3", ink: "#5f6b64" },
 };
 
-export const ORIGIN_LABEL: Record<string, string> = { kbeauty: "K-beauty", local: "Indian", global: "Global", unknown: "Unclassified" };
+export const ORIGIN_LABEL: Record<string, string> = labels({ kbeauty: ["K-beauty", "K-뷰티"], local: ["Indian", "인도"], global: ["Global", "글로벌"], unknown: ["Unclassified", "미분류"] });
 
 export const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
@@ -33,7 +35,7 @@ export const WATCH_BRANDS = ["Aestura", "Arencia", "Mixsoon", "La'dor", "Rom&nd"
   "mise en scene", "Parnell", "Mirabelle Korea", "Moira"];
 
 export type Tier = "anchor" | "kbeauty" | "watch" | "rival";
-export const TIER_LABEL: Record<Tier, string> = { anchor: "Anchor", kbeauty: "Focus K-beauty", watch: "K-beauty watch", rival: "Rival" };
+export const TIER_LABEL: Record<Tier, string> = labels({ anchor: ["Anchor", "기준 브랜드"], kbeauty: ["Focus K-beauty", "주요 K-뷰티"], watch: ["K-beauty watch", "K-뷰티 관찰"], rival: ["Rival", "경쟁사"] });
 
 export interface MarketSet {
   anchor: string;

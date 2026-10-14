@@ -1,9 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, Fragment, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { loadLang, tr, useLang } from "@/lib/i18n";
+import { useDictionary } from "@/lib/dict";
 import { DetailProvider } from "./Detail";
 import { ProductDrawerProvider } from "./ProductDrawer";
 
@@ -27,6 +29,9 @@ let known: Session | null | undefined;
 /** Renders children only for a signed-in user; otherwise sends them to /login/. */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(known);
+  const lang = useLang();
+  const dictReady = useDictionary();
+  useEffect(loadLang, []);
   useEffect(() => {
     supabase().auth.getSession().then(({ data }) => setSession((known = data.session)));
     const { data: sub } = supabase().auth.onAuthStateChange((_e, s) => setSession((known = s)));
@@ -40,7 +45,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (uid) supabase().from("app_visits").insert({ path: window.location.pathname }).then(() => {}, () => {});
   }, [uid]); // each page mounts its own gate, so tab changes inside the app still log one visit per page
-  if (!session) return <div className="grid min-h-screen place-items-center text-sm text-muted">Loading…</div>;
+  if (!session || !dictReady) return <div className="grid min-h-screen place-items-center text-sm text-muted">{tr("Loading…", "불러오는 중…")}</div>;
   // The drawer provider wraps whole pages, so any component on a page (not only inside Shell) can open a product.
-  return <SessionCtx.Provider value={session}><ProductDrawerProvider><DetailProvider>{children}</DetailProvider></ProductDrawerProvider></SessionCtx.Provider>;
+  // Keyed on the language: switching re-mounts the page, so text built once (memoised findings, labels) is rebuilt in
+  // the new language. Data stays in SWR's cache, so nothing is fetched again.
+  return <SessionCtx.Provider value={session}><Fragment key={lang}><ProductDrawerProvider><DetailProvider>{children}</DetailProvider></ProductDrawerProvider></Fragment></SessionCtx.Provider>;
 }

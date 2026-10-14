@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { fetchAll } from "./supabase";
+import { labels, tr } from "./i18n";
 
 /** scraper/usp.py stage A: what one product sells itself on, read from its gallery, page and reviews. */
 export type Verdict = "echoed" | "rarely_mentioned" | "contradicted" | "insufficient_reviews";
@@ -54,13 +55,14 @@ export function useUspComparisons() {
   return useSWR("usp_comparisons", () => fetchAll<UspComparison>("web_usp_comparisons"), opts);
 }
 
-export const ROLE_LABEL: Record<string, string> = {
-  anchor: "Innisfree", korean_rival_1: "K-beauty rival", korean_rival_2: "K-beauty rival", korean_rival_3: "K-beauty rival",
-  indian_leader: "Indian leader", global_rival: "Global rival",
-};
+export const ROLE_LABEL: Record<string, string> = labels({
+  anchor: ["Innisfree", "Innisfree"], korean_rival_1: ["K-beauty rival", "K-뷰티 경쟁 제품"], korean_rival_2: ["K-beauty rival", "K-뷰티 경쟁 제품"], korean_rival_3: ["K-beauty rival", "K-뷰티 경쟁 제품"],
+  indian_leader: ["Indian leader", "인도 선두 제품"], global_rival: ["Global rival", "글로벌 경쟁 제품"],
+});
+const verdict = (en: string, ko: string, tone: string) => ({ get label() { return tr(en, ko); }, tone });
 export const VERDICT: Record<Verdict, { label: string; tone: string }> = {
-  echoed: { label: "Buyers echo it", tone: "text-good" },
-  rarely_mentioned: { label: "Buyers rarely mention it", tone: "text-muted" },
-  contradicted: { label: "Buyers contradict it", tone: "text-bad" },
-  insufficient_reviews: { label: "Too few reviews to judge", tone: "text-muted" },
+  echoed: verdict("Buyers echo it", "구매자도 같은 말을 함", "text-good"),
+  rarely_mentioned: verdict("Buyers rarely mention it", "구매자가 거의 언급하지 않음", "text-muted"),
+  contradicted: verdict("Buyers contradict it", "구매자 반응이 반대", "text-bad"),
+  insufficient_reviews: verdict("Too few reviews to judge", "판단하기엔 리뷰가 적음", "text-muted"),
 };

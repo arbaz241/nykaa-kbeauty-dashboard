@@ -1,5 +1,6 @@
 import { PER_SHEET, packMl, sheetCount } from "./format";
 import type { CatalogRow, ShelfRow } from "./types";
+import { tr } from "./i18n";
 
 /** Brand price benchmark: like-for-like, on a fixed basket of core skincare categories, on MRP (the list price;
  *  selling prices move with each sale, so they are shown second). Medians, not averages: a few premium products
@@ -7,7 +8,7 @@ import type { CatalogRow, ShelfRow } from "./types";
  *  The old "typical price" was the median of whatever happened to rank in the top 100 that day, so a
  *  brand ranking with a sheet mask and a lip balm looked cheap (Innisfree ₹720 vs ₹1,403 across its range). */
 export const PRICE_BASKET = ["toner", "serum", "face_moisturizer", "face_wash", "sunscreen"] as const;
-export const BASKET_LABEL = "Toner, Serum, Moisturiser, Face wash, Sunscreen; full sizes only";
+export const basketLabel = () => tr("Toner, Serum, Moisturiser, Face wash, Sunscreen; full sizes only", "토너, 세럼, 보습 크림, 클렌징 폼, 선크림 · 정규 용량만");
 
 /** Below this a pack is a mini/travel/trial size, not the size a shopper compares on. */
 const MINI_ML = 15;

@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import { TONE_CLASS, tone, type Criterion } from "@/lib/compete";
 import { Missing } from "./Detail";
+import { tr } from "@/lib/i18n";
 
 export interface GridCol { key: string; head: React.ReactNode; anchor?: boolean }
 export interface ExtraRow<T> { label: React.ReactNode; help?: string; render: (x: T) => React.ReactNode; has?: (x: T) => boolean;
@@ -29,7 +30,7 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
       <div className="px-4 py-2.5 text-[12.5px] text-ink-2" title={r.help}>{r.label}</div>
       {items.map((x, i) => (
         <div key={i} className={`border-l border-line px-3 py-2.5 ${i === ai ? "bg-page/70" : ""}`}>
-          {!x ? <Missing>Not available</Missing> : r.has && !r.has(x) ? <Missing>{r.missing?.(x) ?? "No data collected"}</Missing> : r.render(x)}
+          {!x ? <Missing>{tr("Not available", "자료 없음")}</Missing> : r.has && !r.has(x) ? <Missing>{r.missing?.(x) ?? tr("No data collected", "수집된 데이터 없음")}</Missing> : r.render(x)}
         </div>
       ))}
     </div>
@@ -60,7 +61,7 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
               <div className="grid items-center border-b border-line last:border-0" style={grid}>
                 <div className="px-4 py-2.5 text-[12.5px] text-ink-2" title={cr.help}>{cr.label}</div>
                 {items.map((x, i) => {
-                  if (!x) return <div key={i} className="border-l border-line px-3 py-2.5"><Missing>Not available</Missing></div>;
+                  if (!x) return <div key={i} className="border-l border-line px-3 py-2.5"><Missing>{tr("Not available", "자료 없음")}</Missing></div>;
                   const v = cr.value(x);
                   const t = i === ai ? null : tone(a, v, cr.better, kind);
                   const sub = cr.sub?.(x);
@@ -69,7 +70,7 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
                   return (
                     <div key={i} className={`border-l border-line px-3 py-2 ${i === ai ? "bg-page/70" : ""}`}>
                       <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[13px] font-semibold tabular ${t ? TONE_CLASS[t] : ""}`}>{cr.cell ? cr.cell(x) : cr.show(x)}</span>
-                      {best !== null && v === best && <span className="ml-1.5 rounded-full bg-accent px-1.5 py-px align-middle text-[9.5px] font-semibold uppercase tracking-wide text-ink">lead</span>}
+                      {best !== null && v === best && <span className="ml-1.5 rounded-full bg-accent px-1.5 py-px align-middle text-[9.5px] font-semibold uppercase tracking-wide text-ink">{tr("lead", "선두")}</span>}
                       {sub && <div className="mt-0.5 text-[11px] leading-tight text-muted">{sub}</div>}
                       {cr.bar && v !== null && max > 0 && <div className="mt-1.5 h-1 w-full max-w-[150px] rounded-full bg-sunken"><div className="h-1 rounded-full" style={{ width: `${Math.max(2, (Math.abs(v) / max) * 100)}%`, background: colors?.[i] ?? "#8a8880" }} /></div>}
                     </div>
@@ -87,7 +88,7 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
 }
 
 function Key({ cls, t }: { cls: string; t: string }) {
-  const word = t === "ahead" ? "Innisfree ahead" : t === "behind" ? "behind" : "on par";
+  const word = t === "ahead" ? tr("Innisfree ahead", "Innisfree 우위") : t === "behind" ? tr("behind", "열세") : tr("on par", "비슷함");
   return <span className={`rounded px-1.5 py-px text-[10.5px] font-medium ${cls}`}>{word}</span>;
 }
 

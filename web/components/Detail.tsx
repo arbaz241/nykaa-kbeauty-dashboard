@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { labels, tr } from "@/lib/i18n";
 
 /** Layered detail (docs/competitive-round2-plan.md): the first view is short and visual; everything behind it opens
  *  in one place, a panel from the right (a bottom sheet on phones). One pattern for the whole dashboard:
@@ -29,7 +30,7 @@ export function DetailProvider({ children }: { children: React.ReactNode }) {
                 {d.kicker && <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{d.kicker}</div>}
                 <div className="mt-0.5 text-[15px] font-semibold leading-snug">{d.title}</div>
               </div>
-              <button onClick={() => setD(null)} className="shrink-0 rounded-lg px-2.5 py-1 text-[13px] text-ink-2 ring-1 ring-line hover:bg-surface">Close · Esc</button>
+              <button onClick={() => setD(null)} className="shrink-0 rounded-lg px-2.5 py-1 text-[13px] text-ink-2 ring-1 ring-line hover:bg-surface">{tr("Close · Esc", "닫기 · Esc")}</button>
             </div>
             <div className="px-6 py-5 text-[13px] leading-relaxed">{d.body}</div>
           </aside>
@@ -52,7 +53,7 @@ export function Opens({ detail, children, className = "" }: { detail: DetailCont
 /* ---------------------------------------------------------------- levels: one scale everywhere */
 
 export type Lvl = "strong" | "moderate" | "weak";
-export const LEVEL_WORD: Record<Lvl, string> = { strong: "Strong", moderate: "Moderate", weak: "Weak" };
+export const LEVEL_WORD: Record<Lvl, string> = labels({ strong: ["Strong", "강함"], moderate: ["Moderate", "보통"], weak: ["Weak", "약함"] });
 const LEVEL_FILL: Record<Lvl, number> = { strong: 3, moderate: 2, weak: 1 };
 const LEVEL_COLOR: Record<Lvl, string> = { strong: "bg-good", moderate: "bg-[#d99a1e]", weak: "bg-bad" };
 export const LEVEL_SCORE: Record<Lvl, number> = { strong: 3, moderate: 2, weak: 1 };
@@ -67,7 +68,7 @@ export function Dots({ level }: { level: Lvl }) {
 
 /** A level with its reasons one click away (2–4 short bullets). */
 export function Level({ level, reasons, title, kicker, none }: { level: Lvl | null; reasons: string[]; title: string; kicker?: string; none?: string }) {
-  if (!level) return <Missing>{none ?? "Not rated"}</Missing>;
+  if (!level) return <Missing>{none ?? tr("Not rated", "평가 없음")}</Missing>;
   return (
     <Opens detail={{ kicker, title: <span className="inline-flex items-center gap-2">{title}: <Dots level={level} /> {LEVEL_WORD[level]}</span>, body: <Points items={reasons} /> }}>
       <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium"><Dots level={level} />{LEVEL_WORD[level]}</span>

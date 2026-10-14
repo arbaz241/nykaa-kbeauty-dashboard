@@ -1,6 +1,7 @@
 import { mean, median, packMl } from "./format";
 import type { AssortmentRow, ReviewAspect, ReviewMonth, SearchRow, ShelfRow } from "./types";
 import { push } from "@/lib/group";
+import { tr } from "./i18n";
 
 export interface BrandScore {
   brand: string; origin: string; kMarketing: boolean;
@@ -116,13 +117,13 @@ export function demandLines(months: ReviewMonth[], by: "brand" | "product"): Dem
 }
 
 export function momentumWord(g: number | null, volume: number | null): string {
-  if (g === null || volume === null) return "not enough history";
-  if (volume < 30) return "low volume";
-  if (g > 0.15) return "rising fast";
-  if (g > 0.05) return "rising";
-  if (g < -0.15) return "falling fast";
-  if (g < -0.05) return "falling";
-  return "steady";
+  if (g === null || volume === null) return tr("not enough history", "이력 부족");
+  if (volume < 30) return tr("low volume", "물량 적음");
+  if (g > 0.15) return tr("rising fast", "빠르게 상승");
+  if (g > 0.05) return tr("rising", "상승");
+  if (g < -0.15) return tr("falling fast", "빠르게 하락");
+  if (g < -0.05) return tr("falling", "하락");
+  return tr("steady", "보합");
 }
 
 /** Nykaa asks reviewers to tag what stood out ("Moisturizing Effect", "Gentle Formula") with a sentiment.

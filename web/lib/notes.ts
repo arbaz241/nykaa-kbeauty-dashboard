@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { norm } from "./brands";
 import { supabase } from "./supabase";
 import type { Marker } from "@/components/LineChart";
+import { josa, labels, tr } from "./i18n";
 
 /** The data-quality log (Supabase `data_notes`, Admin › Data notes): every coverage change, sale, launch and
  *  known artifact, with its cause and status. Charts draw their markers from it so a jump never goes unexplained. */
@@ -16,9 +17,9 @@ export interface DataNote {
 export const NOTE_COLOR: Record<DataNote["kind"], string> = {
   coverage: "#7a6ff0", sale: "#d99a1e", launch: "#1b7f4b", artifact: "#b8382e", method: "#5f6b64",
 };
-export const NOTE_WORD: Record<DataNote["kind"], string> = {
-  coverage: "Coverage change", sale: "Sale period", launch: "Launch", artifact: "Data artifact", method: "Method note",
-};
+export const NOTE_WORD: Record<DataNote["kind"], string> = labels({
+  coverage: ["Coverage change", "수집 범위 변경"], sale: ["Sale period", "세일 기간"], launch: ["Launch", "출시"], artifact: ["Data artifact", "데이터 왜곡"], method: ["Method note", "방법 메모"],
+});
 
 export function useDataNotes() {
   return useSWR("data_notes", async () => {
@@ -44,7 +45,7 @@ export function noteMarkers(notes: DataNote[] | undefined, axis: string[], scope
     if (n.brand && !shown.has(norm(n.brand))) continue;
     const from = idx(n.starts_on); if (from < 0 || key(n.starts_on) > key(axis[axis.length - 1])) continue;
     const to = n.ends_on ? Math.max(from, idx(n.ends_on) === -1 ? axis.length - 1 : idx(n.ends_on)) : undefined;
-    out.push({ from, to: to !== undefined && to > from ? to : undefined, label: `${NOTE_WORD[n.kind]}${n.status === "probable" && !/unconfirmed/i.test(n.title) ? " (unconfirmed)" : ""}: ${n.title}`, color: NOTE_COLOR[n.kind] });
+    out.push({ from, to: to !== undefined && to > from ? to : undefined, label: `${NOTE_WORD[n.kind]}${n.status === "probable" && !/unconfirmed/i.test(n.title) ? tr(" (unconfirmed)", " (미확인)") : ""}: ${n.title}`, color: NOTE_COLOR[n.kind] });
   }
   return out;
 }
@@ -60,7 +61,8 @@ export function unusual(series: { name: string; values: (number | null)[] }[], a
       const med = [...prev].sort((a, b) => a - b)[Math.floor(prev.length / 2)];
       if (med <= 0 || v / med < minJump) return;
       const why = markers.find((m) => i >= m.from && i <= (m.to ?? m.from));
-      out.push({ from: i, label: `Unusual jump: ${s.name} ${(v / med).toFixed(1)}× its recent normal${why ? ` · overlaps ${why.label.split(":")[0].toLowerCase()}` : " · cause unknown, possibly data"}`, color: "#b8382e" });
+      out.push({ from: i, label: tr(`Unusual jump: ${s.name} ${(v / med).toFixed(1)}× its recent normal${why ? ` · overlaps ${why.label.split(":")[0].toLowerCase()}` : " · cause unknown, possibly data"}`,
+        `이례적 급등: ${s.name}, 최근 평소의 ${(v / med).toFixed(1)}배${why ? ` · ${josa(why.label.split(":")[0], "과/와")} 겹침` : " · 원인 불명, 데이터 문제일 수 있음"}`), color: "#b8382e" });
     });
   }
   return out;

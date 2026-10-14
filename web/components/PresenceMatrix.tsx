@@ -3,6 +3,7 @@
 import { norm } from "@/lib/brands";
 import { CATEGORIES, CATEGORY_LABEL, compact, inr } from "@/lib/format";
 import type { CatalogRow, ShelfRow } from "@/lib/types";
+import { tr } from "@/lib/i18n";
 
 /** Categories × brands. A dash used to mean three different things; each cell now says which:
  *  in the top 100 (how many, best rank, typical price), sold but outside the top 100 (how many, its biggest
@@ -19,10 +20,17 @@ export default function PresenceMatrix({ shelf, catalog, brands, colors, anchor,
   return (
     <div className="overflow-x-auto rounded-2xl bg-surface shadow-card ring-1 ring-line">
       <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-line px-5 py-2.5 text-[11.5px] text-muted">
+        {tr(<>
         <span><b className="text-ink">3</b> best #12 = listings in the category&apos;s top 100 today</span>
         <span><span className="text-[#8a6100]">Sells 8, none in top 100</span> = in its range, not ranking</span>
         <span><i>Not sold</i> = the brand sells nothing here on Nykaa</span>
         <span><i>Crawl pending</i> = not in today&rsquo;s top 100, and the brand&rsquo;s full range is collected from 12 Oct</span>
+        </>, <>
+        <span><b className="text-ink">3</b> 최고 #12 = 오늘 카테고리 상위 100위 안의 제품 수</span>
+        <span><span className="text-[#8a6100]">8개 판매, 상위 100위 없음</span> = 라인업에는 있지만 순위권 밖</span>
+        <span><i>미판매</i> = 이 카테고리에서 Nykaa 판매 제품 없음</span>
+        <span><i>수집 대기</i> = 오늘 상위 100위에 없고, 브랜드 전체 라인업은 10월 12일부터 수집</span>
+        </>)}
       </div>
       <div className="min-w-[760px]">
         {categories.map((c) => {
@@ -32,8 +40,8 @@ export default function PresenceMatrix({ shelf, catalog, brands, colors, anchor,
           return (
             <button key={c} onClick={() => onPick(c)} className="grid w-full items-stretch border-b border-line text-left last:border-0 hover:bg-page/60" style={{ gridTemplateColumns: cols }}>
               <div className="px-5 py-3">
-                <div className="flex items-center justify-between text-[13.5px] font-medium">{CATEGORY_LABEL[c]}<span className="text-[11.5px] font-normal text-muted">compare →</span></div>
-                {gap && <span className="mt-1 inline-block rounded bg-[#fdeee6] px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#b4501f]">{anchor} gap</span>}
+                <div className="flex items-center justify-between text-[13.5px] font-medium">{CATEGORY_LABEL[c]}<span className="text-[11.5px] font-normal text-muted">{tr("compare →", "비교 →")}</span></div>
+                {gap && <span className="mt-1 inline-block rounded bg-[#fdeee6] px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#b4501f]">{tr(`${anchor} gap`, `${anchor} 공백`)}</span>}
               </div>
               {brands.map((b) => {
                 const g = shelf.filter((r) => r.subcategory === c && r.brand === b);
@@ -42,19 +50,19 @@ export default function PresenceMatrix({ shelf, catalog, brands, colors, anchor,
                   const best = Math.min(...g.map((r) => r.rank)); const prices = g.map((r) => r.price ?? 0).sort((x, y) => x - y);
                   return (
                     <div key={b} className="px-5 py-2.5">
-                      <div className="flex items-baseline gap-2 text-[13.5px] tabular"><b>{g.length}</b><span className="text-[12px] text-muted">best #{best} · {inr(prices[Math.floor(prices.length / 2)])}</span></div>
+                      <div className="flex items-baseline gap-2 text-[13.5px] tabular"><b>{g.length}</b><span className="text-[12px] text-muted">{tr("best", "최고")} #{best} · {inr(prices[Math.floor(prices.length / 2)])}</span></div>
                       <div className="mt-1.5 h-1 rounded-full bg-sunken"><div className="h-1 rounded-full" style={{ width: `${(g.length / maxN) * 100}%`, background: colors[b] }} /></div>
-                      {rg.length > g.length && <div className="mt-1 text-[11px] text-muted">of {rg.length} it sells here</div>}
+                      {rg.length > g.length && <div className="mt-1 text-[11px] text-muted">{tr(`of ${rg.length} it sells here`, `판매 제품 ${rg.length}개 중`)}</div>}
                     </div>
                   );
                 }
-                if (!withCatalog.has(b)) return <div key={b} className="px-5 py-3 text-[11.5px] italic text-muted">Crawl pending</div>;
-                if (!rg.length) return <div key={b} className="px-5 py-3 text-[11.5px] italic text-muted">Not sold</div>;
+                if (!withCatalog.has(b)) return <div key={b} className="px-5 py-3 text-[11.5px] italic text-muted">{tr("Crawl pending", "수집 대기")}</div>;
+                if (!rg.length) return <div key={b} className="px-5 py-3 text-[11.5px] italic text-muted">{tr("Not sold", "미판매")}</div>;
                 const top = [...rg].sort((x, y) => (y.rating_count ?? 0) - (x.rating_count ?? 0))[0];
                 return (
                   <div key={b} className="px-5 py-2.5">
-                    <div className="text-[12.5px] text-[#8a6100]">Sells {rg.length}, none in top 100</div>
-                    <div className="mt-0.5 text-[11px] text-muted">top seller {compact(top.rating_count)} ratings · {inr(top.price)}</div>
+                    <div className="text-[12.5px] text-[#8a6100]">{tr(`Sells ${rg.length}, none in top 100`, `${rg.length}개 판매, 상위 100위 없음`)}</div>
+                    <div className="mt-0.5 text-[11px] text-muted">{tr(`top seller ${compact(top.rating_count)} ratings`, `최다 판매 제품 평가 ${compact(top.rating_count)}건`)} · {inr(top.price)}</div>
                   </div>
                 );
               })}

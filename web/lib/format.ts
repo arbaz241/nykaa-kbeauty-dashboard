@@ -1,3 +1,5 @@
+import { labels } from "./i18n";
+
 export const inr = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `₹${Math.round(v).toLocaleString("en-IN")}`);
 export const pct = (v: number | null | undefined, d = 0) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `${(v * 100).toFixed(d)}%`);
 export const num = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : Math.round(v).toLocaleString("en-IN"));
@@ -10,11 +12,11 @@ export const compact = (v: number | null | undefined) => {
 };
 export const signed = (v: number | null | undefined, d = 0) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(d)}%`);
 
-export const CATEGORY_LABEL: Record<string, string> = {
-  face_moisturizer: "Moisturiser", serum: "Serum & essence", sunscreen: "Sunscreen", face_wash: "Face wash",
-  toner: "Toner & mist", sheet_mask: "Sheet mask", cleansing_balm: "Cleansing balm", eye_care: "Eye care",
-  masks: "Masks & peels", lip_tint: "Lip tint", lip_care: "Lip care", lipstick: "Lipstick", foundation: "Foundation",
-};
+export const CATEGORY_LABEL: Record<string, string> = labels({
+  face_moisturizer: ["Moisturiser", "보습 크림"], serum: ["Serum & essence", "세럼·에센스"], sunscreen: ["Sunscreen", "선크림"], face_wash: ["Face wash", "클렌징 폼"],
+  toner: ["Toner & mist", "토너·미스트"], sheet_mask: ["Sheet mask", "시트 마스크"], cleansing_balm: ["Cleansing balm", "클렌징 밤"], eye_care: ["Eye care", "아이 케어"],
+  masks: ["Masks & peels", "마스크·필링"], lip_tint: ["Lip tint", "립 틴트"], lip_care: ["Lip care", "립 케어"], lipstick: ["Lipstick", "립스틱"], foundation: ["Foundation", "파운데이션"],
+});
 export const CATEGORIES = Object.keys(CATEGORY_LABEL);
 /** The Nykaa listing each shelf is read from (scraper/config.py CATEGORIES). */
 export const CATEGORY_URL: Record<string, string> = {

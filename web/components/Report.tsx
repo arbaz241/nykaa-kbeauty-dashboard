@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { tr } from "@/lib/i18n";
 
 /** Report-style page building blocks (docs/restructure-v2-plan.md): answer first, action-title sections,
  *  a sticky in-page menu, and lists that show the first few items with "show all" for the rest. */
@@ -20,7 +21,7 @@ export function SectionNav({ items }: { items: NavItem[] }) {
     return () => io.disconnect();
   }, [items]);
   return (
-    <nav aria-label="On this page" className="sticky top-16 z-20 -mx-6 mt-6 border-b border-line bg-page/90 px-6 backdrop-blur-md">
+    <nav aria-label={tr("On this page", "이 페이지 목차")} className="sticky top-16 z-20 -mx-6 mt-6 border-b border-line bg-page/90 px-6 backdrop-blur-md">
       <div className="flex gap-1 overflow-x-auto">
         {items.map((i) => (
           <a key={i.id} href={`#${i.id}`} aria-current={active === i.id ? "true" : undefined}
@@ -60,14 +61,14 @@ export function Finding({ label, children, tone, href }: { label: string; childr
       <span className={`absolute left-0 top-0 h-full w-1 ${bar}`} />
       <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{label}</div>
       <div className="mt-1.5 text-[14px] leading-snug">{children}</div>
-      {href && <div className="mt-2 text-[12px] font-medium text-accent-strong">See section ↓</div>}
+      {href && <div className="mt-2 text-[12px] font-medium text-accent-strong">{tr("See section ↓", "해당 섹션 보기 ↓")}</div>}
     </div>
   );
   return href ? <a href={href} className="block">{body}</a> : body;
 }
 
 /** First `n` items, then a "show all" toggle. */
-export function ShowAll<T>({ items, n = 3, render, empty, more = "more" }: { items: T[]; n?: number; render: (x: T, i: number) => React.ReactNode; empty?: React.ReactNode; more?: string }) {
+export function ShowAll<T>({ items, n = 3, render, empty, more }: { items: T[]; n?: number; render: (x: T, i: number) => React.ReactNode; empty?: React.ReactNode; more?: string }) {
   const [all, setAll] = useState(false);
   if (!items.length) return <>{empty ?? null}</>;
   const shown = all ? items : items.slice(0, n);
@@ -76,7 +77,7 @@ export function ShowAll<T>({ items, n = 3, render, empty, more = "more" }: { ite
       {shown.map(render)}
       {items.length > n && (
         <button onClick={() => setAll(!all)} className="mt-1 text-[12px] font-medium text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">
-          {all ? "Show fewer" : `Show ${items.length - n} ${more}`}
+          {all ? tr("Show fewer", "접기") : tr(`Show ${items.length - n} ${more ?? "more"}`, more ? `${more} ${items.length - n}개 더 보기` : `${items.length - n}개 더 보기`)}
         </button>
       )}
     </>
@@ -90,7 +91,7 @@ export function Bar({ v, max, color = "var(--color-brand)" }: { v: number | null
 }
 
 export function Lead() {
-  return <span className="ml-1.5 rounded-full bg-accent px-1.5 py-px align-middle text-[9.5px] font-semibold uppercase tracking-wide text-ink">lead</span>;
+  return <span className="ml-1.5 rounded-full bg-accent px-1.5 py-px align-middle text-[9.5px] font-semibold uppercase tracking-wide text-ink">{tr("lead", "선두")}</span>;
 }
 
 /** Long explanation: first sentence, the rest one click away in place (never cut mid-word). */
@@ -101,7 +102,7 @@ export function More({ text, className = "" }: { text: string; className?: strin
   return (
     <span className={className}>
       {open ? text : first}{" "}
-      <button onClick={() => setOpen(!open)} className="whitespace-nowrap text-[11px] font-medium text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">{open ? "less" : "more"}</button>
+      <button onClick={() => setOpen(!open)} className="whitespace-nowrap text-[11px] font-medium text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">{open ? tr("less", "접기") : tr("more", "더 보기")}</button>
     </span>
   );
 }
