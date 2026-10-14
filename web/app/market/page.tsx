@@ -21,6 +21,7 @@ import { CATEGORIES, CATEGORY_LABEL, compact, inr, median, shortName } from "@/l
 import { useBrandSelection } from "@/lib/selection";
 import type { ShelfRow } from "@/lib/types";
 import { push } from "@/lib/group";
+import { onePerRatingPool } from "@/lib/pools";
 import { dayMonth, josa, labels, tr } from "@/lib/i18n";
 import { tx } from "@/lib/dict";
 
@@ -162,9 +163,9 @@ function MarketPage() {
     const k = kstore.data ?? []; const m = new Map<string, ShelfRow[]>(); k.forEach((r) => push(m, r.brand, r));
     return [...m.entries()].map(([b, rs]) => {
       const sorted = [...rs].sort((x, y) => x.rank - y.rank);
-      const rated = rs.filter((r) => r.rating_count);
+      const rated = onePerRatingPool(sorted).filter((r) => r.rating_count); // sizes sharing one set of Nykaa ratings count once
       return { b, rows: sorted, n: rs.length, top20: rs.filter((r) => r.rank <= 20).length, best: sorted[0].rank, med: median(rs.map((r) => r.rank)) ?? 0,
-        paid: rs.filter((r) => r.is_ad).length, ratingsSum: rs.reduce((a, r) => a + (r.rating_count ?? 0), 0),
+        paid: rs.filter((r) => r.is_ad).length, ratingsSum: rated.reduce((a, r) => a + (r.rating_count ?? 0), 0),
         avg: rated.length ? rated.reduce((a, r) => a + (r.rating ?? 0) * (r.rating_count ?? 0), 0) / rated.reduce((a, r) => a + (r.rating_count ?? 0), 0) : null };
     }).sort((a, b) => b.n - a.n || a.best - b.best);
   }, [kstore.data]);
@@ -340,8 +341,8 @@ function MarketPage() {
           )}
 
           <ActionSection id="store" kicker={tr("Nykaa's Korean Beauty store", "Nykaa K-뷰티 스토어")} title={storeLeaders[0] ? tr(`${storeLeaders[0].b} holds the most places in the Korean store (${storeLeaders[0].n} of 100); ${anchorInStore ? `${set.anchor} holds ${anchorInStore.n}, best #${anchorInStore.best}` : `${set.anchor} holds none`}.`, `K-뷰티 스토어에서 가장 많은 자리를 차지한 곳은 ${storeLeaders[0].b}(100자리 중 ${storeLeaders[0].n})입니다. ${anchorInStore ? `${set.anchor}: ${anchorInStore.n}자리, 최고 #${anchorInStore.best}` : `${set.anchor}: 없음`}.`) : tr("The Korean store was not collected today.", "오늘은 K-뷰티 스토어를 수집하지 못했습니다.")}
-            note={tr(<>The store&rsquo;s first 100 products in the Nykaa app&rsquo;s order, all product types mixed; brands ordered by places held. Click a brand for its products. <Opens detail={{ kicker: "Method", title: "What the Korean store table shows", body: <Points items={["Nykaa runs a dedicated Korean Beauty store (category 30710) mixing serums, sunscreens, masks and makeup.", "We read its first 100 products every morning in the order the Nykaa app shows them (its default popularity sort; the website can order them differently).", "Brands are ordered by how many of those 100 places they hold, then by best position.", "A place can be bought: the paid column counts sponsored slots, often why a brand sits above one with more ratings."]} /> }}>Method</Opens> <a href={STORE_URL} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">Open the store ↗</a></>,
-              <>Nykaa 앱 순서 기준 스토어 첫 100개 제품(모든 제품 유형 혼합). 브랜드는 차지한 자리 수 순이며, 브랜드를 누르면 제품이 나옵니다. <Opens detail={{ kicker: "방법", title: "K-뷰티 스토어 표의 의미", body: <Points items={["Nykaa는 세럼, 선크림, 마스크, 메이크업을 함께 파는 K-뷰티 전용 스토어(카테고리 30710)를 운영합니다.", "매일 아침 Nykaa 앱이 보여 주는 순서(기본 인기순, 웹사이트 순서와 다를 수 있음)대로 첫 100개 제품을 수집합니다.", "브랜드는 100자리 중 차지한 수, 다음으로 최고 순위 순입니다.", "자리는 돈으로 살 수 있습니다: 광고 열은 광고 자리를 세며, 평가가 적은 브랜드가 더 위에 있는 이유인 경우가 많습니다."]} /> }}>방법</Opens> <a href={STORE_URL} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">스토어 열기 ↗</a></>)}>
+            note={tr(<>The store&rsquo;s first 100 products in the Nykaa app&rsquo;s order, all product types mixed; brands ordered by places held. Click a brand for its products. <Opens detail={{ kicker: "Method", title: "What the Korean store table shows", body: <Points items={["Nykaa runs a dedicated Korean Beauty store (category 30710) mixing serums, sunscreens, masks and makeup.", "We read its first 100 products every morning in the order the Nykaa app shows them (its default popularity sort; the website can order them differently).", "Brands are ordered by how many of those 100 places they hold, then by best position.", "A place can be bought: the paid column counts sponsored slots, often why a brand sits above one with more ratings.", "Ratings: Nykaa shows one set of ratings for all sizes of a product (e.g. a mask and its Mini), so a brand's total counts each set once."]} /> }}>Method</Opens> <a href={STORE_URL} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">Open the store ↗</a></>,
+              <>Nykaa 앱 순서 기준 스토어 첫 100개 제품(모든 제품 유형 혼합). 브랜드는 차지한 자리 수 순이며, 브랜드를 누르면 제품이 나옵니다. <Opens detail={{ kicker: "방법", title: "K-뷰티 스토어 표의 의미", body: <Points items={["Nykaa는 세럼, 선크림, 마스크, 메이크업을 함께 파는 K-뷰티 전용 스토어(카테고리 30710)를 운영합니다.", "매일 아침 Nykaa 앱이 보여 주는 순서(기본 인기순, 웹사이트 순서와 다를 수 있음)대로 첫 100개 제품을 수집합니다.", "브랜드는 100자리 중 차지한 수, 다음으로 최고 순위 순입니다.", "자리는 돈으로 살 수 있습니다: 광고 열은 광고 자리를 세며, 평가가 적은 브랜드가 더 위에 있는 이유인 경우가 많습니다.", "평가 수: Nykaa는 한 제품의 모든 용량(예: 마스크와 미니)에 같은 평가를 보여 주므로, 브랜드 합계에서는 한 번만 셉니다."]} /> }}>방법</Opens> <a href={STORE_URL} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">스토어 열기 ↗</a></>)}>
             <Card className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-[13px]">
                 <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">

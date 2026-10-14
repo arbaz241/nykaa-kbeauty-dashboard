@@ -1,7 +1,7 @@
 "use client";
 
 import CompareGrid, { Chip, type ExtraRow, type GridCol } from "@/components/CompareGrid";
-import { DetailHead, Missing, Opens, Points, type DetailContent } from "@/components/Detail";
+import { DetailHead, Level, Missing, Opens, Points, type DetailContent } from "@/components/Detail";
 import { ActionSection } from "@/components/Report";
 import Sparkline from "@/components/Sparkline";
 import { shortTitle, type ProductFacts } from "@/lib/competeData";
@@ -92,6 +92,8 @@ export function Buyers({ products, colors, loading }: { products: ProductFacts[]
             {!!p.themes?.tagged && <><DetailHead>{tr(`Reviewer tags (${p.themes.tagged} tagged reviews)`, `리뷰어 태그 (태그 단 리뷰 ${p.themes.tagged}건)`)}</DetailHead><Points items={p.themes.tags.map((t) => `${tx(t.label)}: ${pc(t.share)}${t.negative ? tr(` (${t.negative} negative)`, ` (부정 ${t.negative})`) : ""}`)} /></>}
           </> }}><span className="text-[11.5px] text-ink-2">{tr(`${p.phrases.length} Nykaa phrases`, `Nykaa 문구 ${p.phrases.length}개`)}</span></Opens>}
         </div>) },
+    { key: "echo", label: tr("Buyers repeat it", "구매자 공감"), help: tr("Share of the product's claims that its reviewers say back: 60%+ strong, 30–59% moderate, under 30% weak", "리뷰어가 따라 말하는 소구점 비율: 60% 이상 강함, 30–59% 보통, 30% 미만 약함"), has: (p) => !!p.usp, missing: (p) => (p.role === "rival" ? tr("Not in an analysed group", "분석 그룹에 없음") : tr("Not analysed", "분석 안 됨")),
+      render: (p) => <Level level={p.echo.level} reasons={p.echo.reasons} none={p.echo.none} title={tr("Buyers repeat its claims", "구매자의 소구점 공감")} kicker={`${p.brand} · ${shortTitle(p.name, p.brand)}`} /> },
     { key: "ai", label: tr("Paid review analysis", "AI 리뷰 분석"), help: tr("The AI read of each claim against the reviews, with what buyers value unprompted and recurring complaints", "주장별로 리뷰와 대조한 AI 분석. 구매자가 스스로 꼽는 장점과 반복 불만 포함"),
       has: (p) => !!p.usp, missing: (p) => (p.role === "rival" ? tr("Not in an analysed group", "분석 그룹에 없음") : tr("Not analysed", "분석 안 됨")),
       render: (p) => { const r = p.usp!.analysis.review_check; return (

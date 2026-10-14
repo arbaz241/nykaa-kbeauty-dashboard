@@ -2,6 +2,7 @@ import { mean, median, packMl } from "./format";
 import type { AssortmentRow, ReviewAspect, ReviewMonth, SearchRow, ShelfRow } from "./types";
 import { push } from "@/lib/group";
 import { tr } from "./i18n";
+import { onePerRatingPool } from "./pools";
 
 export interface BrandScore {
   brand: string; origin: string; kMarketing: boolean;
@@ -27,6 +28,7 @@ export function brandScore(brand: string, shelf: ShelfRow[], months: ReviewMonth
   const g = shelf.filter((r) => r.brand === brand);
   const distinct = new Map(g.map((r) => [r.product_id, r]));
   const prices = g.map((r) => r.price).filter((x): x is number => x !== null);
+  const pooled = onePerRatingPool([...distinct.values()]); // sizes sharing one set of Nykaa ratings count once
 
   // demand: reviews per month, only months each product reliably covers; momentum needs the 6-month window covered
   const win = monthsWindow(12); const six = win[6];
@@ -59,7 +61,7 @@ export function brandScore(brand: string, shelf: ShelfRow[], months: ReviewMonth
     medianPrice: median(prices), minPrice: prices.length ? Math.min(...prices) : null, maxPrice: prices.length ? Math.max(...prices) : null,
     avgDiscount: mean(g.map((r) => r.discount_pct)), offerShare: g.length ? g.filter((r) => r.has_offer).length / g.length : null,
     paidShare: g.length ? g.filter((r) => r.is_ad || r.is_pinned).length / g.length : null,
-    rating: mean([...distinct.values()].map((r) => r.rating)), ratings: [...distinct.values()].reduce((a, r) => a + (r.rating_count ?? 0), 0),
+    rating: mean(pooled.map((r) => r.rating)), ratings: pooled.reduce((a, r) => a + (r.rating_count ?? 0), 0),
     last3, prev3, growth: last3 !== null && prev3 ? (last3 - prev3) / prev3 : null, spark, demandProducts: covered.size,
     searchTerms: terms, bestSearch: best, adSlots: ads,
     range, conversion: range ? distinct.size / range : null,

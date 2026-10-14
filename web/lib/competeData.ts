@@ -12,6 +12,7 @@ import type { AssortmentRow, CatalogRow, Movement, ProductDemand, ReviewMonth, R
 import type { UspComparison, UspProduct } from "./usp";
 import { push } from "@/lib/group";
 import { dayMonth, labels, tr } from "./i18n";
+import { ratingPool } from "./pools";
 import { tx, txs } from "./dict";
 
 export const HERO_ORDER = ["toner", "face_moisturizer", "serum", "sunscreen", "face_wash", "masks", "eye_care", "lip_care"];
@@ -30,6 +31,8 @@ export interface ProductFacts {
   price: number | null; mrp: number | null; discount: number | null; offer: string | null; perHundred: number | null; pack: string | null; priceNote: string | null;
   rank: number | null; paid: boolean; rank7: number | null; rank14: number | null; gain7: number | null;
   rating: number | null; ratings: number | null; reviewsTotal: number | null; split: Record<string, number> | null;
+  /** Other listings Nykaa shows the same set of ratings and reviews for (other sizes, or a whole range) (lib/pools). */
+  sharedWith: string[];
   recent: number | null; momentum: number | null; spark: (number | null)[] | null; search: number;
   whatItIs: string | null; claims: string[]; concerns: string[]; ingredients: string[]; skinTypes: string[];
   formulation: string | null; madeIn: string | null; since: string | null; phrases: ReviewPhrase[];
@@ -90,6 +93,15 @@ export interface Sources {
   pooled?: Map<string, { recent: number; prior: number; complete: boolean }>;
 }
 
+/** Names of the other tracked listings that carry this product's set of Nykaa ratings. */
+function sharedWith(pid: string, own: { product_id: string; brand: string; rating?: number | null; rating_count?: number | null } | undefined, s: Sources): string[] {
+  if (!own) return [];
+  const key = ratingPool(own); if (key === own.product_id) return [];
+  const out = new Map<string, string>();
+  for (const r of [...s.rows, ...s.catalog]) if (r.product_id !== pid && !out.has(r.product_id) && ratingPool(r) === key) out.set(r.product_id, r.name);
+  return [...out.values()];
+}
+
 export function productFacts(pid: string, brandHint: string, role: string, s: Sources): ProductFacts {
   const onCat = s.rows.filter((r) => r.product_id === pid && r.subcategory === s.cat).sort((a, b) => a.rank - b.rank)[0];
   const sh = onCat ?? s.rows.find((r) => r.product_id === pid);
@@ -111,6 +123,7 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
     priceNote: !sh && !c && lp ? tr(`last seen ${dayMonth(lp.scrape_date)}`, `${dayMonth(lp.scrape_date)} 마지막 확인`) : null,
     rank: onCat?.rank ?? null, paid: !!(onCat?.is_ad || onCat?.is_pinned), rank7: mv?.rank_7d ?? null, rank14: mv?.rank_14d ?? null, gain7: mv?.gain_7d ?? null,
     rating: sh?.rating ?? c?.rating ?? null, ratings: sh?.rating_count ?? c?.rating_count ?? null,
+    sharedWith: sharedWith(pid, sh ?? c, s),
     reviewsTotal: sh?.detail_review_count ?? c?.detail_review_count ?? null, split: sh?.review_splitup ?? c?.review_splitup ?? null,
     recent: s.pooled?.get(pid)?.recent ?? d?.recent ?? null,
     momentum: s.pooled?.has(pid) ? (s.pooled.get(pid)!.complete && s.pooled.get(pid)!.prior > 0 ? s.pooled.get(pid)!.recent / s.pooled.get(pid)!.prior - 1 : null) : d?.momentum ?? null, spark: productSpark(s.months.get(pid) ?? [], s.win), search: s.search.get(pid) ?? 0,

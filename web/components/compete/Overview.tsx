@@ -42,12 +42,17 @@ export const DEMAND_CRITERIA: Criterion<ProductFacts>[] = [
     sub: () => tr(`vs ${DW().prior}`, `${DW().prior} 대비`), missing: (p) => (p.momentum === null ? (p.recent === null ? tr("Not in review tracking", "리뷰 추적 대상 아님") : tr("Too new to compare", "비교하기엔 너무 새 제품")) : null),
     up: ["Reviews growing faster than", "리뷰가 더 빠르게 증가"], down: ["Reviews growing slower than", "리뷰 증가가 더 느림"] }),
   crit({ key: "ratings", label: ["Ratings, all time", "누적 평가 수"], help: ["Number of star ratings: lifetime popularity", "별점 평가 수: 누적 인기도"], better: "high", value: (p) => p.ratings, show: (p) => compact(p.ratings), bar: true,
-    sub: (p) => (p.reviewsTotal ? tr(`${compact(p.reviewsTotal)} written reviews`, `작성 리뷰 ${compact(p.reviewsTotal)}건`) : null), missing: (p) => (p.ratings === null ? tr("No ratings yet", "아직 평가 없음") : null),
+    sub: (p) => [p.reviewsTotal ? tr(`${compact(p.reviewsTotal)} written reviews`, `작성 리뷰 ${compact(p.reviewsTotal)}건`) : null, sharedNote(p)].filter(Boolean).join(" · ") || null, missing: (p) => (p.ratings === null ? tr("No ratings yet", "아직 평가 없음") : null),
     up: ["More lifetime ratings than", "누적 평가가 더 많음"], down: ["Fewer lifetime ratings than", "누적 평가가 더 적음"] }),
 ];
 
+/** Nykaa pools ratings across sizes and sometimes a whole range (lib/pools): say so, so the number is not read as this listing's alone. */
+const sharedNote = (p: ProductFacts) => (p.sharedWith.length
+  ? tr(`shared with ${p.sharedWith.length} other listing${p.sharedWith.length === 1 ? "" : "s"} on Nykaa`, `Nykaa에서 다른 제품 ${p.sharedWith.length}개와 공유`) : null);
+
 export const BUYER_CRITERIA: Criterion<ProductFacts>[] = [
   crit({ key: "rating", label: ["Star rating", "별점"], help: ["Nykaa star rating", "Nykaa 별점"], better: "high", value: (p) => p.rating, show: (p) => (p.rating ? `★ ${p.rating.toFixed(1)}` : ""),
+    sub: (p) => sharedNote(p),
     missing: (p) => (p.rating === null ? tr("No ratings yet", "아직 평가 없음") : null), up: ["Rated higher than", "평점이 더 높음"], down: ["Rated lower than", "평점이 더 낮음"] }),
 ];
 

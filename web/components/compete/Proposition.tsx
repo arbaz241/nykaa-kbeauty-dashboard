@@ -98,8 +98,6 @@ export function Message({ hero, products, colors }: { hero: UspComparison | null
       render: (p) => <div className="flex flex-wrap gap-1">{(p.usp?.analysis.hero_ingredients.length ? txs(p.usp.analysis.hero_ingredients.map((h) => h.ingredient)) : p.ingredients).slice(0, 4).map((x) => <Chip key={x} tone="plain">{clause(x, 4)}</Chip>)}</div> },
     { key: "proof", label: tr("Proof of claims", "소구점 근거"), help: tr("How well the listing proves what it claims (clinical numbers, tests, before/after); click for the reasons", "상품 페이지가 주장을 얼마나 잘 입증하는지 (임상 수치, 테스트, 사용 전후). 누르면 이유가 나옵니다"), has, missing: notAnalysed,
       render: (p) => <Level level={p.proof.level} reasons={p.proof.reasons} title={tr("Proof of claims", "소구점 근거")} kicker={`${p.brand} · ${shortTitle(p.name, p.brand)}`} /> },
-    { key: "echo", label: tr("Buyers repeat it", "구매자 공감"), help: tr("Share of the product's claims that its reviewers say back: 60%+ strong, 30–59% moderate, under 30% weak", "리뷰어가 따라 말하는 소구점 비율: 60% 이상 강함, 30–59% 보통, 30% 미만 약함"), has, missing: notAnalysed,
-      render: (p) => <Level level={p.echo.level} reasons={p.echo.reasons} none={p.echo.none} title={tr("Buyers repeat its claims", "구매자의 소구점 공감")} kicker={`${p.brand} · ${shortTitle(p.name, p.brand)}`} /> },
     { key: "who", label: tr("Who it's for", "타깃 소비자"), help: tr("Skin type and concerns from the Nykaa page and the listing read; click for age, routine and evidence", "Nykaa 페이지와 상품 분석의 피부 타입·고민. 누르면 연령, 루틴, 근거가 나옵니다"),
       has: (p) => p.whoFor.skin.length + p.whoFor.concerns.length > 0 || !!p.whoFor.age, missing: () => tr("No target stated on the page", "페이지에 타깃 표기 없음"),
       render: (p) => (
@@ -118,14 +116,13 @@ export function Message({ hero, products, colors }: { hero: UspComparison | null
         return <Opens detail={versusDetail(p, hero, products)}><span className="flex flex-wrap gap-1"><Chip tone="good">{tr("stronger", "강함")} {n.st}</Chip><Chip tone="bad">{tr("weaker", "약함")} {n.wk}</Chip><Chip>{tr("shared", "공통")} {n.ov}</Chip></span></Opens>;
       } }] : []),
   ];
-  const lvl = a?.echo.level;
-  const title = c ? tr(`${c.anchor_position.unique_to_anchor.length} claim${c.anchor_position.unique_to_anchor.length === 1 ? " is" : "s are"} Innisfree's alone and ${c.table_stakes.length} are made by every rival${lvl ? `; buyers' echo of its claims is ${lvl}` : ""}.`,
-      `Innisfree만의 소구점은 ${c.anchor_position.unique_to_anchor.length}개, 모든 경쟁 제품이 내세우는 소구점은 ${c.table_stakes.length}개입니다${lvl ? `. 구매자 공감은 ${LVL[lvl]}` : ""}.`)
+  const title = c ? tr(`${c.anchor_position.unique_to_anchor.length} claim${c.anchor_position.unique_to_anchor.length === 1 ? " is" : "s are"} Innisfree's alone and ${c.table_stakes.length} are made by every rival.`,
+      `Innisfree만의 소구점은 ${c.anchor_position.unique_to_anchor.length}개, 모든 경쟁 제품이 내세우는 소구점은 ${c.table_stakes.length}개입니다.`)
     : tr("What each product says about itself.", "제품별로 스스로 내세우는 메시지.");
   return (
     <ActionSection id="message" kicker={tr("Message · what each product sells itself on", "메시지 · 제품별 핵심 소구점")} title={title}
-      note={c ? tr(<>Read from every photo in each product&rsquo;s Nykaa gallery, its page text and its reviews. Levels use one scale: <b>strong · moderate · weak</b>; click a level for the reasons. {<Opens className="ml-1" detail={{ kicker: "AI read of the whole group", title: "The group at a glance", body: <Points items={c.group_summary.split(/(?<=[.!?])\s+/)} /> }}>Group summary</Opens>}</>,
-        <>제품별 Nykaa 상세 이미지 전체, 페이지 문구, 리뷰를 읽고 판단했습니다. 수준은 한 가지 척도로 표시합니다: <b>강함 · 보통 · 약함</b>. 수준을 누르면 이유가 나옵니다. {<Opens className="ml-1" detail={{ kicker: "그룹 전체 AI 분석", title: "그룹 한눈에 보기", body: <Points items={tx(c.group_summary).split(/(?<=[.!?])\s+/)} /> }}>그룹 요약</Opens>}</>)
+      note={c ? tr(<>What each listing claims, read from every photo in its Nykaa gallery and its page text; what buyers make of it is under What buyers say. Levels use one scale: <b>strong · moderate · weak</b>; click a level for the reasons. {<Opens className="ml-1" detail={{ kicker: "AI read of the whole group", title: "The group at a glance", body: <Points items={c.group_summary.split(/(?<=[.!?])\s+/)} /> }}>Group summary</Opens>}</>,
+        <>상품 페이지가 내세우는 내용으로, 제품별 Nykaa 상세 이미지 전체와 페이지 문구를 읽고 판단했습니다. 구매자 반응은 ‘구매자 반응’에 있습니다. 수준은 한 가지 척도로 표시합니다: <b>강함 · 보통 · 약함</b>. 수준을 누르면 이유가 나옵니다. {<Opens className="ml-1" detail={{ kicker: "그룹 전체 AI 분석", title: "그룹 한눈에 보기", body: <Points items={tx(c.group_summary).split(/(?<=[.!?])\s+/)} /> }}>그룹 요약</Opens>}</>)
         : tr("No message analysis for this category yet: rows show what the Nykaa page states.", "이 카테고리는 아직 메시지 분석이 없어, Nykaa 페이지 표기만 보여 줍니다.")}>
       <CompareGrid cols={cols} items={products} criteria={[]} extra={rows} labelWidth={150} />
       {c && (

@@ -12,6 +12,7 @@ import { useShelf } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, compact, inr, median, shortName } from "@/lib/format";
 import type { ShelfRow } from "@/lib/types";
 import { push } from "@/lib/group";
+import { onePerRatingPool } from "@/lib/pools";
 import { dayMonth, josa, tr } from "@/lib/i18n";
 import { tx } from "@/lib/dict";
 
@@ -40,7 +41,7 @@ function originSummary(rs: ShelfRow[], total: number, isSunscreen: boolean) {
   const prices = rs.map((r) => r.price ?? 0).filter((p) => p > 0).sort((a, b) => a - b);
   const q = (f: number) => prices[Math.min(prices.length - 1, Math.floor(f * (prices.length - 1)))];
   const byBrand = new Map<string, ShelfRow[]>(); rs.forEach((r) => push(byBrand, r.brand, r));
-  const brands = [...byBrand.entries()].map(([b, g]) => ({ b, n: g.length, ratings: g.reduce((a, r) => a + (r.rating_count ?? 0), 0), ranks: g.map((r) => r.rank).sort((x, y) => x - y) }));
+  const brands = [...byBrand.entries()].map(([b, g]) => ({ b, n: g.length, ratings: onePerRatingPool(g).reduce((a, r) => a + (r.rating_count ?? 0), 0), ranks: g.map((r) => r.rank).sort((x, y) => x - y) }));
   const mostReviewed = [...brands].sort((a, b) => b.ratings - a.ratings)[0];
   const mostListed = [...brands].sort((a, b) => b.n - a.n || a.ranks[0] - b.ranks[0])[0];
   const rated = rs.filter((r) => r.rating !== null);
@@ -143,7 +144,7 @@ function CategoriesPage() {
                       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-[12px]">
                         <div><dt className="text-muted">{tr("Price band", "가격대")}</dt><dd className="font-display text-[17px] font-semibold tabular">{s.band ? `${inr(s.band[0])}–${inr(s.band[1])}` : <Missing>{tr("no prices", "가격 없음")}</Missing>}</dd><dd className="text-[11px] text-muted">{tr("middle half of listings", "제품 중간 50%")}</dd></div>
                         <div><dt className="text-muted">{tr("Placement", "순위")}</dt><dd className="font-display text-[17px] font-semibold tabular">{tr(`${s.top20} in top 20`, `상위 20위 ${s.top20}개`)}</dd><dd className="text-[11px] text-muted">{tr("best", "최고")} #{s.best}{s.paid ? tr(` · ${s.paid} paid slot${s.paid === 1 ? "" : "s"}`, ` · 광고 ${s.paid}자리`) : ""}</dd></div>
-                        <div><dt className="text-muted">{tr("Most reviewed", "리뷰 최다")}</dt><dd className="font-display text-[15px] font-semibold">{s.mostReviewed.b}</dd><dd className="text-[11px] text-muted">{tr(`${compact(s.mostReviewed.ratings)} ratings across ${s.mostReviewed.n}`, `${s.mostReviewed.n}개 제품 평가 ${compact(s.mostReviewed.ratings)}건`)}</dd></div>
+                        <div><dt className="text-muted">{tr("Most reviewed", "리뷰 최다")}</dt><dd className="font-display text-[15px] font-semibold">{s.mostReviewed.b}</dd><dd className="text-[11px] text-muted">{tr(`${compact(s.mostReviewed.ratings)} ratings across ${s.mostReviewed.n} (sizes counted once)`, `${s.mostReviewed.n}개 제품 평가 ${compact(s.mostReviewed.ratings)}건 (용량별 중복 제외)`)}</dd></div>
                         <div><dt className="text-muted">{tr("Most listings", "제품 수 최다")}</dt><dd className="font-display text-[15px] font-semibold">{s.mostListed.b}</dd><dd className="text-[11px] text-muted">{tr(`${s.mostListed.n} of ${s.n}`, `${s.n}개 중 ${s.mostListed.n}개`)} · {tr("ranks", "순위")} {s.mostListed.ranks.slice(0, 4).map((x) => `#${x}`).join(", ")}</dd></div>
                         <div><dt className="text-muted">{tr("Avg rating · discount", "평균 별점 · 할인율")}</dt><dd className="font-display text-[15px] font-semibold tabular">{s.avgRating ? `★ ${s.avgRating.toFixed(2)}` : tr("no rating", "평점 없음")} · {Math.round(s.avgDiscount)}%</dd></div>
                         {s.spf ? <div><dt className="text-muted">{tr("Usual SPF", "주된 SPF")}</dt><dd className="font-display text-[15px] font-semibold tabular">SPF {s.spf.v}</dd><dd className="text-[11px] text-muted">{tr(`${s.spf.n} of ${s.spf.of} that state one`, `SPF 표기 제품 ${s.spf.of}개 중 ${s.spf.n}개`)}</dd></div>
