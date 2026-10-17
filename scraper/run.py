@@ -130,9 +130,24 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             log.error("Supabase ingest FAILED (data is still on disk in %s): %s", out, e)
             return 1
+        from .db import connect
+        from .market_signals import run_market_signals, save_category_brands
+        try:  # every brand in each category, from page 1 of the listing we already fetched (no request)
+            log.info("category brands: %d rows", save_category_brands(connect(), scraped_at[:10], results))
+        except Exception as e:  # noqa: BLE001
+            log.error("category brands step failed (non-fatal): %s", e)
+        if not blocked and not args.no_enrich:
+            # what Nykaa features on its homepage today, and the offers each brand is running (~70 requests)
+            try:
+                shelf = [p for r in results for p in r.products]
+                log.info("market signals: %s", asyncio.run(run_market_signals(connect(), scraped_at[:10], shelf)))
+            except BlockedError as e:
+                log.error("BLOCKED during market signals — stopped: %s", e)
+                blocked = True
+            except Exception as e:  # noqa: BLE001
+                log.error("market signals step failed (non-fatal): %s", e)
         if not blocked and not args.no_enrich:
             # product details for products we have never fetched (capped per run)
-            from .db import connect
             from .details import missing_catalog_ids, missing_product_ids, run_details
             try:
                 client = connect()
