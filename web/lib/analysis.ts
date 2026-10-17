@@ -25,11 +25,13 @@ export interface DemandRow {
 export interface DemandWindow { recent: string; prior: string; recentMonths: string[]; priorMonths: string[] }
 
 export function demandWindow(): DemandWindow {
-  const w = monthsWindow(12);
-  const recentMonths = w.slice(9); const priorMonths = w.slice(6, 9);
-  const yr = new Date(w[11]).getFullYear();
-  return { recentMonths, priorMonths, recent: tr(`${fmtMonth(w[9])}–${fmtMonth(w[11])} ${yr}`, `${yr}년 ${fmtMonth(w[9]).replace("월", "")}–${fmtMonth(w[11])}`),
-    prior: tr(`${fmtMonth(w[6])}–${fmtMonth(w[8])}`, `${fmtMonth(w[6]).replace("월", "")}–${fmtMonth(w[8])}`) };
+  // Round 4 (17 Oct 2026): the last 3 complete months against the same 3 months a year earlier, the way Nykaa
+  // reports growth. It compared with the 3 months just before until then, which read +3% for the market.
+  const w = monthsWindow(15);
+  const recentMonths = w.slice(12); const priorMonths = w.slice(0, 3);
+  const yr = new Date(w[14]).getFullYear(); const py = new Date(w[0]).getFullYear();
+  return { recentMonths, priorMonths, recent: tr(`${fmtMonth(w[12])}–${fmtMonth(w[14])} ${yr}`, `${yr}년 ${fmtMonth(w[12]).replace("월", "")}–${fmtMonth(w[14])}`),
+    prior: tr(`${fmtMonth(w[0])}–${fmtMonth(w[2])} ${py}`, `${py}년 ${fmtMonth(w[0]).replace("월", "")}–${fmtMonth(w[2])}`) };
 }
 
 /** One row per review pool (a product and its variants share reviews). Categories come from the demand view,

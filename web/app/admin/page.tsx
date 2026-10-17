@@ -86,7 +86,8 @@ function AdminPage() {
         <>
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search brand", "브랜드 검색")} className="w-56 rounded-xl border border-line bg-surface px-3.5 py-2 text-[13px] outline-none focus:border-accent-strong" />
-            <button onClick={() => setOnlyOpen(!onlyOpen)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 ${onlyOpen ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line"}`}>{tr("Unconfirmed only", "미확인만")} ({counts.open})</button>
+            <button onClick={() => setOnlyOpen(!onlyOpen)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 ${onlyOpen ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line"}`}>{tr("Needs your check", "확인 필요")} ({counts.open})</button>
+            <span className="basis-full text-[12px] text-muted">{tr("17 Oct: brands with clear evidence (the seed list, or Nykaa's country of origin agreeing on 2+ products, 3+ for Korea) were confirmed automatically, marked \"auto-rule\". What is left is doubtful: one product to judge from, no signal, made in Korea by a possibly non-Korean brand, or brands marketed as Korean.", "10월 17일: 근거가 분명한 브랜드(초기 목록, 또는 Nykaa 원산지가 2개 이상 제품에서 일치, 한국은 3개 이상)는 자동 확인했습니다(\"auto-rule\" 표시). 남은 것은 판단이 필요한 브랜드입니다: 제품 1개뿐, 근거 없음, 한국 제조지만 한국 브랜드가 아닐 수 있음, 한국풍 마케팅 브랜드.")}</span>
             <select value={origin} onChange={(e) => setOrigin(e.target.value)} className="rounded-xl border border-line bg-surface px-3 py-2 text-[13px]">
               <option value="all">{tr("All origins", "전체 국적")}</option>{ORIGINS.map((o) => <option key={o} value={o}>{ORIGIN_LABEL[o]}{o === "unknown" ? ` (${counts.unknown})` : ""}</option>)}
             </select>

@@ -35,7 +35,7 @@ export default function Login() {
     if (mode === "reset") {
       const { error } = await auth.updateUser({ password: pw });
       setBusy(false);
-      if (error) setMsg({ kind: "err", text: error.message }); else window.location.replace("/compare/");
+      if (error) setMsg({ kind: "err", text: error.message }); else window.location.replace("/overview/");
       return;
     }
     const res = mode === "in" ? await auth.signInWithPassword({ email, password: pw }) : await auth.signUp({ email, password: pw });
@@ -44,7 +44,7 @@ export default function Login() {
       const m = res.error.message;
       setMsg({ kind: "err", text: /Invalid login/i.test(m) ? tr("Invalid email or password.", "이메일 또는 비밀번호가 올바르지 않습니다.") : /not confirmed/i.test(m) ? tr("Confirm your email first: open the link we sent you.", "먼저 이메일 인증을 완료해 주세요. 보내 드린 링크를 열면 됩니다.")
         : /banned/i.test(m) ? tr("This account has been blocked. Contact the admin.", "차단된 계정입니다. 관리자에게 문의해 주세요.") : m });
-    } else if (res.data.session) window.location.replace("/compare/");
+    } else if (res.data.session) window.location.replace("/overview/");
     else setMsg({ kind: "ok", text: tr("Account created. Check your inbox for the confirmation link, then sign in.", "계정이 만들어졌습니다. 받은편지함의 인증 링크를 연 다음 로그인해 주세요.") });
   }
 

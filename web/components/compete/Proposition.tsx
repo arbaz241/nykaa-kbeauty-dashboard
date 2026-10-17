@@ -112,6 +112,7 @@ export function Message({ hero, products, colors }: { hero: UspComparison | null
     ...(hero ? [{ key: "versus", label: tr("Innisfree vs this rival", "Innisfree vs 이 경쟁 제품"), help: tr("Where Innisfree's message is stronger, weaker or the same as this rival's; click for each point", "Innisfree 메시지가 이 경쟁 제품보다 강한 점, 약한 점, 같은 점. 누르면 항목별로 나옵니다"),
       render: (p: ProductFacts) => {
         if (p === a) return <span className="text-[11.5px] text-muted">{tr("The product being compared", "비교 기준 제품")}</span>;
+        if (p.role === "added") return <span className="text-[11.5px] italic text-muted">{tr("Added by you: not in the AI comparison (AI reads are paused)", "직접 추가: AI 비교에 포함되지 않음 (AI 분석 중지 중)")}</span>;
         const n = versusCounts(p, hero, products);
         return <Opens detail={versusDetail(p, hero, products)}><span className="flex flex-wrap gap-1"><Chip tone="good">{tr("stronger", "강함")} {n.st}</Chip><Chip tone="bad">{tr("weaker", "약함")} {n.wk}</Chip><Chip>{tr("shared", "공통")} {n.ov}</Chip></span></Opens>;
       } }] : []),

@@ -7,6 +7,8 @@ import { PriceSection } from "@/components/compete/Price";
 import { Message } from "@/components/compete/Proposition";
 import { Buyers, Demand, Visibility } from "@/components/compete/Reception";
 import { Brands, PriceBasket, WhereCompete } from "@/components/compete/Brands";
+import RivalPicker, { loadEdits, saveEdits, MAX_PRODUCTS, type RivalEdit } from "@/components/compete/RivalPicker";
+import { useMarket } from "@/lib/useMarket";
 import { SectionNav, type NavItem } from "@/components/Report";
 import Segmented from "@/components/Segmented";
 import Shell from "@/components/Shell";
@@ -61,6 +63,9 @@ function CompetitivePage() {
   const [brandOverride, setBrandOverride] = useState<string[] | null>(null);
   const [swap, setSwap] = useState<Record<string, string>>({});
   const [view, setView] = useState<View>(url.view === "brand" ? "brand" : "product");
+  // Round 4: rivals anyone can drop or add, kept per hero (or per category without one) in this browser
+  const [edits, setEdits] = useState<Record<string, RivalEdit>>(() => (typeof window === "undefined" ? {} : loadEdits()));
+  const market = useMarket();
 
   const heroes = useMemo(() => (uspC.data ?? []).filter((g) => shelfCat(g.category) === cat), [uspC.data, cat]);
   const hero: UspComparison | null = heroes.find((g) => g.anchor_product_id === heroPick) ?? heroes[0] ?? null;
@@ -88,15 +93,31 @@ function CompetitivePage() {
     if (b === anchor) return;
     setBrandOverride(brands.includes(b) ? brands.filter((x) => x !== b) : brands.length >= 6 ? brands : [...brands, b]);
   };
-  const colors = useMemo(() => Object.fromEntries(brands.map((b, i) => [b, i === 0 ? "#0e3b2e" : SLOT_COLORS[(i - 1) % SLOT_COLORS.length]])), [brands]);
+
 
   // products in view: the hero and its analysed rivals, else each brand's best-ranked product here
+  const editKey = hero ? `hero|${hero.anchor_product_id}` : `cat|${cat}`;
+  const edit = edits[editKey];
   const productIds = useMemo(() => {
-    if (hero) return [hero.anchor_product_id, ...hero.products.filter((x) => x !== hero.anchor_product_id)]
-      .map((pid) => ({ pid, brand: uspBy.get(pid)?.brand ?? "", role: hero.roles?.[pid] ?? "anchor" }));
-    return brands.map((b) => { const o = productOptions(b, cat, rows, cat0); const pid = swap[`${cat}|${b}`] ?? o[0]?.product_id; return pid ? { pid, brand: b, role: b === anchor ? "anchor" : "rival" } : null; })
-      .filter((x): x is { pid: string; brand: string; role: string } => !!x);
-  }, [hero, uspBy, brands, cat, rows, cat0, swap, anchor]);
+    const base = hero ? [hero.anchor_product_id, ...hero.products.filter((x) => x !== hero.anchor_product_id)]
+      .map((pid) => ({ pid, brand: uspBy.get(pid)?.brand ?? "", role: hero.roles?.[pid] ?? "anchor" }))
+      : brands.map((b) => { const o = productOptions(b, cat, rows, cat0); const pid = swap[`${cat}|${b}`] ?? o[0]?.product_id; return pid ? { pid, brand: b, role: b === anchor ? "anchor" : "rival" } : null; })
+        .filter((x): x is { pid: string; brand: string; role: string } => !!x);
+    if (!edit) return base;
+    const kept = base.filter((p, i) => i === 0 || !edit.removed.includes(p.pid));
+    const added = edit.added.filter((a) => !kept.some((k) => k.pid === a.pid)).map((a) => ({ pid: a.pid, brand: a.brand, role: "added" }));
+    return [...kept, ...added].slice(0, MAX_PRODUCTS);
+  }, [hero, uspBy, brands, cat, rows, cat0, swap, anchor, edit]);
+  const changeEdit = (f: (e: RivalEdit) => RivalEdit | null) => {
+    const next = { ...edits }; const v = f(edits[editKey] ?? { removed: [], added: [] });
+    if (v && (v.removed.length || v.added.length)) next[editKey] = v; else delete next[editKey];
+    setEdits(next); saveEdits(next);
+  };
+  // colour follows the brand: the brands in view, then any brand a user added
+  const colors = useMemo(() => {
+    const all = [...brands, ...productIds.map((p) => p.brand).filter((b) => b && !brands.includes(b))];
+    return Object.fromEntries([...new Set(all)].map((b, i) => [b, i === 0 ? "#0e3b2e" : SLOT_COLORS[(i - 1) % SLOT_COLORS.length]]));
+  }, [brands, productIds]);
   const ids = useMemo(() => productIds.map((p) => p.pid), [productIds]);
   const reviews = useReviewsFor(ids); const variants = useVariants(ids);
   const stdMl = useMemo(() => standardSize(rows, cat), [rows, cat]);
@@ -125,7 +146,7 @@ function CompetitivePage() {
 
   return (
     <Shell active="Competitive Analysis" asOf={asOf ? dayMonthYear(asOf) : undefined}>
-      <PageHead eyebrow={tr("Innisfree vs its rivals", "Innisfree vs 경쟁사")} title={tr("Competitive Analysis", "경쟁 분석")} sub={tr(<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail.</>, <>한 카테고리 안에서 Innisfree와 직접 경쟁 제품을 비교합니다. 결론을 먼저, 근거를 뒤에 두었으며 › 표시를 누르면 상세가 나옵니다.</>)} />
+      <PageHead eyebrow={tr("Competitive · step 5", "경쟁 분석 · 5단계")} title={tr("Competitive Analysis", "경쟁 분석")} sub={tr(<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail. Drop a rival or add any product with the bar under the hero.</>, <>한 카테고리 안에서 Innisfree와 직접 경쟁 제품을 비교합니다. 결론을 먼저, 근거를 뒤에 두었으며 › 표시를 누르면 상세가 나옵니다. 히어로 아래 막대에서 경쟁 제품을 빼거나 아무 제품이나 추가할 수 있습니다.</>)} />
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">{tr("Could not load data", "데이터를 불러오지 못했습니다")}: {String(err.message ?? err)}</div>}
       {loading && !err ? <Loading what={tr("the comparison", "비교 데이터")} /> : !err && (
         <>
@@ -161,6 +182,11 @@ function CompetitivePage() {
             ]} />
           </div>
           {view === "product" ? (<>
+            <RivalPicker cat={cat} anchorBrand={anchor} edited={!!edit} rows={rows} catalog={cat0} flow={market.flow}
+              current={products.map((p) => ({ pid: p.pid, brand: p.brand, role: p.role === "anchor" || p.pid === productIds[0]?.pid ? "anchor" : p.role, name: p.name }))}
+              onRemove={(pid) => changeEdit((e) => ({ removed: e.added.some((a) => a.pid === pid) ? e.removed : [...e.removed, pid], added: e.added.filter((a) => a.pid !== pid) }))}
+              onAdd={(pid, brand) => changeEdit((e) => ({ removed: e.removed.filter((x) => x !== pid), added: [...e.added, { pid, brand }] }))}
+              onReset={() => changeEdit(() => null)} />
             <SectionNav key="p" items={PRODUCT_NAV()} />
             <Summary hero={hero} products={products} bench={bench} cat={cat} />
             <PriceSection products={products} colors={colors} bench={bench} std={stdMl} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />

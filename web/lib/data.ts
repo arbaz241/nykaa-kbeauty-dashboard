@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { fetchAll, supabase } from "./supabase";
 import { aspectSummary } from "./metrics";
 import type { ReviewLite } from "./reviewThemes";
+import type { BrandOffer, CategoryBrand, CategoryStat, HomepageFeature, ShelfDay, ShelfProduct } from "./types";
 import type { Availability, BrandShare, CategoryCoverage, Thumbnail, Movement, MarketEvent, ProductDemand, AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewAspect, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
 
 const opts = { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 };
@@ -178,3 +179,19 @@ export function useShelfDays(days: string[]) {
     return out;
   }, { revalidateOnFocus: false });
 }
+
+/* ---- Round 4: the period picker's daily shelf, brand counts, homepage and offers (migration 025) ---- */
+export function useShelfDaily() {
+  return useSWR("shelf_daily", async () => (await fetchAll<ShelfDay>("web_shelf_daily")).map((r) => ({
+    ...r, price: num(r.price), mrp: num(r.mrp), rating_count: num(r.rating_count), rank: Number(r.rank),
+  })) as ShelfDay[], opts);
+}
+export function useShelfProducts() { return useSWR("shelf_products", () => fetchAll<ShelfProduct>("web_shelf_products"), opts); }
+export function useCategoryStats() {
+  return useSWR("category_stats", async () => (await fetchAll<CategoryStat>("web_category_stats")).map((r) => ({ ...r, brands: Number(r.brands), products: Number(r.products) })), opts);
+}
+export function useCategoryBrands() {
+  return useSWR("category_brands", async () => (await fetchAll<CategoryBrand>("web_category_brands")).map((r) => ({ ...r, products: Number(r.products) })), opts);
+}
+export function useHomepage() { return useSWR("homepage", () => fetchAll<HomepageFeature>("web_homepage_features"), opts); }
+export function useBrandOffers() { return useSWR("brand_offers", () => fetchAll<BrandOffer>("web_brand_offers"), opts); }

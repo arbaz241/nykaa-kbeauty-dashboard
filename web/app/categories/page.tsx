@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import CategoryGlance from "@/components/CategoryGlance";
 import AuthGate from "@/components/AuthGate";
 import { useOpenProduct, type ProductRef } from "@/components/ProductDrawer";
 import Shell from "@/components/Shell";
@@ -64,7 +65,8 @@ function CategoriesPage() {
   const tiers = useTiers(useMemo(() => [...new Set(rows.map((r) => r.brand))], [rows]));
   // the shared tiering: anchor, focus brand, another tracked Korean brand, or a rival holding many places in the anchor's categories
   const tagOf = (b: string) => (tiers.isPinned(b) ? "Anchor" : tiers.isFocus(b) ? "Focus" : set.tier(b) === "rival" ? "Rival in its categories" : set.tier(b) ? "Other K-beauty" : null);
-  const [cat, setCat] = useState<string>(CATEGORIES[0]);
+  // Overview links here with ?cat=<category>
+  const [cat, setCat] = useState<string>(() => { const c = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("cat"); return c && CATEGORIES.includes(c) ? c : CATEGORIES[0]; });
   const [noAds, setNoAds] = useState(false);
   const [origin, setOrigin] = useState<OriginKey>("all");
   const [badge, setBadge] = useState<Badge>("all");
@@ -105,7 +107,7 @@ function CategoriesPage() {
   const asOf = rows[0] ? dayMonth(rows[0].scrape_date) : undefined;
   return (
     <Shell active="Top by category" asOf={asOf}>
-      <PageHead eyebrow={tr("Category shelves", "카테고리 진열")} title={tr("Top by category", "카테고리별 순위")} sub={tr("Each tracked category's top 100 on Nykaa, in the order the Nykaa app shows them today, with who holds it by origin.", "추적 중인 카테고리별 Nykaa 상위 100위. 오늘 Nykaa 앱이 보여 주는 순서 그대로이며, 브랜드 국적별 점유도 함께 봅니다.")} />
+      <PageHead eyebrow={tr("Categories · step 2", "카테고리 · 2단계")} title={tr("Inside each category", "카테고리 들여다보기")} sub={tr("Pick a category: its size, growth, how many brands sell in it and what rose over the period, then its top 100 in the order the Nykaa app shows them today.", "카테고리를 고르세요. 규모, 성장률, 입점 브랜드 수, 기간 중 상승 제품을 보고, 이어서 오늘 Nykaa 앱 순서 그대로의 상위 100위를 봅니다.")} />
       {!shelf.data ? <Loading what={tr("the shelves", "진열 데이터")} /> : (
         <>
           <div className="mt-7 flex flex-wrap gap-2">
@@ -115,7 +117,9 @@ function CategoriesPage() {
             ))}
           </div>
 
-          <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2">
+          <CategoryGlance cat={cat} />
+
+          <div className="mt-10 flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · {tr("who holds the top 100", "상위 100위 점유")}{noAds ? tr(", sponsored slots removed", ", 광고 자리 제외") : ""}</div>
               <h2 className="mt-2 font-display text-[22px] font-semibold leading-snug tracking-[-0.015em] md:text-[25px]">{(() => {

@@ -63,6 +63,8 @@ export interface Availability {
 export interface MarketEvent {
   id: number; happened_on: string; ends_on: string | null; label: string; kind: string;
   brand: string | null; note: string | null;
+  /** owner | homepage | estimate (migration 025); estimates are shown as such until the owner confirms them */
+  source?: string; status?: string;
 }
 export interface CategoryCoverage { category: string; first_date: string; last_date: string; days_tracked: number }
 export interface Thumbnail {
@@ -72,3 +74,14 @@ export interface Thumbnail {
   shot_type: string | null; model_present: boolean | null; text_density: string | null;
   on_image_claims: string[] | null; packaging_style: string | null; mood: string | null; summary: string | null;
 }
+
+/* ---- Round 4 (migration 025) ---- */
+export interface ShelfDay {
+  scrape_date: string; subcategory: string; product_id: string; rank: number; price: number | null; mrp: number | null;
+  rating_count: number | null; is_ad: boolean; has_offer: boolean; in_stock: boolean | null;
+}
+export interface ShelfProduct { product_id: string; name: string; brand: string; origin: Origin; url: string | null; first_review_date: string | null }
+export interface CategoryStat { scrape_date: string; subcategory: string; brands: number; products: number }
+export interface CategoryBrand { subcategory: string; brand: string; origin: Origin; first_seen: string; last_seen: string; products: number }
+export interface HomepageFeature { scrape_date: string; section: string; position: number; kind: string; target: string; label: string | null; brand: string | null; url: string | null; is_ad: boolean }
+export interface BrandOffer { scrape_date: string; brand: string; offer_id: string; title: string | null; description: string | null }

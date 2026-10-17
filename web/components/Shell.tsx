@@ -11,11 +11,14 @@ import { dayMonth, tr } from "@/lib/i18n";
 
 /** `label` is the page's id (pages pass it as `active`); `text` is what the reader sees. */
 const NAV = () => [
-  { label: "Analysis", text: tr("Analysis", "분석"), href: "/analysis/" },
-  { label: "Competitive Analysis", text: tr("Competitive Analysis", "경쟁 분석"), href: "/compare/" },
-  { label: "Demand", text: tr("Demand", "수요"), href: "/demand/" },
-  { label: "Market", text: tr("Market", "시장"), href: "/market/" },
-  { label: "Top by category", text: tr("Top by category", "카테고리별 순위"), href: "/categories/" },
+  // Round 4 order (owner 17 Oct 2026): Nykaa as a whole first, then one level down per tab
+  { label: "Overview", text: tr("Overview", "개요"), href: "/overview/" },
+  { label: "Top by category", text: tr("Categories", "카테고리"), href: "/categories/" },
+  { label: "Brands", text: tr("Brands", "브랜드"), href: "/brands/" },
+  { label: "Analysis", text: tr("K-beauty", "K-뷰티"), href: "/analysis/" },
+  { label: "Competitive Analysis", text: tr("Competitive", "경쟁 분석"), href: "/compare/" },
+  { label: "Demand", text: tr("Demand & search", "수요·검색"), href: "/demand/" },
+  { label: "Offers", text: tr("Offers & events", "프로모션·이벤트"), href: "/offers/" },
 ];
 
 /** The "N" tile (same mark as app/icon.svg). */
@@ -70,14 +73,14 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-brand focus:px-4 focus:py-2 focus:text-on-brand">{tr("Skip to content", "본문으로 건너뛰기")}</a>
       <header className="sticky top-0 z-30 border-b border-line bg-page/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-5 px-6">
-          <Link href="/analysis/" className="flex items-center gap-2.5" aria-label={tr("Nykaa Market Intelligence, home", "Nykaa Market Intelligence 홈")}>
+          <Link href="/overview/" className="flex items-center gap-2.5" aria-label={tr("Nykaa Market Intelligence, home", "Nykaa Market Intelligence 홈")}>
             <LogoMark />
             <span className="hidden whitespace-nowrap font-display text-[15px] font-semibold tracking-tight sm:inline">Nykaa Market Intelligence</span>
           </Link>
-          <nav aria-label={tr("Primary", "주 메뉴")} className="ml-2 hidden items-center gap-1 lg:flex">
+          <nav aria-label={tr("Primary", "주 메뉴")} className="ml-2 hidden items-center gap-0.5 xl:flex">
             {nav.map((n) => (
               <Link key={n.label} href={n.href} aria-current={n.label === active ? "page" : undefined}
-                className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[13.5px] transition ${n.label === active ? "bg-brand font-medium text-on-brand" : "text-ink-2 hover:bg-sunken hover:text-ink"}`}>
+                className={`whitespace-nowrap rounded-full px-3 py-2 text-[13.5px] transition ${n.label === active ? "bg-brand font-medium text-on-brand" : "text-ink-2 hover:bg-sunken hover:text-ink"}`}>
                 {n.text}
               </Link>
             ))}
@@ -87,13 +90,13 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
             <DefinitionsButton className="hidden whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-medium text-ink-2 ring-1 ring-line hover:bg-sunken hover:text-ink md:block" />
             <LangToggle />
             <UserMenu />
-            <button type="button" aria-label={tr("Menu", "메뉴")} aria-expanded={menu} onClick={() => setMenu(!menu)} className="press grid h-9 w-9 place-items-center rounded-full ring-1 ring-line lg:hidden">
+            <button type="button" aria-label={tr("Menu", "메뉴")} aria-expanded={menu} onClick={() => setMenu(!menu)} className="press grid h-9 w-9 place-items-center rounded-full ring-1 ring-line xl:hidden">
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d={menu ? "M3 3l10 10M13 3L3 13" : "M2 4h12M2 8h12M2 12h12"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
             </button>
           </div>
         </div>
         {menu && (
-          <nav aria-label={tr("Primary mobile", "주 메뉴 (모바일)")} className="rise border-t border-line bg-page px-6 pb-4 pt-2 lg:hidden">
+          <nav aria-label={tr("Primary mobile", "주 메뉴 (모바일)")} className="rise border-t border-line bg-page px-6 pb-4 pt-2 xl:hidden">
             {nav.map((n) => <Link key={n.label} href={n.href} onClick={() => setMenu(false)} className={`block py-2.5 text-[16px] ${n.label === active ? "font-semibold text-brand" : "text-ink-2"}`}>{n.text}</Link>)}
             {asOf && <div className="mt-2 text-[13px] text-muted">{tr(`Data as of ${asOf}`, `${asOf} 기준 데이터`)}</div>}
           </nav>

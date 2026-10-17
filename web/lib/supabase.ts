@@ -37,6 +37,13 @@ const ORDER: Record<string, string[]> = {
   web_thumbnails: ["product_id"],
   web_usp_products: ["product_id"],
   web_usp_comparisons: ["anchor_product_id"],
+  // Round 4 (migration 025)
+  web_shelf_daily: ["scrape_date", "subcategory", "rank", "product_id"],
+  web_shelf_products: ["product_id"],
+  web_category_stats: ["scrape_date", "subcategory"],
+  web_category_brands: ["subcategory", "brand"],
+  web_homepage_features: ["scrape_date", "section", "position"],
+  web_brand_offers: ["scrape_date", "brand", "offer_id"],
   brand_classification: ["brand"],
   // read only when the site is in Korean, so it has no nightly copy and is not prefetched with the tabs
   ko_dictionary: ["en"],

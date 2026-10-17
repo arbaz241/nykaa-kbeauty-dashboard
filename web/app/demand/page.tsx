@@ -5,6 +5,7 @@ import AuthGate from "@/components/AuthGate";
 import BrandPicker from "@/components/BrandPicker";
 import LineChart from "@/components/LineChart";
 import { eventsInWindow } from "@/components/EventLog";
+import MovesWithReasons from "@/components/MovesWithReasons";
 import { useOpenProduct } from "@/components/ProductDrawer";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import { Missing, Opens, Points, useDetail } from "@/components/Detail";
@@ -38,7 +39,7 @@ const signed = (v: number | null | undefined) => (v === null || v === undefined 
 const same = (a: string, b: string) => norm(a) === norm(b);
 
 const NAV = (): NavItem[] => [
-  { id: "summary", label: tr("Summary", "요약") }, { id: "demand", label: tr("Demand", "수요") }, { id: "sos", label: tr("Search vs demand", "검색 vs 수요") },
+  { id: "summary", label: tr("Summary", "요약") }, { id: "why", label: tr("What moved and why", "변동과 이유") }, { id: "demand", label: tr("Demand", "수요") }, { id: "sos", label: tr("Search vs demand", "검색 vs 수요") },
   { id: "search", label: tr("Search", "검색") }, { id: "ads", label: tr("Ads", "광고") }, { id: "suggest", label: tr("What shoppers type", "소비자 검색어") },
 ];
 
@@ -144,7 +145,7 @@ function DemandPage() {
     open({ product_id: pid, name: label, brand, url, image: imgFor(pid), price: s?.price, mrp: s?.mrp, rating: s?.rating, rating_count: s?.rating_count, usp: s?.usp_summary, phrases: s?.review_key_phrases, splitup: s?.review_splitup, madeIn: s?.country_name });
   };
 
-  // chart: reviews per month, or each line indexed to its own Apr–Jun average (=100) with the market pinned
+  // chart: reviews per month, or each line indexed to its own average over chart months 7-9 (=100) with the market pinned
   const sel = brands.filter((b) => selected.includes(b.brand) && b.last3 !== null);
   const indexed = (v: (number | null)[]) => { const base = v.slice(6, 9).filter((x): x is number => x !== null); const m = base.length ? base.reduce((a, b) => a + b, 0) / base.length : 0; return v.map((x) => (x === null || !m ? null : (x / m) * 100)); };
   const series = mode === "reviews" ? sel.map((b) => ({ name: b.brand, color: colors[b.brand], values: b.spark }))
@@ -234,7 +235,7 @@ function DemandPage() {
 
   return (
     <Shell active="Demand" asOf={latest ? day(latest) : undefined}>
-      <PageHead eyebrow={tr("Sales signal and search", "판매 신호와 검색")} title={tr("Demand", "수요")} sub={tr(<>Who is selling more (monthly reviews as the sales signal), and who shoppers find when they search on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type. {A} against the {tiers.focus.length} focus brands.</>, <>누가 더 많이 팔고 있는지(월별 리뷰를 판매 신호로 사용), 그리고 Nykaa에서 검색할 때 소비자가 누구를 만나는지: 비광고 결과, 광고, 입력 중 Nykaa 추천 검색어. 주요 브랜드 {tiers.focus.length}곳과 비교한 {A}.</>)} />
+      <PageHead eyebrow={tr("Demand & search · step 6", "수요·검색 · 6단계")} title={tr("Demand & search", "수요·검색")} sub={tr(<>Who is selling more (monthly reviews as the sales signal), and who shoppers find when they search on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type. {A} against the {tiers.focus.length} focus brands.</>, <>누가 더 많이 팔고 있는지(월별 리뷰를 판매 신호로 사용), 그리고 Nykaa에서 검색할 때 소비자가 누구를 만나는지: 비광고 결과, 광고, 입력 중 Nykaa 추천 검색어. 주요 브랜드 {tiers.focus.length}곳과 비교한 {A}.</>)} />
       {(!months.data || !hist.data || !demandView.data) ? <Loading what={tr("demand and search data", "수요·검색 데이터")} /> : (
         <>
           <SectionNav items={NAV()} />
@@ -263,10 +264,12 @@ function DemandPage() {
             {outliers.length > 0 && <p className="mt-2 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the focus set:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.last3)}건`)})</span>)}.</p>}
           </section>
 
+          <MovesWithReasons />
+
           <ActionSection id="demand" kicker={tr("Demand · who is selling more", "수요 · 누가 더 팔고 있나")} title={tr(`${up ? `Among the focus brands, ${up.brand} is rising fastest (${signed(up.growth)}) and ${dn?.brand} falling hardest (${signed(dn?.growth)})` : "Demand by brand"}; ${A} is ${anchorD?.growth != null ? `${signed(anchorD.growth)} against a market ${signed(mkt)}` : "not tracked"}.`,
               `${up ? `주요 브랜드 중 ${josa(up.brand, "이/가")} 가장 빠르게 상승(${signed(up.growth)})하고 ${josa(dn?.brand ?? "", "이/가")} 가장 크게 하락(${signed(dn?.growth)})했습니다` : "브랜드별 수요"}. ${A}: ${anchorD?.growth != null ? `${signed(anchorD.growth)} (시장 ${signed(mkt)})` : "추적 안 됨"}.`)}
-            note={tr(<>Monthly reviews track sales. <Def k="growth">Growth</Def> = reviews in {period}, counting only products with complete history in all six months. Shaded bands and markers explain the spikes; red markers flag a jump with no logged cause. <Opens detail={{ kicker: "Method", title: "How demand is measured", body: <Points items={["Nykaa does not publish sales; buyers write reviews at a steady rate, so monthly review volume tracks sales momentum.", "Dates are the reviews' own dates on Nykaa, read from each product's history, so the comparison is not limited by how long we have been collecting.", "Nykaa serves about 1,000 reviews per product, so for big bestsellers only recent months are complete; earlier months are left blank rather than counted as zero.", "Products are those on today's shelves and catalogues, so growth reads slightly high across the board; compare a brand with the market line, not with zero.", `July holds Nykaa's Hot Pink sale; May a smaller probable sale. Index view compares every brand with its own ${dw.prior} average.`]} /> }}>Method</Opens></>,
-              <>월별 리뷰는 판매를 따라갑니다. <Def k="growth">성장률</Def> = {period} 리뷰, 6개월 이력이 모두 있는 제품만 셉니다. 음영과 표시선이 급등락의 이유를 보여 주며, 빨간 표시선은 기록된 원인이 없는 급등입니다. <Opens detail={{ kicker: "방법", title: "수요 측정 방법", body: <Points items={["Nykaa는 판매량을 공개하지 않습니다. 구매자는 일정한 비율로 리뷰를 쓰므로, 월별 리뷰 수가 판매 흐름을 따라갑니다.", "날짜는 각 제품 이력에서 읽은 Nykaa 리뷰 작성일이므로, 수집 기간이 짧아도 과거와 비교할 수 있습니다.", "Nykaa는 제품당 리뷰를 약 1,000건까지만 보여 주므로, 대형 베스트셀러는 최근 몇 달만 완전합니다. 그 이전 달은 0으로 세지 않고 비워 둡니다.", "대상 제품은 오늘의 진열 목록과 카탈로그에 있는 제품이라 성장률이 전반적으로 약간 높게 나옵니다. 0이 아니라 시장선과 비교하세요.", `7월에는 Nykaa Hot Pink sale이, 5월에는 그보다 작은 세일(추정)이 있었습니다. 지수 보기는 브랜드마다 자신의 ${dw.prior} 평균과 비교합니다.`]} /> }}>방법</Opens></>)}
+            note={tr(<>Monthly reviews track sales. <Def k="growth">Growth</Def> = reviews in {period}, counting only products whose history reaches back to {dw.prior} (the same months a year earlier). Shaded bands and markers explain the spikes; red markers flag a jump with no logged cause. <Opens detail={{ kicker: "Method", title: "How demand is measured", body: <Points items={["Nykaa does not publish sales; buyers write reviews at a steady rate, so monthly review volume tracks sales momentum.", "Dates are the reviews' own dates on Nykaa, read from each product's history, so the comparison is not limited by how long we have been collecting.", "Nykaa serves about 1,000 reviews per product, so for big bestsellers only recent months are complete; earlier months are left blank rather than counted as zero.", "Products are those on today's shelves and catalogues, so growth reads slightly high across the board; compare a brand with the market line, not with zero.", `July holds Nykaa's Hot Pink sale; May a smaller probable sale. Index view compares every brand with its own ${monthYY(win[6])}–${monthYY(win[8])} average.`]} /> }}>Method</Opens></>,
+              <>월별 리뷰는 판매를 따라갑니다. <Def k="growth">성장률</Def> = {period} 리뷰, {dw.prior}(전년 동기)까지 이력이 있는 제품만 셉니다. 음영과 표시선이 급등락의 이유를 보여 주며, 빨간 표시선은 기록된 원인이 없는 급등입니다. <Opens detail={{ kicker: "방법", title: "수요 측정 방법", body: <Points items={["Nykaa는 판매량을 공개하지 않습니다. 구매자는 일정한 비율로 리뷰를 쓰므로, 월별 리뷰 수가 판매 흐름을 따라갑니다.", "날짜는 각 제품 이력에서 읽은 Nykaa 리뷰 작성일이므로, 수집 기간이 짧아도 과거와 비교할 수 있습니다.", "Nykaa는 제품당 리뷰를 약 1,000건까지만 보여 주므로, 대형 베스트셀러는 최근 몇 달만 완전합니다. 그 이전 달은 0으로 세지 않고 비워 둡니다.", "대상 제품은 오늘의 진열 목록과 카탈로그에 있는 제품이라 성장률이 전반적으로 약간 높게 나옵니다. 0이 아니라 시장선과 비교하세요.", `7월에는 Nykaa Hot Pink sale이, 5월에는 그보다 작은 세일(추정)이 있었습니다. 지수 보기는 브랜드마다 자신의 ${monthYY(win[6])}–${monthYY(win[8])} 평균과 비교합니다.`]} /> }}>방법</Opens></>)}
             right={<div className="flex gap-1.5">{(["reviews", "index"] as const).map((m) => <button key={m} onClick={() => setMode(m)} className={`rounded-full px-3 py-1 text-[12.5px] ring-1 ${mode === m ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line"}`}>{m === "reviews" ? tr("Reviews per month", "월별 리뷰") : tr("Index vs market", "시장 대비 지수")}</button>)}</div>}>
             <Card className="p-5">
               <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><div className="text-[14px] font-semibold">{mode === "reviews" ? tr("Monthly reviews, last 12 complete months", "월별 리뷰, 최근 완결된 12개월") : tr(`Each line indexed to its own ${dw.prior} average = 100; grey = all tracked brands`, `각 선을 자신의 ${dw.prior} 평균 = 100으로 환산, 회색 = 추적 전체 브랜드`)}</div><span className="text-[12px] text-muted">{tr("Hover for values and causes", "마우스를 올리면 값과 원인이 나옵니다")}</span></div>

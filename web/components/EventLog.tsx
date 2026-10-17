@@ -59,7 +59,7 @@ export default function EventLog() {
           </div>
         ) : (
           <ul className="divide-y divide-line">
-            {events.map((e) => <EventRow key={e.id} e={e} />)}
+            {events.map((e) => <EventRow key={e.id} e={e} admin={isAdmin} onChange={() => mutate()} />)}
           </ul>
         )}
       </Card>
@@ -67,8 +67,10 @@ export default function EventLog() {
   );
 }
 
-function EventRow({ e }: { e: MarketEvent }) {
+function EventRow({ e, admin, onChange }: { e: MarketEvent; admin: boolean; onChange: () => void }) {
   const when = dayMonthYear(e.happened_on);
+  // Round 4: past sales entered from deal-site calendars stay "estimated" until the owner confirms them
+  const confirm = async () => { const { error } = await supabase().from("market_events").update({ status: "confirmed" }).eq("id", e.id); if (!error) onChange(); };
   const until = e.ends_on ? dayMonth(e.ends_on) : null;
   return (
     <li className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-3">
@@ -78,6 +80,9 @@ function EventRow({ e }: { e: MarketEvent }) {
       </span>
       <span className="text-[13.5px] font-medium">{e.label}</span>
       {e.brand && <span className="text-[12.5px] text-ink-2">{e.brand}</span>}
+      {e.status === "estimated" && <span className="rounded bg-[#fbeee4] px-1.5 py-px text-[10.5px] font-semibold uppercase text-[#a8521c]">{tr("estimated", "추정")}</span>}
+      {e.source === "homepage" && <span className="rounded bg-sunken px-1.5 py-px text-[10.5px] font-semibold uppercase text-muted">{tr("from Nykaa's homepage", "Nykaa 홈페이지")}</span>}
+      {admin && e.status === "estimated" && <button onClick={confirm} className="text-[12px] font-medium text-accent-strong underline underline-offset-2">{tr("Confirm dates", "날짜 확인")}</button>}
       {e.note && <span className="w-full pl-[166px] text-[12.5px] text-muted">{e.note}</span>}
     </li>
   );

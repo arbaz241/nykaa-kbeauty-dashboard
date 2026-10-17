@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import { DetailHead, Missing, Opens, Points, useDetail, type DetailContent } from "@/components/Detail";
 import EventLog from "@/components/EventLog";
+import KBeautyOverview from "@/components/KBeautyOverview";
 import OpportunityMap from "@/components/analysis/OpportunityMap";
 import { useOpenProduct } from "@/components/ProductDrawer";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
@@ -27,7 +28,7 @@ import { dayMonth, josa, tr } from "@/lib/i18n";
  *  hero products → range gaps → next steps → events. Every number carries what it is compared against. */
 
 const NAV = (): NavItem[] => [
-  { id: "summary", label: tr("Verdict", "결론") }, { id: "standing", label: tr("Scoreboard", "스코어보드") }, { id: "portfolio", label: tr("By category", "카테고리별") },
+  { id: "kbeauty", label: tr("K-beauty on Nykaa", "Nykaa의 K-뷰티") }, { id: "summary", label: tr("Brand brief", "브랜드 보고") }, { id: "standing", label: tr("Scoreboard", "스코어보드") }, { id: "portfolio", label: tr("By category", "카테고리별") },
   { id: "changes", label: tr("What changed", "변화") }, { id: "heroes", label: tr("Hero products", "히어로 제품") }, { id: "gaps", label: tr("Range gaps", "라인업 공백") },
   { id: "next", label: tr("Next steps", "다음 단계") }, { id: "events", label: tr("Events", "이벤트") },
 ];
@@ -91,7 +92,7 @@ function Analysis() {
   const gaps = useMemo(() => (catalog.data ? rangeGrid(anchor, catalog.data, (b) => tiers.inSet(b)) : []), [catalog.data, anchor, tiers]);
   const kw = useMemo(() => keywordView(search.data ?? [], anchor, (b) => tiers.inSet(b)), [search.data, anchor, tiers]);
 
-  if (!ready || !board || !cmap) return <Shell active="Analysis"><PageHead eyebrow={tr("Executive summary", "요약 보고")} title={tr("Analysis", "분석")} sub={tr("Where the brand stands, where it wins and loses, what changed and what to do next.", "브랜드의 현재 위치, 강점과 약점, 달라진 점, 다음에 할 일.")} /><Loading what={tr("today's analysis", "오늘의 분석")} /></Shell>;
+  if (!ready || !board || !cmap) return <Shell active="Analysis"><PageHead eyebrow={tr("K-beauty · step 4", "K-뷰티 · 4단계")} title={tr("K-beauty and our focus brands", "K-뷰티와 주요 브랜드")} sub={tr("Where the brand stands, where it wins and loses, what changed and what to do next.", "브랜드의 현재 위치, 강점과 약점, 달라진 점, 다음에 할 일.")} /><Loading what={tr("today's analysis", "오늘의 분석")} /></Shell>;
 
   /* ---------------- relevance: the brands that matter first */
   const anchorCats = new Set((shelf.data ?? []).filter((r) => same(r.brand, anchor)).map((r) => r.subcategory));
@@ -192,10 +193,12 @@ function Analysis() {
   const asOf = shelf.data?.[0]?.scrape_date;
   return (
     <Shell active="Analysis" asOf={asOf}>
-      <PageHead eyebrow={tr("Executive summary", "요약 보고")} title={tr("Analysis", "분석")} sub={tr(<>Where {anchor} stands against the {n - 1} brands that matter, where it wins and loses, what changed today and what to do next. Hover a measure for its definition; click anything with › for the evidence.</>,
-        <>주요 브랜드 {n - 1}곳과 비교한 {anchor}의 위치, 강점과 약점, 오늘 달라진 점, 다음에 할 일. 지표에 마우스를 올리면 정의가, › 표시를 누르면 근거가 나옵니다.</>)}
+      <PageHead eyebrow={tr("K-beauty · step 4", "K-뷰티 · 4단계")} title={tr("K-beauty and our focus brands", "K-뷰티와 주요 브랜드")} sub={tr(<>How K-beauty does on Nykaa and how each Korean focus brand does, then the full brief for {anchor}: where it stands against the {n - 1} brands that matter, where it wins and loses, what changed today and what to do next. Hover a measure for its definition; click anything with › for the evidence.</>,
+        <>Nykaa에서 K-뷰티와 한국 주요 브랜드의 성과, 이어서 {anchor} 보고서: 주요 브랜드 {n - 1}곳과 비교한 위치, 강점과 약점, 오늘 달라진 점, 다음에 할 일. 지표에 마우스를 올리면 정의가, › 표시를 누르면 근거가 나옵니다.</>)}
         right={<BrandSelect value={anchor} onChange={setPicked} tiers={tiers} all={known} />} />
       <SectionNav items={NAV()} />
+      <KBeautyOverview tiers={tiers} />
+      <div className="mt-16 border-t border-line pt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">{tr(`The ${anchor} brief`, `${anchor} 보고서`)}</div>
       {!deep && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">{tr(<><b>{anchor}</b> is outside the focus set, so this is a scorecard: it is compared with the focus brands, and sections without data for it say so.</>, <><b>{anchor}</b>는 주요 브랜드 밖이라 간이 평가로 보여 줍니다. 주요 브랜드와 비교하며, 데이터가 없는 영역은 그렇다고 표시합니다.</>)}</p>}
 
       <section id="summary" className="mt-6 scroll-mt-32">
