@@ -10,6 +10,8 @@ import LineChart from "./LineChart";
 import { push } from "@/lib/group";
 import { dayMonth, dayMonthYear, monthYY, tr } from "@/lib/i18n";
 import { tx, txs } from "@/lib/dict";
+import Link from "next/link";
+import { brandHref, productHref } from "./Links";
 
 /** Minimal info a caller already has; the drawer fetches history on demand. */
 export interface ProductRef {
@@ -57,7 +59,11 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
       <div className="absolute inset-0 bg-ink/20 backdrop-blur-[2px]" onClick={onClose} />
       <aside className="absolute right-0 top-0 h-full w-full max-w-[720px] overflow-y-auto bg-page shadow-pop">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-page/90 px-7 py-3 backdrop-blur">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{tr("Product", "제품")}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{tr("Quick look", "간단히 보기")}</span>
+          <span className="ml-auto mr-2 flex gap-2">
+            <Link href={productHref(p.product_id)} onClick={onClose} className="rounded-lg bg-brand px-2.5 py-1 text-[13px] font-medium text-on-brand hover:opacity-90">{tr("Full product page →", "제품 전체 페이지 →")}</Link>
+            <Link href={brandHref(p.brand)} onClick={onClose} className="rounded-lg px-2.5 py-1 text-[13px] text-ink-2 ring-1 ring-line hover:bg-surface">{tr(`${p.brand} page`, `${p.brand} 페이지`)}</Link>
+          </span>
           <button onClick={onClose} className="rounded-lg px-2.5 py-1 text-[13px] text-ink-2 ring-1 ring-line hover:bg-surface">{tr("Close · Esc", "닫기 · Esc")}</button>
         </div>
         <div className="px-7 py-6">
@@ -153,7 +159,7 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
 }
 
 /** What the listing sells itself on, read from its whole gallery, page and reviews (USP page). */
-function UspRead({ productId }: { productId: string }) {
+export function UspRead({ productId }: { productId: string }) {
   const { data } = useUspProducts();
   const u = data?.find((x) => x.product_id === productId);
   if (!u) return null;
@@ -181,7 +187,7 @@ function UspRead({ productId }: { productId: string }) {
 const SHOT: Record<string, string> = { get pack_shot() { return tr("pack shot", "제품 단독 컷"); }, get flat_lay() { return tr("flat lay", "플랫레이"); } };
 
 /** What this product's main image shows, as read from the image itself. */
-function ImageRead({ productId }: { productId: string }) {
+export function ImageRead({ productId }: { productId: string }) {
   const { data } = useThumbnails();
   const t = data?.find((x) => x.product_id === productId);
   if (!t || !t.shot_type) return null;
@@ -211,7 +217,7 @@ function ImageRead({ productId }: { productId: string }) {
   );
 }
 
-function Block({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {
+export function Block({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {
   return (
     <section className="mt-7 rounded-2xl bg-surface p-5 ring-1 ring-line">
       <div className="mb-3"><div className="text-[14px] font-semibold">{title}</div><div className="text-[12px] text-muted">{note}</div></div>

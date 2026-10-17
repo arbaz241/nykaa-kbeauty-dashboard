@@ -173,6 +173,30 @@ export interface FlowRow {
   rankStart: number | null; rankEnd: number | null; price: number | null;
   /** The category started being tracked after the period began, so its period is shorter. */
   partial: boolean;
+  /** A combo or kit: Nykaa shows it with the ratings of the products inside it, so its flow and value are left at
+   *  0 (plan v2: combos were 4% of listings but 31% of rating value). `rawFlow` keeps what it would have been. */
+  combo: boolean; rawFlow: number;
+}
+
+/** Combos, kits and routines: several products sold as one listing. */
+export const isCombo = (name: string) => /\b(combo|kit|duo|trio|set of|pack of|routine|gift set|monthly pack|value pack|mega pack)\b/i.test(name);
+
+/** Nykaa stopped updating rating counts on 10 Oct 2026 (its own app and product pages still show the 9 Oct count).
+ *  A day counts as live when at least 20% of the listings seen the day before changed their count; buying figures
+ *  end on the last live day, and the pages say so. */
+export interface Freeze { lastLive: string; since: string; days: number }
+export function ratingFreeze(ix: DailyIndex): Freeze | null {
+  let lastLive: string | null = null;
+  for (let i = 1; i < ix.days.length; i++) {
+    const a = ix.byDay.get(ix.days[i - 1])!; const b = ix.byDay.get(ix.days[i])!;
+    let both = 0; let changed = 0;
+    for (const [k, r] of b) { const p = a.get(k); if (!p || p.rating_count === null || r.rating_count === null) continue; both++; if (p.rating_count !== r.rating_count) changed++; }
+    if (both && changed / both >= 0.2) lastLive = ix.days[i];
+  }
+  const latest = ix.days[ix.days.length - 1];
+  if (!lastLive || lastLive === latest) return null;
+  const since = ix.days[ix.days.indexOf(lastLive) + 1];
+  return { lastLive, since, days: ix.days.length - 1 - ix.days.indexOf(lastLive) };
 }
 
 export interface Dim { brand: string; origin: string; name: string; url: string | null; first_review_date: string | null }
@@ -211,8 +235,11 @@ function onOrAfter(days: string[], d: string) { return days.find((x) => x >= d) 
 
 /** New ratings each top-100 listing gained between two days, per category. A set of ratings shared by several
  *  listings of one brand (sizes of one product) counts once in each category. */
-export function ratingFlow(ix: DailyIndex, dims: Map<string, Dim>, start: string, end: string, includeStore = false): FlowRow[] {
+export function ratingFlow(ix: DailyIndex, dims: Map<string, Dim>, start: string, end: string, includeStore = false, ratingEnd?: string): FlowRow[] {
   const endMap = ix.byDay.get(end); if (!endMap) return [];
+  // ratings stop at `ratingEnd` when Nykaa froze its counts; ranks still run to `end`
+  const rEnd = ratingEnd && ratingEnd < end && ratingEnd > start ? ix.byDay.get(ratingEnd) : null;
+  const noRatings = !!ratingEnd && ratingEnd <= start;
   const out: FlowRow[] = [];
   const seenPool = new Set<string>();
   for (const [k, e] of endMap) {
@@ -224,14 +251,17 @@ export function ratingFlow(ix: DailyIndex, dims: Map<string, Dim>, start: string
     const dim = dims.get(e.product_id);
     const brand = dim?.brand ?? "?";
     let flow = 0;
-    if (s && s.rating_count !== null && e.rating_count !== null) {
-      flow = Math.max(0, e.rating_count - s.rating_count);
-      const pool = (e.rating_count ?? 0) >= 100 ? `${cat}|${norm(brand)}|${s.rating_count}|${e.rating_count}` : k;
+    const combo = isCombo(dim?.name ?? "");
+    const re = rEnd ? rEnd.get(k) : e;
+    if (!noRatings && s && re && s.rating_count !== null && re.rating_count !== null) {
+      flow = Math.max(0, re.rating_count - s.rating_count);
+      const pool = (re.rating_count ?? 0) >= 100 ? `${cat}|${norm(brand)}|${s.rating_count}|${re.rating_count}` : k;
       if (seenPool.has(pool)) flow = 0; else seenPool.add(pool);
     }
     const price = e.price ?? e.mrp;
+    const counted = combo ? 0 : flow;
     out.push({ product_id: e.product_id, subcategory: cat, brand, origin: dim?.origin ?? "unknown", name: dim?.name ?? e.product_id, url: dim?.url ?? null,
-      flow, value: flow * (price ?? 0), rankStart: s?.rank ?? null, rankEnd: e.rank, price: price ?? null, partial: cs > start });
+      flow: counted, value: counted * (price ?? 0), rankStart: s?.rank ?? null, rankEnd: e.rank, price: price ?? null, partial: cs > start, combo, rawFlow: flow });
   }
   return out;
 }
@@ -280,6 +310,7 @@ export function dailyFlow(ix: DailyIndex, dims: Map<string, Dim>, days: string[]
       if (r.subcategory === STORE) continue;
       const p = a.get(k); if (!p || p.rating_count === null || r.rating_count === null) continue;
       const dim = dims.get(r.product_id);
+      if (isCombo(dim?.name ?? "")) continue;
       const pool = `${r.subcategory}|${norm(dim?.brand ?? "")}|${p.rating_count}|${r.rating_count}`;
       if (r.rating_count >= 100) { if (seen.has(pool)) continue; seen.add(pool); }
       const key = keyOf(r, dim); if (!key) continue;

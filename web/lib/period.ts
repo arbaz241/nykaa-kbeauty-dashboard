@@ -6,18 +6,18 @@ import { monthShort, monthYear, tr } from "./i18n";
 /** The period picker (Round 4, owner 17 Oct 2026: "a month of data but it looks like one day"). One choice for the
  *  whole site, remembered in this browser, so every tab reads the same period.
  *
- *  Two clocks, because the data has two:
- *  - shelf clock: daily top-100 places, prices, offers and rating counts since 13 Sep 2026 → `days`
- *  - review clock: monthly reviews by the date they were written, back to 2024 → `months` and `compare`
- *  Defaults (owner): last 30 days on the shelf, last 12 months for demand, compared with a year earlier. */
+ *  It moves the shelf clock only: daily top-100 places, prices, offers and rating counts since 13 Sep 2026.
+ *  Plan v2: the review clock no longer has a picker. Growth is Nykaa's own figure for a fixed quarter, and a brand's
+ *  or product's review trend is always the last 24 months, latest 3 months vs the same months a year earlier. */
 
 export type ShelfSpan = 7 | 14 | 30 | 0;   // 0 = since tracking began
 export type MonthSpan = 3 | 6 | 12;
 export type Compare = "yoy" | "prev";
-export interface Period { days: ShelfSpan; months: MonthSpan; compare: Compare }
+/** Plan v2 (17 Oct 2026): only the shelf period is chosen; growth is fixed to Nykaa's reporting quarters. */
+export interface Period { days: ShelfSpan }
 
 const KEY = "nmi.period";
-const DEFAULT: Period = { days: 30, months: 12, compare: "yoy" };
+const DEFAULT: Period = { days: 30 };
 let current: Period = DEFAULT;
 let loaded = false;
 const listeners = new Set<() => void>();
@@ -27,11 +27,7 @@ function load() {
   loaded = true;
   try {
     const p = JSON.parse(window.localStorage.getItem(KEY) ?? "null") as Partial<Period> | null;
-    if (p) current = {
-      days: ([7, 14, 30, 0] as number[]).includes(Number(p.days)) ? (Number(p.days) as ShelfSpan) : DEFAULT.days,
-      months: ([3, 6, 12] as number[]).includes(Number(p.months)) ? (Number(p.months) as MonthSpan) : DEFAULT.months,
-      compare: p.compare === "prev" ? "prev" : "yoy",
-    };
+    if (p) current = { days: ([7, 14, 30, 0] as number[]).includes(Number(p.days)) ? (Number(p.days) as ShelfSpan) : DEFAULT.days };
   } catch { /* storage unavailable: defaults */ }
 }
 

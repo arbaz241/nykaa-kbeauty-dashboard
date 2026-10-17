@@ -7,12 +7,14 @@ import { clearCached } from "@/lib/persist";
 import { DefinitionsButton } from "./Tiered";
 import { useIsAdmin, useSession } from "./AuthGate";
 import LangToggle from "./LangToggle";
+import FindBox from "./FindBox";
 import { dayMonth, tr } from "@/lib/i18n";
 
 /** `label` is the page's id (pages pass it as `active`); `text` is what the reader sees. */
 const NAV = () => [
-  // Round 4 order (owner 17 Oct 2026): Nykaa as a whole first, then one level down per tab
-  { label: "Overview", text: tr("Overview", "개요"), href: "/overview/" },
+  // Round 4 order (owner 17 Oct 2026): Nykaa as a whole first, then one level down per tab. Plan v2: the first tab is
+  // the Brief; brand and product pages open from any name or from the search box
+  { label: "Overview", text: tr("Brief", "브리핑"), href: "/overview/" },
   { label: "Top by category", text: tr("Categories", "카테고리"), href: "/categories/" },
   { label: "Brands", text: tr("Brands", "브랜드"), href: "/brands/" },
   { label: "Analysis", text: tr("K-beauty", "K-뷰티"), href: "/analysis/" },
@@ -75,7 +77,7 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
         <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-5 px-6">
           <Link href="/overview/" className="flex items-center gap-2.5" aria-label={tr("Nykaa Market Intelligence, home", "Nykaa Market Intelligence 홈")}>
             <LogoMark />
-            <span className="hidden whitespace-nowrap font-display text-[15px] font-semibold tracking-tight sm:inline">Nykaa Market Intelligence</span>
+            <span className="hidden whitespace-nowrap font-display text-[15px] font-semibold tracking-tight sm:inline xl:hidden 2xl:inline">Nykaa Market Intelligence</span>
           </Link>
           <nav aria-label={tr("Primary", "주 메뉴")} className="ml-2 hidden items-center gap-0.5 xl:flex">
             {nav.map((n) => (
@@ -86,8 +88,9 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            {asOf && <span className="hidden items-center gap-2 whitespace-nowrap rounded-full bg-accent-soft px-3 py-1.5 text-[12.5px] font-medium text-accent-strong sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-accent-strong" />{tr(`Data as of ${asOf}`, `${asOf} 기준 데이터`)}</span>}
-            <DefinitionsButton className="hidden whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-medium text-ink-2 ring-1 ring-line hover:bg-sunken hover:text-ink md:block" />
+            <FindBox />
+            {asOf && <span className="hidden items-center gap-2 whitespace-nowrap rounded-full bg-accent-soft px-3 py-1.5 text-[12.5px] font-medium text-accent-strong sm:flex xl:hidden 2xl:flex"><span className="h-1.5 w-1.5 rounded-full bg-accent-strong" />{tr(`Data as of ${asOf}`, `${asOf} 기준 데이터`)}</span>}
+            <DefinitionsButton className="hidden whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-medium text-ink-2 ring-1 ring-line hover:bg-sunken hover:text-ink md:block xl:hidden 2xl:block" />
             <LangToggle />
             <UserMenu />
             <button type="button" aria-label={tr("Menu", "메뉴")} aria-expanded={menu} onClick={() => setMenu(!menu)} className="press grid h-9 w-9 place-items-center rounded-full ring-1 ring-line xl:hidden">

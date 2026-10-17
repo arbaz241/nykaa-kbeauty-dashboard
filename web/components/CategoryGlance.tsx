@@ -4,20 +4,26 @@ import { useMemo } from "react";
 import PeriodBar from "./PeriodBar";
 import { Card } from "./ui";
 import { Basis, Def } from "./Tiered";
-import { useOpenProduct } from "./ProductDrawer";
+import { BrandLink, ProductLink } from "./Links";
 import { ORIGIN_COLOR, ORIGIN_LABEL } from "@/lib/brands";
-import { useCategoryBrands, useCategoryStats } from "@/lib/data";
-import { CATEGORY_LABEL, compact, pct, shortName, signed } from "@/lib/format";
-import { aggregate, smoothedMove } from "@/lib/market";
-import { compareWord, spanLabel } from "@/lib/period";
+import { useBrandOffers, useCategoryBrands, useCategoryStats, useEvents, useHomepage } from "@/lib/data";
+import { CATEGORY_LABEL, pct, shortName } from "@/lib/format";
+import { aggregate, isCombo, REASON_COLOR } from "@/lib/market";
+import { listingMoves, runsFrom, type ListingMove } from "@/lib/profile";
+import { spanLabel } from "@/lib/period";
 import { useMarket } from "@/lib/useMarket";
 import { dayMonth, tr } from "@/lib/i18n";
 
-/** Round 4: one category at a glance, above its top-100 table. Size, growth, how many brands sell in it, how
- *  concentrated it is, and what rose over the chosen period, with each product's rank line. */
+/** Round 4: one category at a glance, above its top-100 table. How many brands sell in it, how Korean its shelf is,
+ *  its top seller, how concentrated it is, and what rose and fell over the chosen period, with the likely reasons
+ *  (plan v2: the moves live here and on the brand and product pages, no longer on Demand). */
 export default function CategoryGlance({ cat }: { cat: string }) {
-  const m = useMarket(); const stats = useCategoryStats(); const cb = useCategoryBrands(); const open = useOpenProduct();
-  const { win, mwin, flow, prevFlow, growth, ix } = m;
+  const m = useMarket(); const stats = useCategoryStats(); const cb = useCategoryBrands();
+  const events = useEvents(); const home = useHomepage(); const offers = useBrandOffers();
+  const { win, flow, ix } = m;
+  const runs = useMemo(() => runsFrom(home.data ?? []), [home.data]);
+  const moves = useMemo(() => (win ? listingMoves({ ix, dims: m.dims, start: win.start, end: win.end, events: events.data ?? [], runs, offers: offers.data ?? [] }, null).filter((x) => x.subcategory === cat && !isCombo(x.name)) : []),
+    [win, ix, m.dims, events.data, runs, offers.data, cat]);
   const latest = useMemo(() => [...new Set((stats.data ?? []).map((s) => s.scrape_date))].sort().pop() ?? null, [stats.data]);
   const stat = (stats.data ?? []).find((s) => s.scrape_date === latest && s.subcategory === cat);
   const brandsHere = (cb.data ?? []).filter((b) => b.subcategory === cat && b.last_seen === latest);
@@ -29,16 +35,14 @@ export default function CategoryGlance({ cat }: { cat: string }) {
   const tot = rows.reduce((a, r) => a + r.value, 0) || 1;
   const brands = [...aggregate(rows, (r) => r.brand).values()].sort((a, b) => b.value - a.value);
   const top5 = brands.slice(0, 5).reduce((a, b) => a + b.value, 0) / tot;
-  const allTot = flow.reduce((a, r) => a + r.value, 0) || 1;
-  const prevShare = prevFlow ? prevFlow.filter((r) => r.subcategory === cat).reduce((a, r) => a + r.value, 0) / (prevFlow.reduce((a, r) => a + r.value, 0) || 1) : null;
-  const g = growth?.byCategory.get(cat);
-  const risers = win ? rows.filter((r) => r.rankStart !== null && r.rankEnd !== null).flatMap((r) => {
-    const mv = smoothedMove(ix, `${cat}|${r.product_id}`, win.start, win.end); // typical rank, first vs last three days
-    return mv ? [{ r: { ...r, rankStart: mv.from, rankEnd: mv.to }, gain: mv.from - mv.to }] : [];
-  }).sort((a, b) => b.gain - a.gain).slice(0, 6) : [];
-  const entrants = rows.filter((r) => r.rankStart === null).sort((a, b) => (a.rankEnd ?? 999) - (b.rankEnd ?? 999)).slice(0, 6);
+  const singles = rows.filter((r) => r.value > 0).sort((a, b) => b.value - a.value);
+  const topSeller = singles[0];
+  const kShare = rows.filter((r) => r.origin === "kbeauty").length / (rows.length || 1);
+  const risers = moves.filter((x) => x.gain >= 5 && !x.entered && x.from !== null).sort((a, b) => b.gain - a.gain).slice(0, 6);
+  const fallers = moves.filter((x) => x.gain <= -5 && !x.left && x.to !== null).sort((a, b) => a.gain - b.gain).slice(0, 6);
+  const entrants = moves.filter((x) => x.entered).sort((a, b) => (a.to ?? 999) - (b.to ?? 999)).slice(0, 6);
 
-  if (!m.ready || !win || !mwin) return <div className="skeleton mt-6 h-40 rounded-[16px]" />;
+  if (!m.ready || !win) return <div className="skeleton mt-6 h-40 rounded-[16px]" />;
   const spark = (pid: string) => {
     const s = (ix.series.get(`${cat}|${pid}`) ?? []).filter((x) => x.scrape_date >= win.start);
     if (s.length < 2) return null;
@@ -51,9 +55,9 @@ export default function CategoryGlance({ cat }: { cat: string }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · {tr("at a glance", "한눈에")}</div>
-          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Size and growth from review value (${mwin.recentLabel} ${compareWord(mwin.compare)}); buying and movers over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}).`, `규모·성장률은 리뷰 금액 기준(${mwin.recentLabel}, ${compareWord(mwin.compare)}), 구매·순위 변동은 ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}).`)}</p>
+          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × price, single products only. Click any name for its page.`, `구매·순위 변동은 ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 구매 = 신규 평가 × 가격, 단일 제품만. 이름을 누르면 해당 페이지가 열립니다.`)}</p>
         </div>
-        <PeriodBar shelf={win} months={mwin} />
+        <PeriodBar shelf={win} freeze={m.freeze} />
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-4">
         <Card className="px-5 py-4">
@@ -64,42 +68,46 @@ export default function CategoryGlance({ cat }: { cat: string }) {
           <Basis className="mt-1">{newBrands.length ? tr(`New this period: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`, `이번 기간 신규: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`) : tr("New brands show here as the nightly list builds up.", "매일 목록이 쌓이면 신규 브랜드가 여기에 표시됩니다.")}</Basis>
         </Card>
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted"><Def k="valueGrowth">{tr("Growth, like for like", "성장률 (동일 제품)")}</Def></div>
-          <div className={`mt-1 font-display text-[28px] font-semibold tabular ${g?.existing !== null && g?.existing !== undefined ? (g.existing >= 0 ? "text-good" : "text-bad") : ""}`}>{g?.existing !== null && g?.existing !== undefined ? signed(g.existing) : "–"}</div>
-          <Basis>{tr(`${g?.products ?? 0} products; launches add up to +${g?.launch ? (g.launch * 100).toFixed(0) : 0} pts (${g?.launches ?? 0} products). Market: ${signed(growth?.total.existing ?? null)}`, `제품 ${g?.products ?? 0}개, 신제품 최대 +${g?.launch ? (g.launch * 100).toFixed(0) : 0}%p (${g?.launches ?? 0}개). 시장: ${signed(growth?.total.existing ?? null)}`)}</Basis>
+          <div className="text-[12.5px] text-muted">{tr("Korean share of top-100 places", "상위 100위 중 한국 비중")}</div>
+          <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(kShare)}</div>
+          <Basis>{tr(`${rows.filter((r) => r.origin === "kbeauty").length} of ${rows.length} places today`, `오늘 ${rows.length}자리 중 ${rows.filter((r) => r.origin === "kbeauty").length}`)}</Basis>
         </Card>
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted"><Def k="ratingFlow">{tr("Share of all buying", "전체 구매 중 비중")}</Def></div>
-          <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(tot / allTot, 1)}</div>
-          <Basis>{prevShare !== null ? tr(`${signed(tot / allTot - prevShare, 1).replace("%", " pts")} on the period before`, `직전 기간 대비 ${signed(tot / allTot - prevShare, 1).replace("%", "%p")}`) : tr(`${compact(rows.reduce((a, r) => a + r.flow, 0))} new ratings in the period`, `기간 중 신규 평가 ${compact(rows.reduce((a, r) => a + r.flow, 0))}건`)}</Basis>
+          <div className="text-[12.5px] text-muted"><Def k="ratingFlow">{tr("Top seller", "최다 판매")}</Def></div>
+          {topSeller ? <>
+            <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(topSeller.value / tot, 1)}</div>
+            <Basis><BrandLink brand={topSeller.brand} className="font-medium" /> <ProductLink id={topSeller.product_id} cat={cat}>{shortName(topSeller.name, topSeller.brand)}</ProductLink></Basis>
+          </> : <div className="mt-1 font-display text-[28px] font-semibold">–</div>}
         </Card>
         <Card className="px-5 py-4">
           <div className="text-[12.5px] text-muted">{tr("Top 5 brands hold", "상위 5개 브랜드 점유")}</div>
           <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(top5)}</div>
-          <Basis>{brands.slice(0, 5).map((b) => `${b.key} ${pct(b.value / tot)}`).join(" · ")}</Basis>
+          <Basis>{brands.slice(0, 5).map((b, i) => <span key={b.key}>{i ? " · " : ""}<BrandLink brand={b.key} /> {pct(b.value / tot)}</span>)}</Basis>
         </Card>
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        <Card className="px-5 py-4">
-          <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr(`Climbed most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 오른 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)}</div>
-          <ul className="mt-2 divide-y divide-line/60">{risers.filter((x) => x.gain > 0).map(({ r, gain }) => (
-            <li key={r.product_id} className="flex items-center gap-3 py-1.5 text-[13px]">
-              <button onClick={() => open({ product_id: r.product_id, name: r.name, brand: r.brand, url: r.url })} className="min-w-0 flex-1 truncate text-left underline decoration-line-2 underline-offset-2"><b className="font-medium">{r.brand}</b> {shortName(r.name, r.brand)}</button>
-              {spark(r.product_id)}
-              <span className="w-[92px] shrink-0 text-right tabular text-ink-2">#{r.rankStart} → <b className="text-ink">#{r.rankEnd}</b></span>
-              <span className="w-10 shrink-0 text-right font-semibold tabular text-good">▲{gain}</span>
-            </li>))}</ul>
-        </Card>
-        <Card className="px-5 py-4">
-          <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("New in the top 100 this period", "이번 기간 상위 100위 신규 진입")}</div>
-          <ul className="mt-2 divide-y divide-line/60">{entrants.length ? entrants.map((r) => (
-            <li key={r.product_id} className="flex items-center gap-3 py-1.5 text-[13px]">
-              <button onClick={() => open({ product_id: r.product_id, name: r.name, brand: r.brand, url: r.url })} className="min-w-0 flex-1 truncate text-left underline decoration-line-2 underline-offset-2"><b className="font-medium">{r.brand}</b> {shortName(r.name, r.brand)}</button>
-              <span className="shrink-0 rounded px-1.5 py-px text-[10px] font-semibold uppercase" style={{ background: ORIGIN_COLOR[r.origin]?.soft, color: ORIGIN_COLOR[r.origin]?.ink }}>{ORIGIN_LABEL[r.origin]}</span>
-              <span className="w-12 shrink-0 text-right tabular"><b>#{r.rankEnd}</b></span>
-            </li>)) : <li className="py-2 text-[12.5px] text-muted">{tr("No new entries in this period.", "이 기간에는 신규 진입이 없습니다.")}</li>}</ul>
-        </Card>
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <MoveList title={tr(`Climbed most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 오른 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={risers} spark={spark} empty={tr("Nothing climbed 5+ places.", "5계단 이상 오른 제품이 없습니다.")} />
+        <MoveList title={tr(`Fell most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 내린 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={fallers} spark={spark} empty={tr("Nothing fell 5+ places.", "5계단 이상 내린 제품이 없습니다.")} />
+        <MoveList title={tr("New in the top 100 this period", "이번 기간 상위 100위 신규 진입")} items={entrants} spark={spark} empty={tr("No new entries in this period.", "이 기간에는 신규 진입이 없습니다.")} />
       </div>
+      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유는 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁)이며 증거는 아닙니다.")}</p>
     </section>
+  );
+}
+
+function MoveList({ title, items, spark, empty }: { title: string; items: ListingMove[]; spark: (pid: string) => React.ReactNode; empty: string }) {
+  return (
+    <Card className="px-5 py-4">
+      <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{title}</div>
+      <ul className="mt-2 divide-y divide-line/60">{items.length ? items.map((x) => (
+        <li key={x.key} className="py-2 text-[13px]">
+          <div className="flex items-center gap-3">
+            <span className="min-w-0 flex-1 truncate"><BrandLink brand={x.brand} className="font-medium" /> <ProductLink id={x.product_id} cat={x.subcategory}>{shortName(x.name, x.brand)}</ProductLink></span>
+            {spark(x.product_id)}
+            <span className="shrink-0 text-right tabular text-ink-2">{x.entered ? <b className="text-ink">#{x.to}</b> : <>#{x.from} → <b className="text-ink">#{x.to}</b></>}</span>
+          </div>
+          {!x.entered && <div className="mt-1 flex flex-wrap gap-1">{x.why.length ? x.why.slice(0, 2).map((w) => <span key={w.text} className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: REASON_COLOR[w.kind] }}>{w.text}</span>) : <span className="text-[11.5px] text-muted">{tr("no clear cause", "뚜렷한 원인 없음")}</span>}</div>}
+        </li>)) : <li className="py-2 text-[12.5px] text-muted">{empty}</li>}</ul>
+    </Card>
   );
 }

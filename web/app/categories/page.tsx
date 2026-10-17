@@ -107,7 +107,7 @@ function CategoriesPage() {
   const asOf = rows[0] ? dayMonth(rows[0].scrape_date) : undefined;
   return (
     <Shell active="Top by category" asOf={asOf}>
-      <PageHead eyebrow={tr("Categories · step 2", "카테고리 · 2단계")} title={tr("Inside each category", "카테고리 들여다보기")} sub={tr("Pick a category: its size, growth, how many brands sell in it and what rose over the period, then its top 100 in the order the Nykaa app shows them today.", "카테고리를 고르세요. 규모, 성장률, 입점 브랜드 수, 기간 중 상승 제품을 보고, 이어서 오늘 Nykaa 앱 순서 그대로의 상위 100위를 봅니다.")} />
+      <PageHead eyebrow={tr("Categories · step 2", "카테고리 · 2단계")} title={tr("Inside each category", "카테고리 들여다보기")} sub={tr("Pick a category: how many brands sell in it, who sells most, what rose and fell over the period and why, then its top 100 in the order the Nykaa app shows them today. Any name opens its own page.", "카테고리를 고르세요. 입점 브랜드 수, 최다 판매, 기간 중 오르내린 제품과 이유, 이어서 오늘 Nykaa 앱 순서 그대로의 상위 100위. 이름을 누르면 해당 페이지가 열립니다.")} />
       {!shelf.data ? <Loading what={tr("the shelves", "진열 데이터")} /> : (
         <>
           <div className="mt-7 flex flex-wrap gap-2">

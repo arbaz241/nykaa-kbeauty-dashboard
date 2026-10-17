@@ -7,12 +7,12 @@ import PeriodBar from "@/components/PeriodBar";
 import { Card, Loading, PageHead, Verdict, pill } from "@/components/ui";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import { Basis, Def } from "@/components/Tiered";
-import { useDetail } from "@/components/Detail";
-import { useOpenProduct } from "@/components/ProductDrawer";
+import { useRouter } from "next/navigation";
+import { BrandLink, brandHref } from "@/components/Links";
 import { ORIGIN_COLOR, ORIGIN_LABEL, norm } from "@/lib/brands";
-import { CATEGORIES, CATEGORY_LABEL, compact, pct, shortName, signed } from "@/lib/format";
+import { CATEGORIES, CATEGORY_LABEL, compact, pct, signed } from "@/lib/format";
 import { aggregate, catsOn, placesOn, uniqueFlow, type FlowRow } from "@/lib/market";
-import { compareWord, spanLabel } from "@/lib/period";
+import { spanLabel } from "@/lib/period";
 import { useTiers } from "@/lib/tiers";
 import { useMarket } from "@/lib/useMarket";
 import { dayMonth, tr } from "@/lib/i18n";
@@ -33,8 +33,8 @@ function OriginBar({ agg, total }: { agg: Map<string, { value: number }>; total:
 }
 
 function BrandsPage() {
-  const m = useMarket(); const detail = useDetail(); const openProduct = useOpenProduct();
-  const { win, mwin, flow, prevFlow, ix, dims, growth } = m;
+  const m = useMarket(); const router = useRouter();
+  const { win, flow, prevFlow, ix, dims } = m;
   const [cat, setCat] = useState<string>("all");
   const [q, setQ] = useState(""); const [all, setAll] = useState(false);
   const known = useMemo(() => [...new Set(flow.map((r) => r.brand))], [flow]);
@@ -59,10 +59,9 @@ function BrandsPage() {
 
   const board = useMemo(() => [...byBrand.values()].map((a) => {
     const share = a.value / total; const prev = prevBrand ? (prevBrand.get(a.key)?.value ?? 0) / prevTotal : null;
-    const g = growth?.byBrand.get(a.key);
     return { brand: a.key, origin: originOfBrand.get(a.key) ?? "unknown", share, change: prev === null ? null : share - prev, flow: a.flow, listings: a.listings, best: a.best,
-      placesNow: places?.all.get(a.key) ?? 0, placesD: (places?.p1.get(a.key) ?? 0) - (places?.p0.get(a.key) ?? 0), growth: g && g.products >= 3 ? g.existing : null, growthN: g?.products ?? 0 };
-  }).sort((a, b) => b.share - a.share), [byBrand, total, prevBrand, prevTotal, growth, originOfBrand, places]);
+      placesNow: places?.all.get(a.key) ?? 0, placesD: (places?.p1.get(a.key) ?? 0) - (places?.p0.get(a.key) ?? 0)};
+  }).sort((a, b) => b.share - a.share), [byBrand, total, prevBrand, prevTotal, originOfBrand, places]);
 
   const originRows = useMemo(() => CATEGORIES.map((c) => {
     const rs = flow.filter((r) => r.subcategory === c); const tot = rs.reduce((a, r) => a + r.value, 0);
@@ -74,7 +73,7 @@ function BrandsPage() {
     return { c, agg, tot, k, kChange: kp === null ? null : k - kp, leader, kLeader, slots: rs.length, kSlots: rs.filter((r) => r.origin === "kbeauty").length };
   }).sort((a, b) => b.tot - a.tot), [flow, prevFlow]);
 
-  if (!m.ready || !win || !mwin) return <Shell active="Brands"><PageHead eyebrow={tr("Brands", "브랜드")} title={tr("Who is winning on Nykaa", "Nykaa에서 누가 이기고 있나")} sub="" /><Loading what={tr("brands", "브랜드")} /></Shell>;
+  if (!m.ready || !win) return <Shell active="Brands"><PageHead eyebrow={tr("Brands", "브랜드")} title={tr("Who is winning on Nykaa", "Nykaa에서 누가 이기고 있나")} sub="" /><Loading what={tr("brands", "브랜드")} /></Shell>;
 
   const totalOrigin = aggregate(rows, (r) => r.origin);
   const top = board[0];
@@ -89,28 +88,14 @@ function BrandsPage() {
   const shown = q ? board.filter((b) => norm(b.brand).includes(norm(q))) : all ? board : board.slice(0, 25);
   const focusMissing = focusOnBoard.filter((f) => !shown.includes(f));
 
-  const openBrand = (brand: string) => {
-    const list = flow.filter((r) => r.brand === brand && inCat(r)).sort((a, b) => b.value - a.value);
-    detail({ kicker: tr("Brand", "브랜드"), title: brand, body: (
-      <div className="space-y-3 text-[13px]">
-        <p className="text-ink-2">{tr(`${list.length} top-100 listings in the ${spanLabel(m.period.days)}${cat === "all" ? "" : ` in ${CATEGORY_LABEL[cat].toLowerCase()}`}, by value of new ratings.`, `${spanLabel(m.period.days)} 상위 100위 제품 ${list.length}개${cat === "all" ? "" : ` (${CATEGORY_LABEL[cat]})`}, 신규 평가 금액순.`)}</p>
-        <table className="w-full">
-          <thead><tr className="text-left text-[11px] uppercase tracking-[0.06em] text-muted"><th className="py-1">{tr("Product", "제품")}</th><th>{tr("Rank", "순위")}</th><th className="text-right">{tr("New ratings", "신규 평가")}</th></tr></thead>
-          <tbody>{list.map((r) => (
-            <tr key={`${r.subcategory}|${r.product_id}`} className="border-t border-line/60 align-top">
-              <td className="py-1.5 pr-2"><button className="text-left underline decoration-line-2 underline-offset-2 hover:decoration-ink" onClick={() => openProduct({ product_id: r.product_id, name: r.name, brand: r.brand, url: r.url })}>{shortName(r.name, r.brand)}</button><div className="text-[11px] text-muted">{CATEGORY_LABEL[r.subcategory]}</div></td>
-              <td className="whitespace-nowrap tabular text-ink-2">{r.rankStart ? `#${r.rankStart}` : tr("new", "신규")} → <b className="text-ink">#{r.rankEnd}</b></td>
-              <td className="text-right tabular">{r.flow.toLocaleString("en-IN")}</td>
-            </tr>))}</tbody>
-        </table>
-      </div>) });
-  };
+  // plan v2: a brand opens its own page, where everything about it sits together
+  const openBrand = (brand: string) => router.push(brandHref(brand));
 
   return (
     <Shell active="Brands" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Brands · step 3", "브랜드 · 3단계")} title={tr("Who is winning on Nykaa", "Nykaa에서 누가 이기고 있나")}
         sub={tr("Indian, Korean and global brands against each other, category by category, then every brand ranked by what shoppers bought in the period.", "인도·한국·글로벌 브랜드를 카테고리별로 비교하고, 기간 중 소비자 구매 기준으로 모든 브랜드를 순위화합니다.")}
-        right={<PeriodBar shelf={win} months={mwin} />} />
+        right={<PeriodBar shelf={win} freeze={m.freeze} />} />
       <SectionNav items={NAV()} />
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -126,7 +111,7 @@ function BrandsPage() {
             risers[0] ? tr(<>Most top-100 places gained: <b>{risers[0].b}</b> (+{risers[0].d}, now {risers[0].now}).</>, <>상위 100위 자리를 가장 많이 늘린 브랜드: <b>{risers[0].b}</b> (+{risers[0].d}, 현재 {risers[0].now}).</>) : null,
             prevFlow ? null : tr(<>No earlier {m.period.days || ""}-day period is collected yet, so share changes are not shown; pick 7 or 14 days to see them.</>, <>같은 길이의 직전 기간이 아직 없어 점유율 변화는 표시하지 않습니다. 7일 또는 14일을 고르면 보입니다.</>),
           ].filter(Boolean) as React.ReactNode[]}>
-          {top ? tr(<><b>{top.brand}</b> leads with {pct(top.share, 1)} of shoppers&rsquo; new ratings by value, from {top.listings} top-100 listings.</>, <><b>{top.brand}</b>가 소비자 신규 평가 금액의 {pct(top.share, 1)}로 1위입니다 (상위 100위 제품 {top.listings}개).</>) : "–"}
+          {top ? tr(<><BrandLink brand={top.brand} className="font-semibold text-on-brand" /> leads with {pct(top.share, 1)} of shoppers&rsquo; new ratings by value, from {top.listings} top-100 listings.</>, <><BrandLink brand={top.brand} className="font-semibold text-on-brand" />가 소비자 신규 평가 금액의 {pct(top.share, 1)}로 1위입니다 (상위 100위 제품 {top.listings}개).</>) : "–"}
         </Verdict>
       </section>
 
@@ -143,8 +128,8 @@ function BrandsPage() {
                 <td className="px-4 py-2.5"><button onClick={() => setCat(r.c)} className="font-medium underline decoration-line-2 underline-offset-2">{CATEGORY_LABEL[r.c]}</button></td>
                 <td className="px-2 py-2.5"><OriginBar agg={r.agg} total={r.tot} /></td>
                 <td className="px-2 py-2.5 tabular">{pct(r.k, 1)}{r.kChange !== null && <Basis>{pts(r.kChange)}</Basis>}<Basis>{tr(`${r.kSlots} of ${r.slots} places`, `${r.slots}자리 중 ${r.kSlots}`)}</Basis></td>
-                <td className="px-2 py-2.5">{r.leader ? <>{r.leader.key}<Basis>{pct(r.leader.value / (r.tot || 1))}</Basis></> : "–"}</td>
-                <td className="px-2 py-2.5">{r.kLeader ? <>{r.kLeader.key}<Basis>{pct(r.kLeader.value / (r.tot || 1))}</Basis></> : <span className="text-muted">{tr("none in top 100", "상위 100위 없음")}</span>}</td>
+                <td className="px-2 py-2.5">{r.leader ? <><BrandLink brand={r.leader.key} /><Basis>{pct(r.leader.value / (r.tot || 1))}</Basis></> : "–"}</td>
+                <td className="px-2 py-2.5">{r.kLeader ? <><BrandLink brand={r.kLeader.key} /><Basis>{pct(r.kLeader.value / (r.tot || 1))}</Basis></> : <span className="text-muted">{tr("none in top 100", "상위 100위 없음")}</span>}</td>
               </tr>))}</tbody>
           </table>
         </Card>
@@ -153,13 +138,13 @@ function BrandsPage() {
 
       <ActionSection id="leaders" kicker={tr("Brand leaderboard", "브랜드 순위")}
         title={top ? tr(<>{top.brand} leads {cat === "all" ? "skin & makeup" : CATEGORY_LABEL[cat].toLowerCase()}; {focusOnBoard[0]?.brand ?? "–"} is the top focus brand</>, <>{cat === "all" ? "스킨케어·메이크업" : CATEGORY_LABEL[cat]} 1위는 {top.brand}, 주요 브랜드 중 1위는 {focusOnBoard[0]?.brand ?? "–"}</>) : ""}
-        note={tr(<>Share of buying in the {spanLabel(m.period.days)}; change against the period before when collected. Places: top-100 places at the end of the period; the change below is counted on the categories tracked on both days. Growth: <Def k="valueGrowth">like for like</Def>, {mwin.recentLabel} {compareWord(mwin.compare)}, where we track the brand&rsquo;s reviews. Click a brand for its products.</>,
-          <>{spanLabel(m.period.days)} 구매 점유, 직전 기간 대비 변화(수집된 경우). 자리: 기간 말 상위 100위 자리. 아래 변화는 양일 모두 추적한 카테고리 기준. 성장률: <Def k="valueGrowth">동일 제품 기준</Def>, {mwin.recentLabel} {compareWord(mwin.compare)} (리뷰를 추적하는 브랜드만). 브랜드를 누르면 제품이 보입니다.</>)}>
+        note={tr(<>Share of buying in the {spanLabel(m.period.days)}; change against the period before when collected. Places: top-100 places at the end of the period; the change below is counted on the categories tracked on both days. Click a brand to open its page: its products, why they moved, offers and review trend.</>,
+          <>{spanLabel(m.period.days)} 구매 점유, 직전 기간 대비 변화(수집된 경우). 자리: 기간 말 상위 100위 자리. 아래 변화는 양일 모두 추적한 카테고리 기준. 브랜드를 누르면 제품, 순위 변화 이유, 프로모션, 리뷰 추세가 있는 페이지가 열립니다.</>)}>
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-[13px]">
             <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
               <th className="px-4 py-2.5">#</th><th className="px-2 py-2.5">{tr("Brand", "브랜드")}</th><th className="px-2 py-2.5"><Def k="ratingFlow">{tr("Share of buying", "구매 점유")}</Def></th>
-              <th className="px-2 py-2.5">{tr("New ratings", "신규 평가")}</th><th className="px-2 py-2.5">{tr("Places", "자리")}</th><th className="px-2 py-2.5">{tr("Best rank", "최고 순위")}</th><th className="px-2 py-2.5"><Def k="valueGrowth">{tr("Growth", "성장률")}</Def></th>
+              <th className="px-2 py-2.5">{tr("New ratings", "신규 평가")}</th><th className="px-2 py-2.5">{tr("Places", "자리")}</th><th className="px-2 py-2.5">{tr("Best rank", "최고 순위")}</th>
             </tr></thead>
             <tbody>{[...shown, ...focusMissing].map((b) => (
               <tr key={b.brand} className={`border-b border-line/60 last:border-0 hover:bg-sunken/50 ${tiers.inSet(b.brand) ? "bg-accent-soft/30" : ""}`}>
@@ -171,7 +156,6 @@ function BrandsPage() {
                 <td className="px-2 py-2 tabular">{compact(b.flow)}</td>
                 <td className="px-2 py-2 tabular">{b.placesNow}<Basis className={b.placesD > 0 ? "text-good" : b.placesD < 0 ? "text-bad" : ""}>{b.placesD > 0 ? "+" : ""}{b.placesD} {tr(`since ${dayMonth(win.start)}`, `${dayMonth(win.start)} 대비`)}</Basis></td>
                 <td className="px-2 py-2 tabular">{b.best ? `#${b.best}` : "–"}</td>
-                <td className="px-2 py-2 tabular">{b.growth !== null ? <span className={b.growth >= 0 ? "text-good" : "text-bad"}>{signed(b.growth)}</span> : <span className="text-[11.5px] text-muted">{tr("not tracked", "미추적")}</span>}{b.growth !== null && <Basis>{tr(`${b.growthN} products${b.growthN < 5 ? " · thin" : ""}`, `제품 ${b.growthN}개${b.growthN < 5 ? " · 표본 적음" : ""}`)}</Basis>}</td>
               </tr>))}</tbody>
           </table>
           <div className="flex flex-wrap items-center gap-3 border-t border-line px-4 py-2.5">

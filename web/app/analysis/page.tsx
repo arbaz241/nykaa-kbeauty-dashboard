@@ -62,7 +62,8 @@ function Analysis() {
 
   const known = useMemo(() => [...new Set([...(shelf.data ?? []).map((r) => r.brand), ...(months.data ?? []).map((m) => m.brand)])].sort(), [shelf.data, months.data]);
   const tiers = useTiers(known);
-  const [picked, setPicked] = useState<string | null>(null);
+  // plan v2: the brand page links here with ?brand=, so the brief opens on that brand
+  const [picked, setPicked] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("brand")));
   const anchor = picked ?? tiers.pinned;
   const deep = tiers.inSet(anchor);
   const [scope, setScope] = useState<"set" | "all">("set");
@@ -128,13 +129,13 @@ function Analysis() {
         `주요 브랜드 대비 ${josa(anchor, "은/는")} 진열에서 가장 약합니다(${fx(weakest.r)}, ${josa(word[idx[1].k], "은/는")} ${fx(idx[1].r)}). 구매자가 선택하는 만큼 Nykaa 목록에 노출되지 않으므로, 진열 노출(프로모션, 광고, 상품 페이지 품질)이 첫 번째 레버입니다`), href: "#standing" };
   const priority = me && mkt !== null && me.growth !== null && (me.growth < mkt - 0.05 || avgRank > n * 0.6) ? "High" : me && mkt !== null && me.growth !== null && (me.growth < mkt || avgRank > n / 3) ? "Medium" : "Watch";
   const priorityWord = { High: tr("High priority", "우선순위 높음"), Medium: tr("Medium priority", "우선순위 보통"), Watch: tr("Watch priority", "관찰") }[priority];
-  const headline = me ? tr(`${anchor} is ${standing} among the ${n} focus brands on Nykaa (#${rS} on the shelf, #${rQ} in search, #${rD} in demand), and its demand is ${me.growth === null || mkt === null ? "too thinly tracked to call" : me.growth >= mkt ? `growing faster than the market (${signed(me.growth)} vs ${signed(mkt)})` : `growing slower than the market (${signed(me.growth)} vs ${signed(mkt)})`}.`,
-      `${josa(anchor, "은/는")} Nykaa 주요 브랜드 ${n}개 중 ${standing}입니다(진열 ${rS}위, 검색 ${rQ}위, 수요 ${rD}위). 수요는 ${me.growth === null || mkt === null ? "추적 데이터가 부족해 판단하기 어렵습니다" : me.growth >= mkt ? `시장보다 빠르게 성장하고 있습니다(${signed(me.growth)}, 시장 ${signed(mkt)})` : `시장보다 느리게 성장하고 있습니다(${signed(me.growth)}, 시장 ${signed(mkt)})`}.`)
+  const headline = me ? tr(`${anchor} is ${standing} among the ${n} focus brands on Nykaa (#${rS} on the shelf, #${rQ} in search, #${rD} in demand), and its demand is ${me.growth === null || mkt === null ? "too thinly tracked to call" : me.growth >= mkt ? `growing faster than all tracked products (${signed(me.growth)} vs ${signed(mkt)})` : `growing slower than all tracked products (${signed(me.growth)} vs ${signed(mkt)})`}.`,
+      `${josa(anchor, "은/는")} Nykaa 주요 브랜드 ${n}개 중 ${standing}입니다(진열 ${rS}위, 검색 ${rQ}위, 수요 ${rD}위). 수요는 ${me.growth === null || mkt === null ? "추적 데이터가 부족해 판단하기 어렵습니다" : me.growth >= mkt ? `추적 전체보다 빠르게 성장하고 있습니다(${signed(me.growth)}, 시장 ${signed(mkt)})` : `추적 전체보다 느리게 성장하고 있습니다(${signed(me.growth)}, 시장 ${signed(mkt)})`}.`)
     : tr(`${anchor} has no listing or tracked demand today.`, `${josa(anchor, "은/는")} 오늘 진열 제품도, 추적 중인 수요도 없습니다.`);
   const verdictPoints = me ? tr([
     <><b className="text-on-brand">Shelf:</b> {me.shelfSlots} of {board.shelfTotal.toLocaleString("en-IN")} top-100 places ({pct(me.shelf)}); {lead("shelf")?.brand} leads the focus set with {lead("shelf")?.shelfSlots}. {me.slotsChange !== null && <>{me.slotsChange === 0 ? "No change" : `${me.slotsChange > 0 ? "+" : ""}${me.slotsChange} places`} in 14 days, counted on the {board.likeForLikeCats} categories tracked throughout.</>}</>,
     <><b className="text-on-brand">Search:</b> {pct(me.search)} of unpaid top-10 results across today&rsquo;s keywords; {lead("search")?.brand} leads with {pct(lead("search")?.search ?? 0)}.{kw.total ? ` Absent from the top 10 on ${kw.absent} of ${kw.total} keywords.` : ""}</>,
-    <><b className="text-on-brand">Demand:</b> {pct(me.demand)} of tracked reviews in {win.recent}; {lead("demand")?.brand} leads with {pct(lead("demand")?.demand ?? 0)}. Growth {signed(me.growth)} vs market {signed(mkt)} ({win.recent} vs {win.prior}).</>,
+    <><b className="text-on-brand">Demand:</b> {pct(me.demand)} of tracked reviews in {win.recent}; {lead("demand")?.brand} leads with {pct(lead("demand")?.demand ?? 0)}. Growth {signed(me.growth)} vs all tracked {signed(mkt)} ({win.recent} vs {win.prior}).</>,
     <><b className="text-on-brand">Range and stock:</b> {gapCells.length ? `${gapCells.length} price band${gapCells.length === 1 ? "" : "s"} where focus brands sell 3+ products and ${anchor} none` : "no price band left open to the focus brands"}; {oos.length ? `${oos.length} product${oos.length === 1 ? "" : "s"} out of stock today` : "nothing out of stock today"}.</>,
   ], [
     <><b className="text-on-brand">진열:</b> 상위 100위 자리 {board.shelfTotal.toLocaleString("en-IN")}개 중 {me.shelfSlots}개({pct(me.shelf)}). 주요 브랜드 중 선두는 {lead("shelf")?.brand}({lead("shelf")?.shelfSlots}개). {me.slotsChange !== null && <>14일간 {me.slotsChange === 0 ? "변화 없음" : `${me.slotsChange > 0 ? "+" : ""}${me.slotsChange}자리`} (기간 내내 추적한 카테고리 {board.likeForLikeCats}개 기준).</>}</>,
@@ -214,8 +215,8 @@ function Analysis() {
       </ActionSection>
 
       <ActionSection id="portfolio" kicker={tr("By category · where it wins and loses", "카테고리별 · 강점과 약점")} title={opps.length ? tr(`${opps.length} growing categor${opps.length === 1 ? "y is" : "ies are"} where ${anchor} does worse than its usual share: ${opps.slice(0, 3).map((c) => cat(c.category).toLowerCase()).join(", ")}.`, `성장 카테고리 ${opps.length}곳에서 ${josa(anchor, "이/가")} 평소 점유율보다 약합니다: ${opps.slice(0, 3).map((c) => cat(c.category)).join(", ")}.`) : tr(`No growing category where ${anchor} under-indexes.`, `${josa(anchor, "이/가")} 평소보다 약한 성장 카테고리는 없습니다.`)}
-        note={tr(<>Each category is placed by how fast its buying grows (up) and by {anchor}&rsquo;s slice of it (across). The dashed lines are the market&rsquo;s growth ({signed(mkt)}) and {anchor}&rsquo;s usual share ({pct(cmap.usual)}). Hollow bubbles have too little data to classify. Bubble size = reviews in {win.recent}.</>,
-          <>세로축은 카테고리 구매 성장 속도, 가로축은 그 안에서 {anchor}의 점유율입니다. 점선은 시장 성장률({signed(mkt)})과 {anchor}의 평소 점유율({pct(cmap.usual)}). 속이 빈 원은 데이터가 부족해 분류하지 않았습니다. 원 크기 = {win.recent} 리뷰 수.</>)}>
+        note={tr(<>Each category is placed by how fast its buying grows (up) and by {anchor}&rsquo;s slice of it (across). The dashed lines are the growth of all tracked products ({signed(mkt)}) and {anchor}&rsquo;s usual share ({pct(cmap.usual)}). Hollow bubbles have too little data to classify. Bubble size = reviews in {win.recent}.</>,
+          <>세로축은 카테고리 구매 성장 속도, 가로축은 그 안에서 {anchor}의 점유율입니다. 점선은 추적 전체 성장률({signed(mkt)})과 {anchor}의 평소 점유율({pct(cmap.usual)}). 속이 빈 원은 데이터가 부족해 분류하지 않았습니다. 원 크기 = {win.recent} 리뷰 수.</>)}>
         <div className="grid gap-4">
           <Card className="p-4"><OpportunityMap cells={cmap.cells} usual={cmap.usual} market={mkt} anchor={anchor} onPick={(c) => detail(catDetail(c))} /></Card>
           <Card className="overflow-x-auto">
@@ -393,7 +394,7 @@ function Scoreboard({ rows, setRows, anchor, tiers, board, win }: { rows: ScoreR
           <span><Def k="shelf">{tr("Share of top-100 shelf", "상위 100위 진열 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr("places held today · change in 14 days", "오늘 차지한 자리 · 14일 변화")}</span></span>
           <span><Def k="search">{tr("Share of top-10 search", "상위 10위 검색 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr("unpaid results today · change in 7 days", "오늘 비광고 결과 · 7일 변화")}</span></span>
           <span><Def k="demand">{tr("Share of reviews", "리뷰 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{win}</span></span>
-          <span><Def k="growth">{tr("Demand growth", "수요 성장률")}</Def><span className="block font-normal normal-case tracking-normal">{tr(`vs market ${signed(board.market.growth)}`, `시장 ${signed(board.market.growth)}`)}</span></span>
+          <span><Def k="growth">{tr("Demand growth", "수요 성장률")}</Def><span className="block font-normal normal-case tracking-normal">{tr(`vs all tracked ${signed(board.market.growth)}`, `시장 ${signed(board.market.growth)}`)}</span></span>
         </div>
         <TieredList rows={sorted} brandOf={(r) => r.brand} tiers={tiers} top={9} render={(r) => {
           const hl = same(r.brand, anchor); const out = !tiers.inSet(r.brand);
@@ -483,7 +484,7 @@ function nextSteps({ anchor, cmap, market, usual, gapCells, gaps, me, kw, oos, f
   for (const c of cmap.filter((x) => x.quadrant === "opportunity").slice(0, 2)) {
     const b = best(c.category);
     out.push({ what: tr(`Push ${b ? shortName(b.name, anchor).split(/,| - | with /)[0] : "a product"} in ${cat(c.category).toLowerCase()}`, `${cat(c.category)}에서 ${b ? shortName(b.name, anchor).split(/,| - | with /)[0] : "제품"} 강화`), who: b ? tr(`${anchor}'s best seller here (${b.recent} reviews in 3 months)`, `이 카테고리 ${anchor} 베스트셀러 (3개월 리뷰 ${b.recent}건)`) : tr(`${anchor} has no tracked product here yet`, `아직 추적 중인 ${anchor} 제품 없음`),
-      why: tr(`The category grows ${signed(c.growth)} vs the market's ${signed(market)}, but ${anchor} holds ${pct(c.anchorShare)} of it against its usual ${pct(usual)}; ${c.focusLeader?.brand ?? c.leader.brand} leads with ${pct(c.focusLeader?.share ?? c.leader.share)}.`, `카테고리는 ${signed(c.growth)} 성장(시장 ${signed(market)})하는데 ${anchor}의 점유율은 ${pct(c.anchorShare)}로 평소 ${pct(usual)}보다 낮습니다. 선두는 ${c.focusLeader?.brand ?? c.leader.brand}(${pct(c.focusLeader?.share ?? c.leader.share)}).`), href: "#portfolio", impact: 80 + Math.min(15, c.recent / 1000) });
+      why: tr(`The category grows ${signed(c.growth)} vs all tracked products' ${signed(market)}, but ${anchor} holds ${pct(c.anchorShare)} of it against its usual ${pct(usual)}; ${c.focusLeader?.brand ?? c.leader.brand} leads with ${pct(c.focusLeader?.share ?? c.leader.share)}.`, `카테고리는 ${signed(c.growth)} 성장(추적 전체 ${signed(market)})하는데 ${anchor}의 점유율은 ${pct(c.anchorShare)}로 평소 ${pct(usual)}보다 낮습니다. 선두는 ${c.focusLeader?.brand ?? c.leader.brand}(${pct(c.focusLeader?.share ?? c.leader.share)}).`), href: "#portfolio", impact: 80 + Math.min(15, c.recent / 1000) });
   }
   const growingGaps = [...gapCells].sort((a, b) => (growthOf(b.category) ?? -1) - (growthOf(a.category) ?? -1) || b.rivals.length - a.rivals.length);
   for (const g of growingGaps.slice(0, 1)) out.push({ what: tr(`Fill the ${g.label} band in ${cat(g.category).toLowerCase()}`, `${cat(g.category)} ${bandLabel(g.label)} 가격대 채우기`), who: tr(`${anchor} range planning`, `${anchor} 상품 기획`), why: tr(`${g.rivals.length} focus-brand products (${g.rivalBrands.slice(0, 3).join(", ")}${g.rivalBrands.length > 3 ? "…" : ""}) sell at this MRP and ${anchor} has none; the category grows ${signed(growthOf(g.category))}.`, `이 정가대에서 주요 브랜드 제품 ${g.rivals.length}개(${g.rivalBrands.slice(0, 3).join(", ")}${g.rivalBrands.length > 3 ? "…" : ""})가 팔리는데 ${anchor} 제품은 없습니다. 카테고리 성장률 ${signed(growthOf(g.category))}.`), href: "#gaps", impact: 70 + g.rivals.length });

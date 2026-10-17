@@ -103,7 +103,7 @@ function OffersPage() {
     <Shell active="Offers" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Offers & events · step 7", "프로모션·이벤트 · 7단계")} title={tr("What Nykaa and the brands are running", "Nykaa와 브랜드가 진행 중인 것")}
         sub={tr("Nykaa's sales and homepage banners, read every night, and the offers each brand runs, so a move on the shelf can be read against them.", "매일 밤 수집한 Nykaa 세일·홈페이지 배너와 브랜드별 프로모션. 진열 순위 변화를 이것과 함께 읽을 수 있습니다.")}
-        right={<PeriodBar show="shelf" shelf={win} />} />
+        right={<PeriodBar shelf={win} freeze={m.freeze} />} />
       <SectionNav items={NAV()} />
 
       <section id="summary" className="mt-8 scroll-mt-32">

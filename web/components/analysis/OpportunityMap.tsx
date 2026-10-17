@@ -13,7 +13,7 @@ const signed = (v: number) => `${v >= 0 ? "+" : ""}${Math.round(v * 100)}%`;
 const TONE = { accent: "var(--color-accent-strong)", good: "var(--color-good)", muted: "var(--color-muted)", bad: "var(--color-bad)" } as const;
 
 /** Category opportunity map (replaces the BCG matrix, owner decision D2): across = the anchor's share of the
- *  category's recent reviews, with its usual share as the dividing line; up = category growth, with the market's
+ *  category's recent reviews, with its usual share as the dividing line; up = category growth, with all tracked products'
  *  growth as the dividing line. Each quadrant says what it means inside the chart. Thin categories are drawn
  *  hollow and never classified. */
 export default function OpportunityMap({ cells, usual, market, anchor, onPick }: {
@@ -59,7 +59,7 @@ export default function OpportunityMap({ cells, usual, market, anchor, onPick }:
         <line x1={x(usual)} x2={x(usual)} y1={T} y2={H - B} stroke="var(--color-ink-2)" strokeDasharray="4 4" />
         <text x={x(usual) + 6} y={H - B - 6} fontSize={10.5} fill="var(--color-ink-2)">{tr(`${anchor}'s usual share ${pct(usual, 1)}`, `${anchor} 평소 점유율 ${pct(usual, 1)}`)}</text>
         <line x1={L} x2={W - R} y1={y(mx)} y2={y(mx)} stroke="var(--color-ink-2)" strokeDasharray="4 4" />
-        <text x={W - R} y={y(mx) - 6} textAnchor="end" fontSize={10.5} fill="var(--color-ink-2)">{tr(`market growth ${signed(mx)}`, `시장 성장률 ${signed(mx)}`)}</text>
+        <text x={W - R} y={y(mx) - 6} textAnchor="end" fontSize={10.5} fill="var(--color-ink-2)">{tr(`all tracked ${signed(mx)}`, `추적 전체 성장률 ${signed(mx)}`)}</text>
         {corner("opportunity", L, 14, "start")}{corner("invest", W - R, 14, "end")}
         {corner("low", L, H - B + 36, "start")}{corner("maintain", W - R, H - B + 36, "end")}
         <text x={(L + W - R) / 2} y={H - B + 50} textAnchor="middle" fontSize={11.5} fill="var(--color-ink-2)">{tr(`${anchor}'s share of the category's reviews, ${win.recent} →`, `카테고리 리뷰 중 ${anchor} 점유율, ${win.recent} →`)}</text>

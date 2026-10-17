@@ -42,8 +42,8 @@ export const GLOSSARY = {
     window: ["Jul–Sep 2026 vs Jul–Sep 2025; both contain Nykaa's Hot Pink sale.", "2026년 7–9월 vs 2025년 7–9월. 두 기간 모두 Nykaa Hot Pink sale 포함."],
   }),
   marketGrowth: metric({
-    name: ["Market growth", "시장 성장률"],
-    plain: ["The same growth measure across every tracked product: the bar a brand or category has to beat.", "추적 중인 전체 제품에 같은 성장률 계산을 적용한 값. 브랜드나 카테고리가 넘어야 할 기준선입니다."],
+    name: ["Growth of all tracked products", "추적 전체 성장률"],
+    plain: ["The same review measure across every tracked product: the bar a brand or category in our data has to beat. It is not the market's growth; that is Nykaa's own reported figure on the Brief.", "추적 중인 전체 제품에 같은 리뷰 계산을 적용한 값. 우리 데이터 안의 기준선이며 시장 성장률이 아닙니다. 시장 성장률은 브리핑의 Nykaa 발표 수치입니다."],
     formula: ["All tracked reviews in the last 3 complete months ÷ the same months a year earlier, minus 1 (products on sale in both). The Overview weights the same comparison by price.", "최근 3개월 전체 리뷰 수 ÷ 전년 같은 기간 리뷰 수 − 1 (두 기간 모두 판매된 제품). 개요 탭은 같은 비교를 가격으로 가중합니다."],
     source: ["Same review history as demand growth.", "수요 성장률과 같은 리뷰 이력."],
     window: ["Jul–Sep 2026 vs Jul–Sep 2025.", "2026년 7–9월 vs 2025년 7–9월."],
@@ -86,7 +86,7 @@ export const GLOSSARY = {
   // ---- Round 4 (17 Oct 2026) ----
   valueGrowth: metric({
     name: ["Growth, like for like", "성장률 (동일 제품 기준)"],
-    plain: ["How much more buying the products already on sale a year ago got: the figure to hold against Nykaa's reported growth.", "1년 전에도 판매 중이던 제품의 구매가 얼마나 늘었는지. Nykaa가 발표한 성장률과 비교할 수 있는 수치입니다."],
+    plain: ["How much more buying the products already on sale a year ago got. Kept only as a check on the Brief: products collect fewer reviews as they age, so it swings from -49% to +30% while Nykaa holds at 26–28%.", "1년 전에도 판매 중이던 제품의 구매 증가. 브리핑에서 점검용으로만 씁니다: 제품은 나이가 들수록 리뷰가 줄어 이 값은 Nykaa가 26–28%를 유지하는 동안 −49%에서 +30%까지 흔들립니다."],
     formula: ["Reviews in the chosen months × selling price, ÷ the same products' reviews × price in the same months a year earlier (or the months before), minus 1. Categories are added up by their share of that value, so Nykaa's total = Σ category weight × category growth.", "선택한 기간의 리뷰 수 × 판매가 ÷ 같은 제품의 1년 전 같은 기간(또는 직전 기간) 리뷰 수 × 판매가 − 1. 카테고리는 금액 비중으로 합산하므로 전체 = Σ 카테고리 비중 × 카테고리 성장률."],
     source: ["Monthly review history of the products we track (about 600), by the date each review was written; today's selling price.", "추적 중인 약 600개 제품의 월별 리뷰 이력(리뷰 작성일 기준)과 현재 판매가."],
     window: ["The months in the period picker, compared with a year earlier by default.", "기간 선택에서 고른 개월 수. 기본은 전년 동기 비교."],
