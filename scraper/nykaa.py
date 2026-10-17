@@ -44,6 +44,7 @@ class PageResult:
     products: list[dict]
     total_found: int | None
     source: str  # "app" | "web"
+    brands: list[dict] | None = None  # Nykaa's brand filter for the whole category: [{id, name, count}]
 
 
 @dataclass
@@ -55,6 +56,7 @@ class CategoryResult:
     pages_ok: int = 0
     pages_failed: int = 0
     errors: list[str] = field(default_factory=list)
+    brands: list[dict] = field(default_factory=list)  # every brand in the category with its product count
 
 
 # ---------------------------------------------------------------- normalize
@@ -129,7 +131,8 @@ async def _fetch_api_page(page: Page, category: config.Category, page_no: int) -
     products = resp.get("products") or []
     if not products:
         raise RuntimeError(f"API returned 0 products for {category.key} p{page_no} (status={data.get('status')})")
-    return PageResult(products, resp.get("total_found"), "app")
+    brands = ((resp.get("filters") or {}).get("brand")) if isinstance(resp.get("filters"), dict) else None
+    return PageResult(products, resp.get("total_found"), "app", brands if isinstance(brands, list) else None)
 
 
 async def _fetch_ssr_page(page: Page, category: config.Category, page_no: int) -> PageResult:
@@ -187,6 +190,8 @@ async def _scrape_category_via(fetcher, page: Page, category: config.Category,
         result.pages_ok += 1
         result.listing_source = pr.source
         result.total_found = result.total_found or pr.total_found
+        if pr.brands and not result.brands:
+            result.brands = pr.brands
         for i, raw in enumerate(pr.products):
             rank = (page_no - 1) * config.PAGE_SIZE + i + 1
             row = normalize(raw, category, rank, scraped_at, pr.source)
