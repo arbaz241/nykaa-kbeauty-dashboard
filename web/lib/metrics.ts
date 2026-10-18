@@ -39,7 +39,20 @@ export function brandScore(brand: string, shelf: ShelfRow[], months: ReviewMonth
   const firstCov = bm.filter((m) => covered.has(m.product_id)).reduce((a, m) => (m.coverage_start > a ? m.coverage_start : a), "1900-01-01");
   const spark = win.map((mo) => (covered.size && mo >= firstCov ? byMonth.get(mo) ?? 0 : null));
   const sum = (xs: (number | null)[]) => xs.reduce<number>((a, b) => a + (b ?? 0), 0);
-  const last3 = covered.size ? sum(spark.slice(-3)) : null; const prev3 = covered.size ? sum(spark.slice(-6, -3)) : null;
+  const last3 = covered.size ? sum(spark.slice(-3)) : null;
+  // growth: the standard rule (lib/profile sameProductGrowth): the last 3 complete months against the same months a
+  // year earlier, products whose history reaches back and that had reviews then (audit 19 Oct: this compared with the
+  // 3 months just before while the label said "vs a year earlier", so Innisfree read +25% here and +73% on K-beauty)
+  const w15 = monthsWindow(15); const recentM = w15.slice(12); const baseM = w15.slice(0, 3);
+  const perP = new Map<string, { cov: string; by: Map<string, number> }>();
+  for (const m of bm) { const x = perP.get(m.product_id) ?? { cov: m.coverage_start, by: new Map<string, number>() }; if (m.coverage_start > x.cov) x.cov = m.coverage_start; x.by.set(m.month, (x.by.get(m.month) ?? 0) + m.reviews); perP.set(m.product_id, x); }
+  let yRecent = 0; let yBase = 0;
+  for (const x of perP.values()) {
+    if (x.cov > baseM[0]) continue;
+    const r = recentM.reduce((a, mo) => a + (x.by.get(mo) ?? 0), 0); const bb = baseM.reduce((a, mo) => a + (x.by.get(mo) ?? 0), 0);
+    if (bb > 0) { yRecent += r; yBase += bb; }
+  }
+  const prev3 = covered.size ? yBase : null;
 
   // search: unpaid positions from one sample per query; ads counted across samples
   const queries = new Map<string, SearchRow[]>();
@@ -62,16 +75,14 @@ export function brandScore(brand: string, shelf: ShelfRow[], months: ReviewMonth
     avgDiscount: mean(g.map((r) => r.discount_pct)), offerShare: g.length ? g.filter((r) => r.has_offer).length / g.length : null,
     paidShare: g.length ? g.filter((r) => r.is_ad || r.is_pinned).length / g.length : null,
     rating: mean(pooled.map((r) => r.rating)), ratings: pooled.reduce((a, r) => a + (r.rating_count ?? 0), 0),
-    last3, prev3, growth: last3 !== null && prev3 ? (last3 - prev3) / prev3 : null, spark, demandProducts: covered.size,
+    last3, prev3, growth: yBase > 0 ? yRecent / yBase - 1 : null, spark, demandProducts: covered.size,
     searchTerms: terms, bestSearch: best, adSlots: ads,
     range, conversion: range ? distinct.size / range : null,
-    madeIn: countries.length ? mode(countries) : null,
+    // one country only when most of its listings say so (audit 19 Oct: Cetaphil read "made in South Korea" from 6 of
+    // 19 listings; India 6, France 4, Canada 3)
+    madeIn: countries.length ? (() => { const c = new Map<string, number>(); for (const x of countries) c.set(x, (c.get(x) ?? 0) + 1); const r = [...c.entries()].sort((a, b) => b[1] - a[1]);
+      return r[0][1] / countries.length >= 0.6 ? r[0][0] : r.slice(0, 3).map(([k]) => k).join(" / "); })() : null,
   };
-}
-
-function mode(xs: string[]) {
-  const c = new Map<string, number>(); xs.forEach((x) => c.set(x, (c.get(x) ?? 0) + 1));
-  return [...c.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
 /** Price per ml/g. Pack size from the listing, else read from the title ("… 50ml"). */

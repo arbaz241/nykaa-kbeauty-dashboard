@@ -18,7 +18,7 @@ import type { UspComparison, UspProduct } from "@/lib/usp";
 import { tr } from "@/lib/i18n";
 import { tx } from "@/lib/dict";
 
-const SKINCARE = ["toner", "serum", "face_moisturizer", "face_wash", "sunscreen", "cleansing_balm", "masks", "sheet_mask", "eye_care", "lip_care"];
+const SKINCARE = ["toner", "serum", "face_moisturizer", "face_wash", "sunscreen", "masks", "sheet_mask", "eye_care", "lip_care"];
 
 function criteriaFor(cat: string, anchor: string): Criterion<BrandFacts>[] {
   const inBasket = (PRICE_BASKET as readonly string[]).includes(cat);

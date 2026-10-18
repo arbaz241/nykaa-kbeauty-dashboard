@@ -2,7 +2,7 @@
  *  shape per product and per brand (docs/restructure-v2-plan.md §2 inventory). Pure functions, no fetching. */
 
 import { norm } from "./brands";
-import { PER_SHEET, clause, packMl, packPieces, sheetCount, shortName } from "./format";
+import { PER_SHEET, clause, inr, packMl, packPieces, sheetCount, shortName } from "./format";
 import type { Variant } from "./data";
 import { reviewThemes, themeFor, type ReviewLite, type ReviewThemes } from "./reviewThemes";
 import type { Lvl } from "@/components/Detail";
@@ -143,12 +143,12 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
 
 /* ---------------------------------------------------------------- price per 100 ml (or per sheet) on MRP */
 
-function unitPrice<T extends { mrpPer100: number | null; sizeUsed: { ml: number; how: string } | null; per100Why: string | null }>(sz: T, perSheet: boolean, pack: string | null, name: string, mrp: number | null) {
+function unitPrice<T extends { mrpPer100: number | null; sizeUsed: { ml: number; mrp: number; how: string } | null; per100Why: string | null }>(sz: T, perSheet: boolean, pack: string | null, name: string, mrp: number | null) {
   if (perSheet) {
     const c = sheetCount(pack, name);
     return { ...sz, unit: mrp ? mrp / c.n : null, unitNote: tr(`${c.n} sheet${c.n === 1 ? "" : "s"}${c.est ? " (estimated from pack weight)" : ""}`, `${c.n}매${c.est ? " (용량으로 추정)" : ""}`), per100Why: mrp ? null : tr("MRP not shown", "정가 표시 없음") };
   }
-  return { ...sz, unit: sz.mrpPer100, unitNote: sz.sizeUsed ? tr(`at ${sz.sizeUsed.ml} ml/g${sz.sizeUsed.how === "matched" ? " (closest size)" : ""}`, `${sz.sizeUsed.ml} ml/g 기준${sz.sizeUsed.how === "matched" ? " (가장 가까운 용량)" : ""}`) : null };
+  return { ...sz, unit: sz.mrpPer100, unitNote: sz.sizeUsed ? tr(`at ${sz.sizeUsed.ml} ml/g${sz.sizeUsed.how === "matched" ? ` (closest size, MRP ${inr(sz.sizeUsed.mrp)})` : ""}`, `${sz.sizeUsed.ml} ml/g 기준${sz.sizeUsed.how === "matched" ? ` (가장 가까운 용량, 정가 ${inr(sz.sizeUsed.mrp)})` : ""}`) : null };
 }
 
 const MINI = 15;

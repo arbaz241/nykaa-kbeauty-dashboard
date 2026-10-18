@@ -338,7 +338,8 @@ function Analysis() {
                     <span className="font-display text-[13px] font-semibold tabular text-muted">{i + 1}</span>
                     <button onClick={() => open({ product_id: h.product_id, name: h.name, brand: h.brand, price: h.price })} className="text-left text-[14px] font-medium leading-snug hover:underline">{shortName(h.name, anchor)} ›</button>
                   </div>
-                  <Basis className="mt-1">{cat(h.category)}{h.rank ? tr(` · shelf #${h.rank}`, ` · 진열 ${h.rank}위`) : ""}{h.rating ? ` · ★ ${h.rating.toFixed(1)}` : ""}{h.ratingCount ? tr(` · ${compact(h.ratingCount)} ratings`, ` · 평가 ${compact(h.ratingCount)}건`) : ""}{h.edge ? tr(` · leads on ${h.edge.label.toLowerCase()}: ${h.edge.detail}`, ` · 강점 ${h.edge.label}: ${h.edge.detail}`) : ""}</Basis>
+                  <Basis className="mt-1">{cat(h.category)}{(() => { // the rank shown everywhere else: among products Nykaa files under the category (Nykaa's raw position differs)
+                    const rk = m.shelf.find((r) => r.product_id === h.product_id && r.subcategory === h.category)?.rank ?? h.rank; return rk ? tr(` · shelf #${rk}`, ` · 진열 ${rk}위`) : ""; })()}{h.rating ? ` · ★ ${h.rating.toFixed(1)}` : ""}{h.ratingCount ? tr(` · ${compact(h.ratingCount)} ratings`, ` · 평가 ${compact(h.ratingCount)}건`) : ""}{h.edge ? tr(` · leads on ${h.edge.label.toLowerCase()}: ${h.edge.detail}`, ` · 강점 ${h.edge.label}: ${h.edge.detail}`) : ""}</Basis>
                   {shown.length > 1 ? (<>
                     <div className="mb-1 mt-3 text-[11.5px] font-medium text-ink-2">{tr(<>Reviews in {win.recent} vs the category&rsquo;s best sellers{pos ? ` (it ranks #${pos} of ${peers.length})` : ""}</>, <>{win.recent} 리뷰 수, 카테고리 베스트셀러 대비{pos ? ` (${peers.length}개 중 ${pos}위)` : ""}</>)}</div>
                     <ProductBars rows={shown} anchor={anchor} highlight={h.product_id} compactNames />
