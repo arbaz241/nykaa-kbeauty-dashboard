@@ -265,12 +265,12 @@ function BriefPage() {
             {(tr([
               ["Nykaa doesn't publish sales", "by product or brand. Written reviews are the closest public record of purchases, and Nykaa dates each one, so we can look back a year even though we started collecting on 13 Sep."],
               ["Same products only", `a quarter against the same quarter a year earlier, counting only products that already had reviews then. ${lastG.all.launches} products launched since are left out: we pick products from today's lists, so launches would add growth the market didn't have.`],
-              ["Weighted by origin", `the ${scope?.followed.products ?? "–"} products we follow are mostly K-beauty, so each origin's growth counts by its share of buying on Nykaa's shelf, not by how many products we follow.`],
+              ["Weighted by origin", `the ${scope?.followed.products ?? "–"} products we follow lean K-beauty (we started from Innisfree's rivals; every category's top 30 is being added from 19 Oct), so each origin's growth counts by its share of buying on Nykaa's shelf, not by how many products we follow.`],
               ["Checked against Nykaa", "Nykaa's reported beauty growth for the same quarter sits beside ours. Ours stays a stand-in: reviews per purchase can drift, and we follow some brands more closely than others."],
             ], [
               ["Nykaa는 판매량 비공개", "(제품·브랜드별). 작성 리뷰가 구매에 가장 가까운 공개 기록이고 Nykaa가 작성일을 남겨, 9월 13일에 수집을 시작했어도 1년 전까지 확인 가능."],
               ["동일 제품만", `분기를 전년 같은 분기와 비교, 그때도 리뷰가 있던 제품만. 이후 출시 제품 ${lastG.all.launches}개는 제외: 오늘 목록에서 제품을 뽑기 때문에 신제품을 넣으면 시장에 없던 성장이 잡힘.`],
-              ["출신별 가중", `월별 추적 제품 ${scope?.followed.products ?? "–"}개는 대부분 K-뷰티 → 출신별 성장률을 추적 제품 수가 아니라 Nykaa 진열의 구매 점유율로 가중.`],
+              ["출신별 가중", `월별 추적 제품 ${scope?.followed.products ?? "–"}개는 K-뷰티 비중이 큼(Innisfree 경쟁 제품에서 출발, 10월 19일부터 카테고리별 상위 30위 추가 중) → 출신별 성장률을 추적 제품 수가 아니라 Nykaa 진열의 구매 점유율로 가중.`],
               ["Nykaa 수치와 대조", "같은 분기 Nykaa 뷰티 성장률을 나란히 표시. 우리 수치는 대용치: 구매당 리뷰 비율이 변할 수 있고, 브랜드마다 추적 깊이가 다름."],
             ]) as string[][]).map(([h, d], i) => (
               <li key={h} className="flex gap-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-[12px] font-semibold text-on-brand">{i + 1}</span><span className="text-[12.5px] leading-snug text-ink-2"><b className="block text-[13px] text-ink">{h}</b>{d}</span></li>

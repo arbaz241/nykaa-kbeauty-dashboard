@@ -38,7 +38,7 @@ const tiles = (s: Scope) => [
     what: tr("The top 100 of each category, the products shoppers actually see and buy. Counted only where Nykaa files the product under that category.", "카테고리별 상위 100위: 소비자가 실제로 보고 사는 제품. Nykaa가 해당 카테고리로 분류한 제품만."),
     use: tr("Share of buying, places, prices, moves", "구매 점유율, 순위, 가격, 변동"), origin: s.top100.productsByOrigin, unit: tr("products", "제품") },
   { key: "followed" as const, big: n(s.followed.products), label: tr(`products followed month by month · ${n(s.followed.brands)} brands`, `월별 추적 제품 · 브랜드 ${n(s.followed.brands)}개`),
-    what: tr("Products whose written reviews we read back through their whole history: the main brands' ranges and their closest rivals. Mostly K-beauty, so growth is weighted by origin.", "작성 리뷰를 전체 이력까지 읽는 제품: 주요 브랜드 라인업과 가장 가까운 경쟁 제품. 대부분 K-뷰티라 성장률은 출신별로 가중."),
+    what: tr("Products whose written reviews we read back through their whole history: the main brands' ranges, their closest rivals and, from 19 Oct, every category's top 30 (filling in over about a week). Growth is weighted by origin, so the mix of products we follow doesn't tilt it.", "작성 리뷰를 전체 이력까지 읽는 제품: 주요 브랜드 라인업, 가장 가까운 경쟁 제품, 10월 19일부터 카테고리별 상위 30위(약 1주에 걸쳐 채워짐). 성장률은 출신별로 가중 → 추적 제품 구성에 치우치지 않음."),
     use: tr("Growth, year on year", "전년 대비 성장률"), origin: s.followed.productsByOrigin, unit: tr("products", "제품") },
 ];
 

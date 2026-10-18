@@ -35,7 +35,7 @@ def latest_rows(client) -> list[dict]:
     if not d:
         return []
     day = d[0]["scrape_date"]
-    rows = fetch_all(lambda: client.table("v_snapshots").select("product_id,brand,name,rank,subcategory,origin").eq("scrape_date", day)
+    rows = fetch_all(lambda: client.table("v_snapshots").select("product_id,brand,name,rank,subcategory,origin,rating_count").eq("scrape_date", day)
                      .order("subcategory").order("rank").order("product_id"))
     return [r for r in rows if r["subcategory"] not in config.STORE_KEYS]
 
@@ -47,6 +47,23 @@ def tracked_products(client) -> list[dict]:
     out = list(comparison_set(client))
     seen = {p["product_id"] for p in out}
     out += [p for p in key_products(latest_rows(client), catalog_rows(client)) if p["product_id"] not in seen]
+    return out
+
+
+def wide_products(client, skip: set[str]) -> list[dict]:
+    """Every list's top REVIEW_WIDE_TOP today that the main set doesn't already follow, best rank first. Products
+    Nykaa shows with one shared rating count (a brand's sizes or shades) are fetched once: they share reviews."""
+    # cleansing balm stays collected but is hidden on the dashboard (web/lib/format.ts HIDDEN_CATEGORIES)
+    rows = [r for r in latest_rows(client) if (r.get("rank") or 999) <= config.REVIEW_WIDE_TOP and r["subcategory"] != "cleansing_balm"]
+    out, seen, pools = [], set(skip), set()
+    for r in sorted(rows, key=lambda r: r["rank"]):
+        pool = (r["brand"], r.get("rating_count")) if r.get("rating_count") else None
+        if r["product_id"] in seen or (pool and pool in pools):
+            continue
+        seen.add(r["product_id"])
+        if pool:
+            pools.add(pool)
+        out.append({"product_id": r["product_id"], "brand": r["brand"], "name": r.get("name")})
     return out
 
 
@@ -240,6 +257,22 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                         log.error("review history stopped by rate limiting (progress saved; resumes next run): %s", e)
                         st = {"rate_limited": str(e)}
                     st["written"] = written["n"]; st["key_products"] = len(prods); stats["reviews"] = st
+                    # second pass: every list's top 30 the main set doesn't cover, on its own clock
+                    wide = [] if "rate_limited" in st else wide_products(client, {p["product_id"] for p in prods})
+                    cursors = read_review_cursors(client)
+                    wide.sort(key=lambda p: (p["product_id"] in cursors, (cursors.get(p["product_id"]) or {}).get("fetched_at", "")))
+                    wnew = sum(1 for p in wide if p["product_id"] not in cursors)
+                    before = written["n"]
+                    try:
+                        if "rate_limited" in st:
+                            raise RateLimited("skipped: the main pass was rate limited")
+                        _, _, wst = await review_history(page, wide, cursors, on_product=save,
+                                                         max_products=None if unlimited else wnew + config.REVIEW_HISTORY_MAX_PRODUCTS_PER_RUN,
+                                                         max_minutes=None if unlimited else config.REVIEW_WIDE_MAX_MINUTES)
+                    except RateLimited as e:
+                        log.error("wide review history stopped by rate limiting (progress saved; resumes next run): %s", e)
+                        wst = {"rate_limited": str(e)}
+                    wst.update(written=written["n"] - before, products_total=len(wide), never_fetched=wnew); stats["reviews_wide"] = wst
             if "texts" in which:
                 with _stage(stats, "texts"):
                     # products whose monthly history was collected before review text was captured:

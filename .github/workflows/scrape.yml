@@ -63,7 +63,7 @@ jobs:
     needs: guard
     if: needs.guard.outputs.run == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 80   # review crawl is time-boxed to ~36 min of this; Nykaa throttles hard
+    timeout-minutes: 100  # time-boxed steps: reviews ~36 + top-30 reviews 15 + review counts 15 min; Nykaa throttles hard
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
