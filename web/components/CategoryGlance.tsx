@@ -107,7 +107,8 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
 function MoveList({ title, items, spark, empty }: { title: string; items: ListingMove[]; spark: (pid: string) => React.ReactNode; empty: string }) {
   const [open, setOpen] = useState<string | null>(null);
   return (
-    <Card className="px-5 py-4">
+    // min-w-0: a grid item otherwise grows to its longest product name and the page scrolls sideways on a phone (audit 19 Oct)
+    <Card className="min-w-0 px-5 py-4">
       <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{title}</div>
       <ul className="mt-2 divide-y divide-line/60">{items.length ? items.map((x) => (
         <li key={x.key} className="py-2 text-[13px]">
