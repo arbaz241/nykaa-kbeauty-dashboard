@@ -65,22 +65,22 @@ export interface Reported { label: string; value: number; period: string; source
 /** Headline figures kept for pages that show one or two of them. */
 export const NYKAA_REPORTED = (): Reported[] => [
   { label: tr("Nykaa beauty sales value (GMV)", "Nykaa 뷰티 거래액(GMV)"), value: 0.28, period: tr("Apr–Jun 2026 vs a year earlier", "2026년 4–6월, 전년 동기 대비"), source: tr("Investor presentation Q1 FY27", "투자자 자료 FY27 1분기"), url: IR_PAGE },
-  { label: tr("Nykaa beauty sales value (GMV)", "Nykaa 뷰티 거래액(GMV)"), value: 0.27, period: tr("Apr 2025–Mar 2026 (FY26): ₹14,954 cr", "2025년 4월–2026년 3월 (FY26): ₹14,954억"), source: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: IR_PAGE },
-  { label: tr("Korean brands on Nykaa", "Nykaa의 한국 브랜드"), value: 0.58, period: tr("FY26 vs FY25, 70+ brands, 27 Korean launches", "FY26, 전년 대비, 70개 이상 브랜드, 한국 브랜드 27개 출시"), source: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: IR_PAGE },
+  { label: tr("Nykaa beauty sales value (GMV)", "Nykaa 뷰티 거래액(GMV)"), value: 0.27, period: tr("Apr 2025–Mar 2026 (FY26): ₹14,954 cr", "2025년 4월–2026년 3월 (FY26): ₹14,954 cr (2조 3,926억원)"), source: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: IR_PAGE },
+  { label: tr("Korean brands on Nykaa", "Nykaa의 K-뷰티 브랜드"), value: 0.58, period: tr("FY26 vs FY25, 70+ brands, 27 Korean launches", "FY26, 전년 대비, 70개 이상 브랜드, K-뷰티 브랜드 27개 신규 입점"), source: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: IR_PAGE },
 ];
 
 /** What Nykaa says in its investor documents that our shelf data can be held against (plan v3, section 2). */
 export type ClaimCheck = "dotkey_sun" | "dotkey_moist" | "dotkey_wash" | "kbeauty" | "korean_70" | "derma" | "hon" | "hon_growth" | "kay_sun" | "brands_6000" | "new_brands" | "sales";
 export interface IrClaim { says: string; doc: string; check: ClaimCheck; url?: string }
 export const IR_CLAIMS = (): IrClaim[] => [
-  { says: tr("Korean brands grew 58% in FY26 (70+ brands; 27 Korean launches incl. Aestura, Arencia, Anua, Mise en Scène)", "한국 브랜드 FY26 58% 성장 (70개 이상, Aestura·Arencia·Anua·Mise en Scène 등 27개 출시)"), doc: "Q4 FY26", check: "kbeauty", url: DOC.q4fy26 },
-  { says: tr("70+ Korean brands on Nykaa; the largest Korean assortment in India", "Nykaa의 한국 브랜드 70개 이상, 인도 최대 한국 브랜드 구색"), doc: tr("Q4 FY26 · call", "FY26 4분기 · 컨퍼런스콜"), check: "korean_70", url: DOC.q4fy26call },
+  { says: tr("Korean brands grew 58% in FY26 (70+ brands; 27 Korean launches incl. Aestura, Arencia, Anua, Mise en Scène)", "K-뷰티 브랜드 FY26 58% 성장 (70개 이상, Aestura·Arencia·Anua·Mise en Scène 등 27개 신규 입점)"), doc: "Q4 FY26", check: "kbeauty", url: DOC.q4fy26 },
+  { says: tr("70+ Korean brands on Nykaa; the largest Korean assortment in India", "Nykaa의 K-뷰티 브랜드 70개 이상, 인도 최대 K-뷰티 구색"), doc: tr("Q4 FY26 · call", "FY26 4분기 · 컨퍼런스콜"), check: "korean_70", url: DOC.q4fy26call },
   { says: tr("Dot & Key is #1 in sunscreen (across Nykaa, Amazon, Flipkart, Blinkit)", "Dot & Key 선크림 1위 (Nykaa·Amazon·Flipkart·Blinkit 합산)"), doc: "Q4 FY26", check: "dotkey_sun", url: DOC.q4fy26 },
   { says: tr("Dot & Key is #2 in moisturiser", "Dot & Key 보습 크림 2위"), doc: "Q4 FY26", check: "dotkey_moist", url: DOC.q4fy26 },
   { says: tr("Dot & Key is #3 in face wash", "Dot & Key 클렌저 3위"), doc: "Q4 FY26", check: "dotkey_wash", url: DOC.q4fy26 },
-  { says: tr("Kay Beauty launched its first tinted sunscreen, \"gaining good traction\"", "케이 뷰티 첫 틴티드 선크림 출시, \"좋은 반응\""), doc: "Q4 FY26", check: "kay_sun", url: DOC.q4fy26 },
-  { says: tr("House of Nykaa beauty ₹2,788 cr in FY26 (+64%); Dot & Key 13×+ and Kay Beauty 3×+ over FY23–26", "하우스 오브 나이카 뷰티 FY26 ₹2,788억 (+64%); 닷앤키 13배 이상, 케이 뷰티 3배 이상 (FY23–26)"), doc: "Q4 FY26", check: "hon_growth", url: DOC.q4fy26 },
-  { says: tr("45% of House of Nykaa sales are on Nykaa's own app and site, 9% in Nykaa stores (FY26)", "하우스 오브 나이카 매출의 45%가 Nykaa 앱·웹, 9%가 Nykaa 매장 (FY26)"), doc: "Q4 FY26", check: "hon", url: DOC.q4fy26 },
+  { says: tr("Kay Beauty launched its first tinted sunscreen, \"gaining good traction\"", "Kay Beauty 첫 틴티드 선크림 출시, \"좋은 반응\""), doc: "Q4 FY26", check: "kay_sun", url: DOC.q4fy26 },
+  { says: tr("House of Nykaa beauty ₹2,788 cr in FY26 (+64%); Dot & Key 13×+ and Kay Beauty 3×+ over FY23–26", "House of Nykaa 뷰티 FY26 ₹2,788 cr (+64%); Dot & Key 13배 이상, Kay Beauty 3배 이상 (FY23–26)"), doc: "Q4 FY26", check: "hon_growth", url: DOC.q4fy26 },
+  { says: tr("45% of House of Nykaa sales are on Nykaa's own app and site, 9% in Nykaa stores (FY26)", "House of Nykaa 매출의 45%가 Nykaa 앱·웹, 9%가 Nykaa 매장 (FY26)"), doc: "Q4 FY26", check: "hon", url: DOC.q4fy26 },
   { says: tr("Derma brands grew 40% in FY26 and are 20% of skincare", "더마 브랜드 FY26 40% 성장, 스킨케어의 20%"), doc: "Q4 FY26", check: "derma", url: DOC.q4fy26 },
   { says: tr("6,000+ brands on Nykaa", "Nykaa 입점 브랜드 6,000개 이상"), doc: "Q4 FY26", check: "brands_6000", url: DOC.q4fy26 },
   { says: tr("1,280 new brands launched in FY26", "FY26 신규 브랜드 1,280개 출시"), doc: "Q4 FY26", check: "new_brands", url: DOC.q4fy26 },

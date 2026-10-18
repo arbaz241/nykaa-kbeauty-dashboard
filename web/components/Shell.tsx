@@ -134,8 +134,8 @@ export default function Shell({ active: asked, asOf: rawAsOf, children }: { acti
           <div className="max-w-[560px]">
             <div className="mb-2 flex items-center gap-2.5 text-ink"><LogoMark size={22} /><span className="font-display text-[14px] font-semibold">Nykaa Market Intelligence</span></div>
             {tr("Built from public Nykaa India listings, reviews and search results, collected every night. Rankings are Nykaa's own order; shares and demand are derived from them.",
-              "Nykaa 인도의 공개 상품 목록·리뷰·검색 결과를 매일 밤 수집해 만듭니다. 순위는 Nykaa가 정한 순서이며, 점유율과 수요는 이를 바탕으로 계산합니다.")}
-            <div className="mt-2">{tr("Visits to this site are recorded (IP address, browser and pages opened) and seen only by its owner.", "이 사이트 방문 기록(IP 주소, 브라우저, 열어 본 페이지)은 저장되며 사이트 소유자만 볼 수 있습니다.")}</div>
+              "Nykaa 인도의 공개 상품 목록·리뷰·검색 결과를 매일 밤 수집해 구성. 순위는 Nykaa가 정한 순서, 점유율·수요는 이를 바탕으로 계산.")}
+            <div className="mt-2">{tr("Visits to this site are recorded (IP address, browser and pages opened) and seen only by its owner.", "이 사이트 방문 기록(IP 주소, 브라우저, 열어 본 페이지)은 저장되며 사이트 소유자만 열람 가능.")}</div>
           </div>
           <div className="sm:text-right">{asOf ? tr(<>Data as of <span className="font-medium text-ink-2">{asOf}</span></>, <><span className="font-medium text-ink-2">{asOf}</span> 기준 데이터</>) : tr("Refreshed nightly", "매일 밤 갱신")}<br />{tr("Prices in ₹ · ratings out of 5", "가격 단위 ₹ · 평점 5점 만점")}<br /><DefinitionsButton className="font-medium text-accent-strong underline-offset-2 hover:underline" /></div>
         </div>

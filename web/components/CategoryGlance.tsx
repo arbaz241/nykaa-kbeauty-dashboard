@@ -55,7 +55,7 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
       {part === "all" && <>      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · {tr("at a glance", "한눈에")}</div>
-          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × price, single products only.`, `구매·순위 변동은 ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 구매 = 신규 평가 × 가격, 단일 제품만.`)}</p>
+          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × price, single products only.`, `구매·순위 변동: ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 구매 = 신규 평가 × 가격, 단일 제품만.`)}</p>
         </div>
         <PeriodBar shelf={win} freeze={m.freeze} />
       </div></>}
@@ -65,10 +65,10 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
           <div className="mt-1 font-display text-[28px] font-semibold tabular">{stat ? stat.brands.toLocaleString("en-IN") : "–"}</div>
           <Basis>{stat ? tr(`${stat.products.toLocaleString("en-IN")} products · ${new Set(rows.map((r) => r.brand)).size} brands in the top 100`, `제품 ${stat.products.toLocaleString("en-IN")}개 · 상위 100위 브랜드 ${new Set(rows.map((r) => r.brand)).size}개`) : tr("collected nightly from 17 Oct", "10월 17일부터 매일 수집")}</Basis>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-ink-2">{byOriginCount.filter((x) => x.n).map((x) => <span key={x.o} className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: ORIGIN_COLOR[x.o].fill }} />{ORIGIN_LABEL[x.o]} {x.n}</span>)}</div>
-          <Basis className="mt-1">{newBrands.length ? tr(`New this period: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`, `이번 기간 신규: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`) : tr("New brands show here as the nightly list builds up.", "매일 목록이 쌓이면 신규 브랜드가 여기에 표시됩니다.")}</Basis>
+          <Basis className="mt-1">{newBrands.length ? tr(`New this period: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`, `이번 기간 신규: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`) : tr("New brands show here as the nightly list builds up.", "매일 목록이 쌓이면 신규 브랜드 표시.")}</Basis>
         </Card>
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted">{tr("Korean share of top-100 products", "상위 100위 제품 중 한국 비중")}</div>
+          <div className="text-[12.5px] text-muted">{tr("Korean share of top-100 products", "상위 100위 제품 중 K-뷰티 비중")}</div>
           <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(kShare)}</div>
           <Basis>{tr(`${rows.filter((r) => r.origin === "kbeauty").length} of ${rows.length} products today`, `오늘 제품 ${rows.length}개 중 ${rows.filter((r) => r.origin === "kbeauty").length}개`)}</Basis>
         </Card>
@@ -86,11 +86,11 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
         </Card>
       </div>}
       {part !== "facts" && <><div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <MoveList title={tr(`Climbed most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 오른 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={risers} spark={spark} empty={tr("Nothing climbed 5+ places.", "5계단 이상 오른 제품이 없습니다.")} />
-        <MoveList title={tr(`Fell most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 내린 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={fallers} spark={spark} empty={tr("Nothing fell 5+ places.", "5계단 이상 내린 제품이 없습니다.")} />
-        <MoveList title={tr("New in the top 100 this period", "이번 기간 상위 100위 신규 진입")} items={entrants} spark={spark} empty={tr("No new entries in this period.", "이 기간에는 신규 진입이 없습니다.")} />
+        <MoveList title={tr(`Climbed most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 오른 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={risers} spark={spark} empty={tr("Nothing climbed 5+ places.", "5계단 이상 오른 제품 없음.")} />
+        <MoveList title={tr(`Fell most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 내린 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={fallers} spark={spark} empty={tr("Nothing fell 5+ places.", "5계단 이상 내린 제품 없음.")} />
+        <MoveList title={tr("New in the top 100 this period", "이번 기간 상위 100위 신규 진입")} items={entrants} spark={spark} empty={tr("No new entries in this period.", "이 기간 신규 진입 없음.")} />
       </div>
-      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유는 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁)이며 증거는 아닙니다.")}</p></>}
+      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유 = 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁), 증거는 아님.")}</p></>}
     </section>
   );
 }

@@ -38,12 +38,12 @@ function sizesDetail(p: ProductFacts, std: number | null, perSheet = false) {
               <td>{inr(s.mrp)}</td><td>{s.ml && s.mrp ? r100((s.mrp / s.ml) * 100) : <Missing>{tr("size unclear", "용량 불명")}</Missing>}</td><td>{s.price ? inr(s.price) : <Missing>{tr("not listed", "표시 없음")}</Missing>}</td>
             </tr>))}</tbody>
         </table>
-      ) : <p className="text-muted">{tr("Nykaa lists no size options for this product.", "Nykaa에 이 제품의 용량 옵션이 없습니다.")}</p>}
+      ) : <p className="text-muted">{tr("Nykaa lists no size options for this product.", "Nykaa에 이 제품의 용량 옵션 없음.")}</p>}
       <DetailHead>{tr("How it is compared", "비교 방법")}</DetailHead>
-      <Points items={perSheet ? [tr(`Sheet masks are compared per sheet: MRP ÷ sheets in the pack (${p.unitNote ?? "count not listed"}).`, `시트 마스크는 1매당으로 비교합니다: 정가 ÷ 매수 (${p.unitNote ?? "매수 표시 없음"}).`)] : [
-        std ? tr(`Products are compared at the size closest to this category's usual ${std} ml/g (the most common full size in the top 100).`, `이 카테고리 표준 용량 ${std} ml/g(상위 100위에서 가장 흔한 정규 용량)에 가장 가까운 용량으로 비교합니다.`) : tr("This category has no usual size, so the listed size is used.", "이 카테고리는 표준 용량이 없어 표시된 용량을 씁니다."),
-        p.sizeUsed ? tr(`Used here: ${p.sizeUsed.ml} ml/g at MRP ${inr(p.sizeUsed.mrp)} (${p.sizeUsed.how === "matched" ? "closest size option" : "the listed size"}).`, `사용한 용량: ${p.sizeUsed.ml} ml/g, 정가 ${inr(p.sizeUsed.mrp)} (${p.sizeUsed.how === "matched" ? "가장 가까운 용량 옵션" : "표시된 용량"}).`) : tr("No size could be used.", "사용할 수 있는 용량이 없습니다."),
-        tr("Minis and travel sizes under 15 ml/g are never used.", "15 ml/g 미만의 미니·여행용 용량은 쓰지 않습니다."),
+      <Points items={perSheet ? [tr(`Sheet masks are compared per sheet: MRP ÷ sheets in the pack (${p.unitNote ?? "count not listed"}).`, `시트 마스크는 1매당 비교: 정가 ÷ 매수 (${p.unitNote ?? "매수 표시 없음"}).`)] : [
+        std ? tr(`Products are compared at the size closest to this category's usual ${std} ml/g (the most common full size in the top 100).`, `이 카테고리 표준 용량 ${std} ml/g(상위 100위에서 가장 흔한 정규 용량)에 가장 가까운 용량으로 비교.`) : tr("This category has no usual size, so the listed size is used.", "이 카테고리는 표준 용량이 없어 표시된 용량 사용."),
+        p.sizeUsed ? tr(`Used here: ${p.sizeUsed.ml} ml/g at MRP ${inr(p.sizeUsed.mrp)} (${p.sizeUsed.how === "matched" ? "closest size option" : "the listed size"}).`, `사용한 용량: ${p.sizeUsed.ml} ml/g, 정가 ${inr(p.sizeUsed.mrp)} (${p.sizeUsed.how === "matched" ? "가장 가까운 용량 옵션" : "표시된 용량"}).`) : tr("No size could be used.", "사용할 수 있는 용량 없음."),
+        tr("Minis and travel sizes under 15 ml/g are never used.", "15 ml/g 미만 미니·여행용 용량은 제외."),
       ]} />
     </>),
   };
@@ -78,13 +78,13 @@ export function PriceSection({ products, colors, bench, std, cat, optionsFor, on
   const lead = bench ? tr(`${bench.leader.brand}'s ${shortTitle(bench.leader.name, bench.leader.brand)}`, `${bench.leader.brand} ${shortTitle(bench.leader.name, bench.leader.brand)}`) : "";
   const title = a && pos !== null && bench
     ? tr(`At ${r100(a.unit!)} per ${unit}, ${shortTitle(a.name, a.brand)} is ${Math.abs(pos) < 0.05 ? "in line with" : `${Math.round(Math.abs(pos) * 100)}% ${pos > 0 ? "above" : "below"}`} the K-beauty leader, ${lead}; ${cheaper} of ${products.length - 1} rivals cost less.`,
-      `${unit}당 ${r100(a.unit!)}인 ${shortTitle(a.name, a.brand)}의 가격은 K-뷰티 선두 제품 ${lead} ${Math.abs(pos) < 0.05 ? "수준입니다" : `대비 ${Math.round(Math.abs(pos) * 100)}% ${pos > 0 ? "높습니다" : "낮습니다"}`}. 경쟁 제품 ${products.length - 1}개 중 ${cheaper}개가 더 저렴합니다.`)
-    : a?.mrp ? tr(`${shortTitle(a.name, a.brand)} lists at ${inr(a.mrp)} MRP.`, `${shortTitle(a.name, a.brand)}의 정가는 ${inr(a.mrp)}입니다.`) : tr(`Prices in ${CATEGORY_LABEL[cat]}.`, `${CATEGORY_LABEL[cat]} 가격.`);
+      `${unit}당 ${r100(a.unit!)}인 ${shortTitle(a.name, a.brand)}: K-뷰티 선두 제품 ${lead} ${Math.abs(pos) < 0.05 ? "수준 가격" : `대비 ${Math.round(Math.abs(pos) * 100)}% ${pos > 0 ? "비쌈" : "저렴"}`}. 경쟁 제품 ${products.length - 1}개 중 ${cheaper}개가 더 저렴.`)
+    : a?.mrp ? tr(`${shortTitle(a.name, a.brand)} lists at ${inr(a.mrp)} MRP.`, `${shortTitle(a.name, a.brand)} 정가: ${inr(a.mrp)}.`) : tr(`Prices in ${CATEGORY_LABEL[cat]}.`, `${CATEGORY_LABEL[cat]} 가격.`);
   return (
     <ActionSection id="price" kicker={tr("Price · on MRP", "가격 · 정가 기준")} title={title}
       note={bench ? tr(<>Benchmark: the K-beauty leader, <b>{lead}</b> ({compact(bench.leader.reviews)} reviews, the most of any K-beauty product in today&rsquo;s {CATEGORY_LABEL[cat]} top 100{a?.brand ? `, ${a.brand}'s own excluded` : ""}): MRP {inr(bench.leader.mrp)} for {bench.leader.size} = <b>{r100(bench.value)}</b> per {unit}. For context, the whole top 100{bench.median ? <> has a median of {r100(bench.median)} (range {r100(bench.min!)}–{r100(bench.max!)}, {bench.n} products)</> : " has too few comparable products for a median"}. Price is a position, so it is never shaded green or red.</>,
-        <>기준: K-뷰티 선두 제품 <b>{lead}</b> (리뷰 {compact(bench.leader.reviews)}건, 오늘 {CATEGORY_LABEL[cat]} 상위 100위 K-뷰티 제품 중 최다{a?.brand ? `, ${a.brand} 제품 제외` : ""}): {bench.leader.size} 정가 {inr(bench.leader.mrp)} = {unit}당 <b>{r100(bench.value)}</b>. 참고로 상위 100위 전체{bench.median ? <>의 중앙값은 {r100(bench.median)} (범위 {r100(bench.min!)}–{r100(bench.max!)}, 제품 {bench.n}개)</> : "는 비교 가능한 제품이 적어 중앙값을 내지 않았습니다"}. 가격은 위치일 뿐이므로 초록·빨강으로 칠하지 않습니다.</>)
-        : tr("No K-beauty product in today's top 100 to benchmark against.", "오늘 상위 100위에 기준으로 삼을 K-뷰티 제품이 없습니다.")}>
+        <>기준: K-뷰티 선두 제품 <b>{lead}</b> (리뷰 {compact(bench.leader.reviews)}건, 오늘 {CATEGORY_LABEL[cat]} 상위 100위 K-뷰티 제품 중 최다{a?.brand ? `, ${a.brand} 제품 제외` : ""}): {bench.leader.size} 정가 {inr(bench.leader.mrp)} = {unit}당 <b>{r100(bench.value)}</b>. 참고로 상위 100위 전체{bench.median ? <>의 중앙값은 {r100(bench.median)} (범위 {r100(bench.min!)}–{r100(bench.max!)}, 제품 {bench.n}개)</> : "는 비교 가능한 제품이 적어 중앙값 없음"}. 가격은 위치일 뿐이라 초록·빨강 표시 안 함.</>)
+        : tr("No K-beauty product in today's top 100 to benchmark against.", "오늘 상위 100위에 기준으로 삼을 K-뷰티 제품 없음.")}>
       <CompareGrid cols={cols} items={products} criteria={criteria} extra={extra} labelWidth={150} />
     </ActionSection>
   );

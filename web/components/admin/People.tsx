@@ -55,7 +55,7 @@ export default function People() {
   }
 
   const err = people.error;
-  if (err) return <p className="mt-8 text-[14px] text-bad">{tr("Could not load accounts", "계정을 불러오지 못했습니다")}: {(err as Error).message}</p>;
+  if (err) return <p className="mt-8 text-[14px] text-bad">{tr("Could not load accounts", "계정 불러오기 실패")}: {(err as Error).message}</p>;
   if (!people.data) return <Loading what={tr("accounts", "계정")} />;
 
   const all = people.data;
@@ -107,13 +107,13 @@ export default function People() {
                   <td className="px-4 py-2">
                     {self ? <div className="text-right text-[12px] text-muted">–</div> : (
                       <div className="flex flex-wrap justify-end gap-1.5">
-                        <button disabled={!!busy} onClick={() => act(p.id, "admin_set_admin", { p_email: p.email, p_on: !p.is_admin }, p.is_admin ? tr(`${p.email} is no longer an admin.`, `${p.email}의 관리자 권한을 해제했습니다.`) : tr(`${p.email} is now an admin.`, `${p.email}을(를) 관리자로 지정했습니다.`))}
+                        <button disabled={!!busy} onClick={() => act(p.id, "admin_set_admin", { p_email: p.email, p_on: !p.is_admin }, p.is_admin ? tr(`${p.email} is no longer an admin.`, `${p.email} 관리자 권한 해제 완료.`) : tr(`${p.email} is now an admin.`, `${p.email} 관리자 지정 완료.`))}
                           className="rounded-lg px-2.5 py-1 text-[12px] ring-1 ring-line hover:bg-sunken disabled:opacity-40">{p.is_admin ? tr("Remove admin", "관리자 해제") : tr("Make admin", "관리자 지정")}</button>
-                        <button disabled={!!busy} onClick={() => act(p.id, "admin_set_blocked", { p_user: p.id, p_on: !p.blocked }, p.blocked ? tr(`${p.email} can sign in again.`, `${p.email}은(는) 다시 로그인할 수 있습니다.`) : tr(`${p.email} is blocked and signed out.`, `${p.email}을(를) 차단하고 로그아웃시켰습니다.`))}
+                        <button disabled={!!busy} onClick={() => act(p.id, "admin_set_blocked", { p_user: p.id, p_on: !p.blocked }, p.blocked ? tr(`${p.email} can sign in again.`, `${p.email} 다시 로그인 가능.`) : tr(`${p.email} is blocked and signed out.`, `${p.email} 차단 및 로그아웃 완료.`))}
                           className="rounded-lg px-2.5 py-1 text-[12px] ring-1 ring-line hover:bg-sunken disabled:opacity-40">{p.blocked ? tr("Unblock", "차단 해제") : tr("Block", "차단")}</button>
                         {confirmDelete === p.id ? (
                           <>
-                            <button disabled={!!busy} onClick={() => act(p.id, "admin_delete_user", { p_user: p.id }, tr(`${p.email} was deleted.`, `${p.email}을(를) 삭제했습니다.`))} className="rounded-lg bg-bad px-2.5 py-1 text-[12px] font-medium text-white disabled:opacity-40">{tr("Delete for good", "영구 삭제")}</button>
+                            <button disabled={!!busy} onClick={() => act(p.id, "admin_delete_user", { p_user: p.id }, tr(`${p.email} was deleted.`, `${p.email} 삭제 완료.`))} className="rounded-lg bg-bad px-2.5 py-1 text-[12px] font-medium text-white disabled:opacity-40">{tr("Delete for good", "영구 삭제")}</button>
                             <button onClick={() => setConfirmDelete(null)} className="rounded-lg px-2.5 py-1 text-[12px] text-ink-2">{tr("Cancel", "취소")}</button>
                           </>
                         ) : (
@@ -130,12 +130,12 @@ export default function People() {
       </Card>
       <p className="mt-2 text-[12px] text-muted">
         {tr("Block: the account cannot sign in again, and any page it already has open stops working within an hour. Delete: removes the account; the same email could sign up again later. Page counts start from the day this admin view went live.",
-          "차단: 다시 로그인할 수 없고, 이미 열려 있는 페이지도 1시간 안에 작동을 멈춥니다. 삭제: 계정을 없애며, 같은 이메일로 나중에 다시 가입할 수 있습니다. 페이지 수는 이 관리 화면이 생긴 날부터 셉니다.")}
+          "차단: 다시 로그인 불가, 이미 열린 페이지도 1시간 안에 작동 중지. 삭제: 계정 제거, 같은 이메일로 나중에 재가입 가능. 페이지 수는 이 관리 화면이 생긴 날부터 집계.")}
       </p>
 
       <h2 className="mt-10 font-display text-[20px] font-semibold tracking-tight">{tr("Recent activity", "최근 활동")}</h2>
       <Card className="mt-3 max-h-[420px] overflow-auto">
-        {!visits.data ? <div className="px-5 py-4 text-[13px] text-muted">{tr("Loading…", "불러오는 중…")}</div> : visits.data.length === 0 ? <div className="px-5 py-4 text-[13px] text-muted">{tr("No page visits recorded yet.", "아직 기록된 방문이 없습니다.")}</div> : (
+        {!visits.data ? <div className="px-5 py-4 text-[13px] text-muted">{tr("Loading…", "불러오는 중…")}</div> : visits.data.length === 0 ? <div className="px-5 py-4 text-[13px] text-muted">{tr("No page visits recorded yet.", "아직 기록된 방문 없음.")}</div> : (
           <table className="w-full text-[13px]">
             <tbody>
               {visits.data.map((v, i) => (

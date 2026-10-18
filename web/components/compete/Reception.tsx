@@ -23,13 +23,13 @@ function themesDetail(p: ProductFacts, kind: "praise" | "complaint"): DetailCont
   return {
     kicker: `${p.brand} · ${kind === "praise" ? tr("what buyers praise", "구매자가 칭찬하는 점") : tr("what buyers complain about", "구매자 불만")}`, title: shortTitle(p.name, p.brand),
     body: (<>
-      <p className="text-muted">{tr(`Counted from the text of ${t.n} recent reviews (${t.low} rated 1–3★). `, `최근 리뷰 ${t.n}건(1–3★ ${t.low}건)의 본문에서 셌습니다. `)}{kind === "praise" ? tr("A theme counts when a review mentions it, e.g. “very hydrating”, and not “not hydrating”.", "리뷰가 그 주제를 언급할 때 셉니다. 예: “very hydrating”은 세고 “not hydrating”은 세지 않습니다.") : tr("Complaints count from 1–3★ reviews; from 4–5★ reviews only texture, scent, price, packaging and no-result complaints after “but”, “though” or “a bit” (shown as mild). Breakouts count only from 1–3★ reviews.", "불만은 1–3★ 리뷰에서 셉니다. 4–5★ 리뷰에서는 “but”, “though”, “a bit” 뒤에 나오는 제형·향·가격·포장·효과 불만만 셉니다(가벼운 불만으로 표시). 트러블은 1–3★ 리뷰에서만 셉니다.")}</p>
+      <p className="text-muted">{tr(`Counted from the text of ${t.n} recent reviews (${t.low} rated 1–3★). `, `최근 리뷰 ${t.n}건(1–3★ ${t.low}건) 본문에서 집계. `)}{kind === "praise" ? tr("A theme counts when a review mentions it, e.g. “very hydrating”, and not “not hydrating”.", "리뷰가 그 주제를 언급할 때 집계. 예: “very hydrating”은 포함, “not hydrating”은 제외.") : tr("Complaints count from 1–3★ reviews; from 4–5★ reviews only texture, scent, price, packaging and no-result complaints after “but”, “though” or “a bit” (shown as mild). Breakouts count only from 1–3★ reviews.", "불만은 1–3★ 리뷰에서 집계. 4–5★ 리뷰에선 “but”, “though”, “a bit” 뒤에 나오는 제형·향·가격·포장·효과 불만만 집계(가벼운 불만으로 표시). 트러블은 1–3★ 리뷰에서만 집계.")}</p>
       {xs.length ? xs.map((x) => (
         <div key={x.key} className="mt-4">
           <div className="flex items-baseline justify-between gap-2"><b className="font-medium">{x.label}</b><span className="tabular text-ink-2">{tr(`${x.n} reviews`, `리뷰 ${x.n}건`)} · {pc(x.share)}{x.mild ? tr(` · ${x.mild} mild`, ` · 가벼운 불만 ${x.mild}`) : ""}</span></div>
           {x.quotes.length > 0 && <Points className="mt-1 text-[12px] text-ink-2" items={x.quotes.map((q) => <i key={q}>&ldquo;{q}&rdquo;</i>)} />}
         </div>
-      )) : <p className="mt-3">{kind === "praise" ? tr("No praise theme found in these reviews.", "이 리뷰들에서 칭찬 주제를 찾지 못했습니다.") : tr("No complaint theme found in these reviews.", "이 리뷰들에서 불만 주제를 찾지 못했습니다.")}</p>}
+      )) : <p className="mt-3">{kind === "praise" ? tr("No praise theme found in these reviews.", "이 리뷰들에서 칭찬 주제 없음.") : tr("No complaint theme found in these reviews.", "이 리뷰들에서 불만 주제 없음.")}</p>}
     </>),
   };
 }
@@ -39,7 +39,7 @@ function aiReadDetail(p: ProductFacts): DetailContent {
   return {
     kicker: tr(`${p.brand} · paid review analysis`, `${p.brand} · AI 리뷰 분석`), title: shortTitle(p.name, p.brand),
     body: (<>
-      <p className="text-muted">{tr(`AI read of ${r.reviews_considered} reviews (most-liked and most-recent), checking each claim the listing makes.`, `리뷰 ${r.reviews_considered}건(공감 많은 순·최신 순)을 AI가 읽고 상품 페이지의 주장을 하나씩 확인했습니다. 인용문은 리뷰 원문입니다.`)}</p>
+      <p className="text-muted">{tr(`AI read of ${r.reviews_considered} reviews (most-liked and most-recent), checking each claim the listing makes.`, `리뷰 ${r.reviews_considered}건(공감 많은 순·최신 순)을 AI가 읽고 상품 페이지 주장을 하나씩 확인. 인용문은 리뷰 원문.`)}</p>
       <DetailHead>{tr("Each claim, checked", "주장별 확인 결과")}</DetailHead>
       <Points items={r.benefit_verdicts.map((b) => { const v = VERDICT[b.verdict]; return <><b className="font-medium">{tx(b.benefit)}</b> <span className={`text-[12px] ${v.tone}`}>{v.label}</span>{b.quotes[0] && <span className="block text-[12px] italic text-muted">&ldquo;{b.quotes[0]}&rdquo;</span>}</>; })} />
       <DetailHead>{tr("Valued but not advertised", "광고하지 않았지만 구매자가 중시하는 점")}</DetailHead>
@@ -73,15 +73,15 @@ export function Buyers({ products, colors, loading }: { products: ProductFacts[]
   const few = (p: ProductFacts) => (p.themes && p.themes.n < FEW ? tr(` (only ${p.themes.n} reviews)`, ` (리뷰 ${p.themes.n}건뿐)`) : "");
   const extra: ExtraRow<ProductFacts>[] = [
     { key: "split", after: "rating", label: tr("Star split", "별점 분포"), help: tr("Share of all star ratings", "전체 별점 중 비중"), has: (p) => !!p.split, missing: () => tr("Not shown on Nykaa", "Nykaa에 표시 없음"), render: (p) => <StarSplit split={p.split!} /> },
-    { key: "praise", label: tr("Praised for", "칭찬받는 점"), help: tr("Themes counted in the review text (our count, same method for every product); click for numbers and quotes", "리뷰 본문에서 센 주제 (모든 제품에 같은 방법 적용). 누르면 수치와 인용문이 나옵니다"),
+    { key: "praise", label: tr("Praised for", "칭찬받는 점"), help: tr("Themes counted in the review text (our count, same method for every product); click for numbers and quotes", "리뷰 본문에서 집계한 주제 (모든 제품에 같은 방법). 누르면 수치·인용문 표시"),
       has: (p) => !!p.themes?.n, missing: () => (loading ? tr("Loading…", "불러오는 중…") : tr("No reviews collected", "수집된 리뷰 없음")),
       render: (p) => p.themes!.praise.length ? <Opens detail={themesDetail(p, "praise")}><span className="flex flex-wrap gap-1">{themeChips(p.themes!.praise, "good")}</span>{few(p) && <span className="block text-[11px] text-muted">{few(p)}</span>}</Opens>
         : <Missing>{tr(`No praise theme in ${p.themes!.n} reviews`, `리뷰 ${p.themes!.n}건에 칭찬 주제 없음`)}</Missing> },
-    { key: "complaints", label: tr("Complaints", "불만"), help: tr("Complaint themes: all from 1–3★ reviews, plus mild ones raised inside 4–5★ reviews (lighter); click for the method and quotes", "불만 주제: 1–3★ 리뷰 전체와 4–5★ 리뷰 속 가벼운 불만(흐리게 표시). 누르면 방법과 인용문이 나옵니다"),
+    { key: "complaints", label: tr("Complaints", "불만"), help: tr("Complaint themes: all from 1–3★ reviews, plus mild ones raised inside 4–5★ reviews (lighter); click for the method and quotes", "불만 주제: 1–3★ 리뷰 전체 + 4–5★ 리뷰 속 가벼운 불만(흐리게 표시). 누르면 방법·인용문 표시"),
       has: (p) => !!p.themes?.n, missing: () => (loading ? tr("Loading…", "불러오는 중…") : tr("No reviews collected", "수집된 리뷰 없음")),
       render: (p) => p.themes!.complaints.length ? <Opens detail={themesDetail(p, "complaint")}><span className="flex flex-wrap gap-1">{themeChips(p.themes!.complaints, "bad")}</span></Opens>
         : <Opens detail={themesDetail(p, "complaint")}><Missing>{tr(`No complaint theme in ${p.themes!.n} reviews`, `리뷰 ${p.themes!.n}건에 불만 주제 없음`)}</Missing></Opens> },
-    { key: "nykaa", label: tr("Nykaa's tags", "Nykaa 태그"), help: tr("Tags reviewers pick on Nykaa (% of tagged reviews) and Nykaa's own summary phrases. Not every product gets them, and tagged reviews are mostly positive, so they are shown apart from our count", "리뷰어가 Nykaa에서 고르는 태그(태그 단 리뷰 중 %)와 Nykaa의 요약 문구. 모든 제품에 있지는 않고, 태그 단 리뷰는 대부분 긍정적이라 우리 집계와 따로 보여 줍니다"),
+    { key: "nykaa", label: tr("Nykaa's tags", "Nykaa 태그"), help: tr("Tags reviewers pick on Nykaa (% of tagged reviews) and Nykaa's own summary phrases. Not every product gets them, and tagged reviews are mostly positive, so they are shown apart from our count", "리뷰어가 Nykaa에서 고르는 태그(태그 단 리뷰 중 %)와 Nykaa 요약 문구. 모든 제품에 있진 않고, 태그 단 리뷰는 대부분 긍정적이라 우리 집계와 따로 표시"),
       has: (p) => !!p.themes?.tagged || p.phrases.length > 0, missing: () => (loading ? tr("Loading…", "불러오는 중…") : tr("Nykaa shows no tags for this product", "Nykaa에 이 제품 태그 없음")),
       render: (p) => (
         <div className="space-y-1">
@@ -104,11 +104,11 @@ export function Buyers({ products, colors, loading }: { products: ProductFacts[]
   const praise = a?.themes?.praise[0]; const comp = a?.themes?.complaints[0];
   const title = a && praise
     ? tr(`Buyers praise ${shortTitle(a.name, a.brand)} most for “${praise.label.toLowerCase()}” (${pc(praise.share)} of reviews)${comp ? `; the top complaint is “${comp.label.toLowerCase()}” (${pc(comp.share)})` : "; no complaint theme stands out"}.`,
-      `${shortTitle(a.name, a.brand)}에 대해 구매자가 가장 많이 칭찬하는 점은 “${praise.label}”(리뷰의 ${pc(praise.share)})${comp ? `, 가장 많은 불만은 “${comp.label}”(${pc(comp.share)})입니다` : "이며, 두드러진 불만은 없습니다"}.`)
+      `${shortTitle(a.name, a.brand)} 구매자 최다 칭찬: “${praise.label}”(리뷰의 ${pc(praise.share)})${comp ? `, 최다 불만: “${comp.label}”(${pc(comp.share)})` : ", 두드러진 불만 없음"}.`)
     : tr("What reviewers say, product by product.", "제품별 리뷰 반응.");
   return (
     <ActionSection id="buyers" kicker={tr("What buyers say · reviews", "구매자 반응 · 리뷰")} title={title}
-      note={tr("Three layers: our count of themes in the review text (the same for every product), Nykaa's own tags where it shows them, and the paid AI review read one click away. Percentages are of all stored recent reviews, so short reviews (“good product”) lower them evenly for everyone.", "세 겹으로 봅니다: 리뷰 본문 주제 집계(모든 제품에 같은 방법), Nykaa가 보여 주는 태그, 그리고 한 번 누르면 나오는 AI 리뷰 분석. 비율은 저장된 최근 리뷰 전체 기준이라, “good product” 같은 짧은 리뷰가 모든 제품의 비율을 똑같이 낮춥니다.")}>
+      note={tr("Three layers: our count of themes in the review text (the same for every product), Nykaa's own tags where it shows them, and the paid AI review read one click away. Percentages are of all stored recent reviews, so short reviews (“good product”) lower them evenly for everyone.", "세 겹으로 확인: 리뷰 본문 주제 집계(모든 제품에 같은 방법), Nykaa 태그, 한 번 누르면 나오는 AI 리뷰 분석. 비율은 저장된 최근 리뷰 전체 기준이라 “good product” 같은 짧은 리뷰가 모든 제품의 비율을 똑같이 낮춤.")}>
       <CompareGrid cols={cols} items={products} criteria={BUYER_CRITERIA} extra={extra} labelWidth={150} />
     </ActionSection>
   );
@@ -127,9 +127,9 @@ export function Visibility({ products, colors, cat }: { products: ProductFacts[]
   ];
   const higher = a ? products.filter((p) => p !== a && p.rank && (!a.rank || p.rank < a.rank)).length : 0;
   const title = a ? tr(`${a.rank ? `#${a.rank} in ${CATEGORY_LABEL[cat]} today` : `Not in today's ${CATEGORY_LABEL[cat]} top 100`}; ${higher} of ${products.length - 1} rivals sit higher${a.search ? `, and it shows in ${a.search} K-beauty search${a.search === 1 ? "" : "es"}` : ", and it shows in no tracked K-beauty search"}.`,
-      `${a.rank ? `오늘 ${CATEGORY_LABEL[cat]} ${a.rank}위` : `오늘 ${CATEGORY_LABEL[cat]} 100위 밖`}. 경쟁 제품 ${products.length - 1}개 중 ${higher}개가 더 높고, ${a.search ? `K-뷰티 검색어 ${a.search}개에서 노출됩니다` : "추적 중인 K-뷰티 검색어에는 노출되지 않습니다"}.`) : tr("Shelf position and search.", "진열 순위와 검색.");
+      `${a.rank ? `오늘 ${CATEGORY_LABEL[cat]} ${a.rank}위` : `오늘 ${CATEGORY_LABEL[cat]} 100위 밖`}. 경쟁 제품 ${products.length - 1}개 중 ${higher}개가 더 높음. ${a.search ? `K-뷰티 검색어 ${a.search}개에서 노출` : "추적 중인 K-뷰티 검색어엔 노출 안 됨"}.`) : tr("Shelf position and search.", "진열 순위와 검색.");
   return (
-    <ActionSection id="visibility" kicker={tr("Visibility · shelf and search", "노출 · 진열과 검색")} title={title} note={tr("Green where Innisfree beats that rival, red where it trails, grey on par (within 3 places or 5%). LEAD marks a clear best.", "초록 = Innisfree가 그 경쟁 제품보다 앞섬, 빨강 = 뒤짐, 회색 = 비슷함 (3계단 또는 5% 이내). ‘선두’는 확실한 1위 표시입니다.")}>
+    <ActionSection id="visibility" kicker={tr("Visibility · shelf and search", "노출 · 진열과 검색")} title={title} note={tr("Green where Innisfree beats that rival, red where it trails, grey on par (within 3 places or 5%). LEAD marks a clear best.", "초록 = Innisfree가 그 경쟁 제품보다 앞섬, 빨강 = 뒤짐, 회색 = 비슷 (3계단 또는 5% 이내). ‘선두’ = 확실한 1위.")}>
       <CompareGrid cols={cols} items={products} criteria={VIS_CRITERIA} extra={extra} colors={products.map((p) => colors[p.brand])} labelWidth={150} />
     </ActionSection>
   );
@@ -146,10 +146,10 @@ export function Demand({ products, colors }: { products: ProductFacts[]; colors:
   const prior = demandWindow().prior;
   const title = a?.recent != null
     ? tr(`${shortTitle(a.name, a.brand)} drew ${a.recent} reviews in 3 months${a.momentum !== null ? ` (${a.momentum >= 0 ? "+" : ""}${Math.round(a.momentum * 100)}% vs ${prior})` : ""}${top && top !== a ? `; ${top.brand} leads with ${top.recent}` : "; the most in the group"}.`,
-      `${shortTitle(a.name, a.brand)}: 3개월 리뷰 ${a.recent}건${a.momentum !== null ? ` (${prior} 대비 ${a.momentum >= 0 ? "+" : ""}${Math.round(a.momentum * 100)}%)` : ""}${top && top !== a ? `. 선두는 ${top.brand}(${top.recent}건)` : ". 그룹 내 최다"}.`)
+      `${shortTitle(a.name, a.brand)}: 3개월 리뷰 ${a.recent}건${a.momentum !== null ? ` (${prior} 대비 ${a.momentum >= 0 ? "+" : ""}${Math.round(a.momentum * 100)}%)` : ""}${top && top !== a ? `. 선두: ${top.brand}(${top.recent}건)` : ". 그룹 내 최다"}.`)
     : tr("Recent reviews, a stand-in for sales.", "최근 리뷰 수 (판매의 대리 지표).");
   return (
-    <ActionSection id="demand" kicker={tr("Demand · reviews as a sales signal", "수요 · 판매 신호로서의 리뷰")} title={title} note={tr("Nykaa does not publish sales; new reviews per month track them closely. Products outside the review-history set are marked.", "Nykaa는 판매량을 공개하지 않으며, 월별 신규 리뷰가 판매를 잘 따라갑니다. 리뷰 이력 수집 대상이 아닌 제품은 표시해 둡니다.")}>
+    <ActionSection id="demand" kicker={tr("Demand · reviews as a sales signal", "수요 · 판매 신호로 본 리뷰")} title={title} note={tr("Nykaa does not publish sales; new reviews per month track them closely. Products outside the review-history set are marked.", "Nykaa는 판매량을 공개하지 않고, 월별 신규 리뷰가 판매를 잘 따라감. 리뷰 이력 수집 대상이 아닌 제품은 따로 표시.")}>
       <CompareGrid cols={cols} items={products} criteria={DEMAND_CRITERIA} extra={extra} colors={products.map((p) => colors[p.brand])} labelWidth={150} />
     </ActionSection>
   );

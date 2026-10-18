@@ -44,7 +44,7 @@ export default function FindBox() {
               <span className="min-w-0 truncate">{h.kind === "brand" ? <b>{h.label}</b> : h.label}</span>
               <span className="shrink-0 text-[11.5px] text-muted">{h.sub}</span>
             </button>
-          )) : <p className="px-3 py-2 text-[13px] text-muted">{products.data ? tr("Nothing seen on a tracked shelf by that name.", "추적 진열에서 찾을 수 없습니다.") : tr("Loading…", "불러오는 중…")}</p>}
+          )) : <p className="px-3 py-2 text-[13px] text-muted">{products.data ? tr("Nothing seen on a tracked shelf by that name.", "추적 진열에서 찾을 수 없음.") : tr("Loading…", "불러오는 중…")}</p>}
         </div>
       )}
     </div>

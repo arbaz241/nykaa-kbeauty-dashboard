@@ -84,17 +84,17 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
           </div>
           {p.usp && <p className="mt-6 text-[14.5px] leading-relaxed">{tx(p.usp)}</p>}
 
-          {error && <p className="mt-6 text-[13px] text-bad">{tr("Could not load history", "이력을 불러오지 못했습니다")}: {String(error.message)}</p>}
+          {error && <p className="mt-6 text-[13px] text-bad">{tr("Could not load history", "이력 불러오기 실패")}: {String(error.message)}</p>}
 
-          <Block title={tr("Demand: reviews per month", "수요: 월별 리뷰 수")} note={tr("Last 12 complete months. Months before the product's reliable history are blank.", "최근 완결된 12개월. 신뢰할 수 있는 이력 이전의 달은 비워 둡니다.")}>
+          <Block title={tr("Demand: reviews per month", "월별 작성 리뷰 수")} note={tr("Last 12 complete months. Months before the product's reliable history are blank.", "최근 완결된 12개월. 신뢰할 수 있는 이력 이전 달은 빈칸.")}>
             {monthly.some((v) => v !== null) ? <LineChart labels={win.map((m) => monthYY(m))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: monthly }]} height={200} />
-              : <p className="text-[13px] text-muted">{data ? tr("This product is not in the review-history set (tracked for the focus brands' leading products and the most visible competitors).", "이 제품은 리뷰 이력 수집 대상이 아닙니다 (주요 브랜드의 대표 제품과 노출이 많은 경쟁 제품만 추적).") : tr("Loading…", "불러오는 중…")}</p>}
+              : <p className="text-[13px] text-muted">{data ? tr("This product is not in the review-history set (tracked for the focus brands' leading products and the most visible competitors).", "리뷰 이력 수집 대상이 아닌 제품 (주요 브랜드 대표 제품과 노출이 많은 경쟁 제품만 추적).") : tr("Loading…", "불러오는 중…")}</p>}
           </Block>
 
-          <Block title={tr("Rank on the shelf", "진열 순위")} note={tr("Daily position in each category's top 100 (1 = top). Gaps are days it was outside the top 100.", "카테고리별 상위 100위 안의 일별 순위 (1 = 최상위). 끊긴 구간은 100위 밖이었던 날입니다.")}>
+          <Block title={tr("Rank on the shelf", "진열 순위")} note={tr("Daily position in each category's top 100 (1 = top). Gaps are days it was outside the top 100.", "카테고리별 상위 100위 안의 일별 순위 (1 = 최상위). 끊긴 구간 = 100위 밖이었던 날.")}>
             {byCat.size ? <LineChart labels={days.map((d) => dayMonth(d))} invert height={200}
               series={[...byCat.entries()].map(([cat, hs], i) => ({ name: CATEGORY_LABEL[cat] ?? tr("Korean store", "K-뷰티 스토어"), color: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"][i % 4], values: days.map((d) => hs.find((h) => h.scrape_date === d)?.rank ?? null) }))} />
-              : <p className="text-[13px] text-muted">{data ? tr("Not in any tracked top 100 during the collected period.", "수집 기간 동안 추적 중인 상위 100위에 든 적이 없습니다.") : tr("Loading…", "불러오는 중…")}</p>}
+              : <p className="text-[13px] text-muted">{data ? tr("Not in any tracked top 100 during the collected period.", "수집 기간 동안 추적 상위 100위에 든 적 없음.") : tr("Loading…", "불러오는 중…")}</p>}
           </Block>
 
           {priceSeries.some((v) => v !== null) && (
@@ -125,7 +125,7 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
           <ImageRead productId={p.product_id} />
 
           {!!data?.aspects.length && (
-            <Block title={tr("What reviewers single out", "리뷰어가 꼽은 점")} note={tr("Nykaa asks reviewers to tag what stood out, with a sentiment. Share of mentions that were positive, most-mentioned first.", "Nykaa는 리뷰어에게 눈에 띈 점을 긍정·부정과 함께 태그하게 합니다. 긍정 언급 비중이며, 많이 언급된 순서입니다.")}>
+            <Block title={tr("What reviewers single out", "리뷰어가 꼽은 점")} note={tr("Nykaa asks reviewers to tag what stood out, with a sentiment. Share of mentions that were positive, most-mentioned first.", "Nykaa는 리뷰어가 눈에 띈 점을 긍정·부정으로 태그. 긍정 언급 비중, 많이 언급된 순.")}>
               <div className="space-y-2">{data.aspects.slice(0, 8).map((a) => {
                 const pct = Math.round((a.positive / a.total) * 100);
                 return (
@@ -198,7 +198,7 @@ export function ImageRead({ productId }: { productId: string }) {
     t.background ? tr(`${t.background} background`, `배경: ${tx(t.background)}`) : null,
   ].filter(Boolean) as string[];
   return (
-    <Block title={tr("What the image says", "대표 이미지 분석")} note={tr("Nykaa ranks partly on clicks, and the thumbnail is what a shopper decides on.", "Nykaa 순위는 클릭에도 영향을 받고, 소비자는 썸네일을 보고 클릭을 결정합니다.")}>
+    <Block title={tr("What the image says", "대표 이미지 분석")} note={tr("Nykaa ranks partly on clicks, and the thumbnail is what a shopper decides on.", "Nykaa 순위는 클릭에도 영향을 받고, 소비자는 썸네일을 보고 클릭을 결정.")}>
       <p className="text-[13.5px] text-ink-2">{tx(t.summary)}</p>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {bits.map((b) => <span key={b} className="rounded-full bg-sunken px-2.5 py-1 text-[12px] text-ink-2">{b}</span>)}

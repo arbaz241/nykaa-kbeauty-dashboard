@@ -71,7 +71,7 @@ export default function MovesWithReasons() {
       <div className="flex flex-wrap gap-1.5">
         {x.why.length ? x.why.slice(0, 4).map((w, i) => (
           <span key={i} className="rounded-md px-2 py-0.5 text-[11.5px] leading-snug" style={{ background: `${REASON_COLOR[w.kind]}18`, color: REASON_COLOR[w.kind] }}>{w.text}</span>
-        )) : <span className="text-[11.5px] italic text-muted">{tr("No clear cause on these dates: not a price, offer, stock, ad or event change we can see", "이 기간에 보이는 원인 없음: 가격·프로모션·재고·광고·이벤트 변화가 없습니다")}</span>}
+        )) : <span className="text-[11.5px] italic text-muted">{tr("No clear cause on these dates: not a price, offer, stock, ad or event change we can see", "이 기간 보이는 원인 없음: 가격·프로모션·재고·광고·이벤트 변화 없음")}</span>}
       </div>
     </li>
   );
@@ -80,16 +80,16 @@ export default function MovesWithReasons() {
     <ActionSection id="why" kicker={tr("What moved and why", "무엇이 왜 움직였나")}
       title={tr(`The biggest rank moves in the ${spanLabel(m.period.days)}, and what changed on the same dates`, `${spanLabel(m.period.days)} 가장 큰 순위 변동과 같은 기간의 변화`)}
       note={tr(<>Each line is the listing&rsquo;s daily rank from {dayMonth(win.start)} to {dayMonth(win.end)} (higher = better; shaded days carried an offer tag); the move compares its typical rank over the first three days with the last three, because single days jump around. Reasons are checked on the same dates (a sale or banner counts only if the listing moved that way while it ran): a real price cut (MRP unchanged), an offer, a paid slot, stock, a burst of ratings, a recent launch, a Nykaa sale or homepage banner, or rivals above dropping out. They are likely causes, not proof. {explained} of {total} moves have at least one.</>,
-        <>선은 {dayMonth(win.start)}–{dayMonth(win.end)} 일별 제품 순위입니다(위쪽 = 상위, 음영 = 프로모션 표시일). 하루 순위는 출렁이므로 처음 3일과 마지막 3일의 대표 순위를 비교합니다. 같은 기간에(세일·배너는 그 기간에 같은 방향으로 움직였을 때만) 가격 인하(정가 동일), 프로모션, 광고 자리, 재고, 평가 급증, 신제품, Nykaa 세일·홈페이지 배너, 위 순위 제품 이탈을 확인합니다. 원인 후보이지 증명은 아닙니다. {total}건 중 {explained}건에 하나 이상의 이유가 있습니다.</>)}
+        <>선 = {dayMonth(win.start)}–{dayMonth(win.end)} 일별 제품 순위(위쪽 = 상위, 음영 = 프로모션 표시일). 하루 순위는 출렁이기 때문에 처음 3일과 마지막 3일의 대표 순위를 비교. 같은 기간의 가격 인하(정가 동일), 프로모션, 광고 자리, 재고, 평가 급증, 신제품, Nykaa 세일·홈페이지 배너(같은 방향으로 움직였을 때만), 위 순위 제품 이탈을 확인. 원인 후보일 뿐 증명 아님. {total}건 중 {explained}건에 이유 1개 이상.</>)}
       right={<div className="flex flex-col items-end gap-2"><PeriodBar shelf={win} freeze={m.freeze} /><div className="flex gap-1.5"><button className={pill(scope === "set", "sm")} onClick={() => setScope("set")}>{tr("Focus & K-beauty", "주요·K-뷰티")}</button><button className={pill(scope === "all", "sm")} onClick={() => setScope("all")}>{tr("All brands", "전체 브랜드")}</button></div></div>}>
       <div className="grid gap-3">
         <Card className="px-5 py-3">
           <div className="pt-1 text-[12px] font-semibold uppercase tracking-[0.1em] text-good">{tr("Climbed", "상승")}</div>
-          <ul className="divide-y divide-line/60">{moves.up.length ? moves.up.map(row) : <li className="py-2 text-[12.5px] text-muted">{tr("No listing climbed 5+ places in this period.", "이 기간에 5계단 이상 오른 제품이 없습니다.")}</li>}</ul>
+          <ul className="divide-y divide-line/60">{moves.up.length ? moves.up.map(row) : <li className="py-2 text-[12.5px] text-muted">{tr("No listing climbed 5+ places in this period.", "이 기간 5계단 이상 오른 제품 없음.")}</li>}</ul>
         </Card>
         <Card className="px-5 py-3">
           <div className="pt-1 text-[12px] font-semibold uppercase tracking-[0.1em] text-bad">{tr("Slipped", "하락")}</div>
-          <ul className="divide-y divide-line/60">{moves.down.length ? moves.down.map(row) : <li className="py-2 text-[12.5px] text-muted">{tr("No listing slipped 5+ places in this period.", "이 기간에 5계단 이상 내린 제품이 없습니다.")}</li>}</ul>
+          <ul className="divide-y divide-line/60">{moves.down.length ? moves.down.map(row) : <li className="py-2 text-[12.5px] text-muted">{tr("No listing slipped 5+ places in this period.", "이 기간 5계단 이상 내린 제품 없음.")}</li>}</ul>
         </Card>
       </div>
     </ActionSection>

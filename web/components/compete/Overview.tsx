@@ -102,7 +102,7 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
   const rivals = products.filter((p) => p !== a);
   if (!a) return (
     <section id="summary" className="mt-6 scroll-mt-32"><Card className="px-6 py-5">
-      <p className="font-display text-[18px] font-medium">{tr(<>Innisfree sells nothing in {CATEGORY_LABEL[cat]} on Nykaa; the rivals are compared with each other below.</>, <>Innisfree는 Nykaa에서 {CATEGORY_LABEL[cat]} 제품을 팔지 않습니다. 아래에서는 경쟁 제품끼리 비교합니다.</>)}</p>
+      <p className="font-display text-[18px] font-medium">{tr(<>Innisfree sells nothing in {CATEGORY_LABEL[cat]} on Nykaa; the rivals are compared with each other below.</>, <>Innisfree는 Nykaa에서 {CATEGORY_LABEL[cat]} 제품 미판매. 아래는 경쟁 제품끼리 비교.</>)}</p>
     </Card></section>
   );
   const name = shortTitle(a.name, a.brand);
@@ -136,7 +136,7 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
       good: es === 3 ? tr("a message buyers repeat", "구매자가 따라 말하는 메시지") : tr("a well-proven message", "근거가 탄탄한 메시지"),
       bad: ps === 1 && es !== 3 ? tr("weakly proven claims", "근거가 약한 소구점") : tr("claims buyers rarely repeat", "구매자가 거의 언급하지 않는 소구점"),
       point: a.proof.level ? tr(<>Proof <b>{LEVEL_WORD[a.proof.level].toLowerCase()}</b> · buyer echo <b>{a.echo.level ? LEVEL_WORD[a.echo.level].toLowerCase() : "too few reviews"}</b>{hero ? <> · {unique} claim{unique === 1 ? "" : "s"} no rival makes</> : null}</>,
-        <>근거 <b>{LEVEL_WORD[a.proof.level]}</b> · 구매자 공감 <b>{a.echo.level ? LEVEL_WORD[a.echo.level] : "리뷰 부족"}</b>{hero ? <> · 경쟁 제품에 없는 소구점 {unique}개</> : null}</>) : tr(<>No message analysis for this product</>, <>이 제품은 메시지 분석이 없습니다</>) },
+        <>근거 <b>{LEVEL_WORD[a.proof.level]}</b> · 구매자 공감 <b>{a.echo.level ? LEVEL_WORD[a.echo.level] : "리뷰 부족"}</b>{hero ? <> · 경쟁 제품에 없는 소구점 {unique}개</> : null}</>) : tr(<>No message analysis for this product</>, <>이 제품은 메시지 분석 없음</>) },
     { id: "buyers", label: tr("Buyers", "구매자"), href: "#buyers",
       tone: most(get("rating")) === "ahead" ? "good" : most(get("rating")) === "behind" ? "bad" : undefined,
       good: tr("rated higher than most rivals", "대부분의 경쟁 제품보다 높은 평점"), bad: tr("rated lower than most rivals", "대부분의 경쟁 제품보다 낮은 평점"),
@@ -153,7 +153,7 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
   const bads = dims.filter((d) => d.tone === "bad").map((d) => d.bad!);
   const join = (xs: string[]) => (xs.length <= 1 ? xs.join("") : tr(`${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`, `${xs.slice(0, -1).join(", ")}, ${xs[xs.length - 1]}`));
   const headline = tr(`${name} is ${pricePhrase ?? "priced without a comparable size"}${goods.length ? `, with ${join(goods)}` : ""}${bads.length ? `${goods.length ? ", but" : ", and"} has ${join(bads)}` : ""}.`,
-    `${josa(name, "은/는")} ${pricePhrase ?? "비교할 만한 용량이 없어 가격 비교 불가"}${goods.length ? `이며, 강점은 ${join(goods)}` : ""}${bads.length ? `${goods.length ? "이지만" : "이고"}, 약점은 ${join(bads)}` : ""}입니다.`);
+    `${josa(name, "은/는")} ${pricePhrase ?? "비교할 용량이 없어 가격 비교 불가"}${goods.length ? `. 강점: ${join(goods)}` : ""}${bads.length ? `${goods.length ? " / " : ". "}약점: ${join(bads)}` : ""}.`);
 
   const chip = (s: Standing & { c: Criterion<ProductFacts> }, good: boolean) => (
     <button key={s.key} onClick={() => open(evidence(s.c, a, rivals))} className="text-left">
@@ -212,7 +212,7 @@ export function thumbDetail(p: ProductFacts): DetailContent {
         {!!t.dominant_colors?.length && <><DetailHead>{tr("Main colours", "주요 색상")}</DetailHead><div className="flex h-3 max-w-[360px] overflow-hidden rounded-full ring-1 ring-line">{t.dominant_colors.slice(0, 5).map((c) => <span key={c.hex} style={{ background: c.hex, width: `${c.share * 100}%` }} />)}</div></>}
         {!!t.on_image_claims?.length && <><DetailHead>{tr("Printed on the image", "이미지에 적힌 문구")}</DetailHead><Points items={txs(t.on_image_claims)} /></>}
         {t.summary && <><DetailHead>{tr("Summary", "요약")}</DetailHead><p className="text-ink-2">{tx(t.summary)}</p></>}
-      </>) : <p className="mt-4 text-muted">{tr("This thumbnail has not been analysed yet (image analysis covers the focus brands and the analysed rival groups).", "이 썸네일은 아직 분석하지 않았습니다 (이미지 분석은 주요 브랜드와 분석된 경쟁 제품군만 대상).")}</p>}
+      </>) : <p className="mt-4 text-muted">{tr("This thumbnail has not been analysed yet (image analysis covers the focus brands and the analysed rival groups).", "아직 분석 안 한 썸네일 (이미지 분석은 주요 브랜드와 분석된 경쟁 제품군만 대상).")}</p>}
     </>),
   };
 }

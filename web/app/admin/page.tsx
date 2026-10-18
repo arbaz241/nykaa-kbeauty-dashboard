@@ -64,7 +64,7 @@ function AdminPage() {
     // the tabs read ready-made copies (migrations 020-022), rebuilt after the nightly run; a rebuild (~10 s) is
     // longer than a signed-in request may run, so the new origins reach the tabs with tonight's update
     setBusy(false); setEdits({}); await brands.mutate();
-    setMsg(n ? { kind: "ok", text: tr(`Saved ${n} brand${n === 1 ? "" : "s"}. The tabs show the new labels after tonight's update.`, `브랜드 ${n}개를 저장했습니다. 오늘 밤 업데이트 후 각 탭에 반영됩니다.`) } : { kind: "err", text: tr("Nothing was saved: this account is not allowed to edit.", "저장되지 않았습니다: 이 계정에는 편집 권한이 없습니다.") });
+    setMsg(n ? { kind: "ok", text: tr(`Saved ${n} brand${n === 1 ? "" : "s"}. The tabs show the new labels after tonight's update.`, `브랜드 ${n}개 저장 완료. 오늘 밤 업데이트 후 각 탭에 반영.`) } : { kind: "err", text: tr("Nothing was saved: this account is not allowed to edit.", "저장 안 됨: 이 계정엔 편집 권한 없음.") });
   }
 
   const counts = useMemo(() => {
@@ -73,9 +73,9 @@ function AdminPage() {
 
   return (
     <Shell active="Admin">
-      <PageHead eyebrow={tr("Admin", "관리")} title={{ people: tr("People", "사용자"), brands: tr("Brand classification", "브랜드 분류"), tiers: tr("Brand tiers", "브랜드 등급"), notes: tr("Data notes", "데이터 메모") }[tab]} sub={tab === "tiers" ? tr("The pinned brand and the focus set that every tab leads with.", "모든 탭이 앞세우는 고정 브랜드와 주요 브랜드 목록.") : tab === "notes" ? tr("The data-quality log: coverage changes, sales, launches and artifacts, with cause and status.", "데이터 품질 기록: 수집 범위 변경, 세일, 출시, 데이터 왜곡과 그 원인·상태.") : tab === "people"
-        ? tr("Everyone who has an account: when they joined, their account id, when they were last on the dashboard and what they opened. Make or remove admins, and block or delete accounts.", "계정이 있는 모든 사용자: 가입일, 계정 ID, 마지막 접속일, 열어 본 페이지. 관리자 지정·해제, 계정 차단·삭제를 할 수 있습니다.")
-        : tr("Every share on the dashboard depends on each brand's origin. New brands are classified automatically from Nykaa's country of origin and the Korean Beauty store; confirm or correct them here. Confirmed brands are never overwritten by the nightly run.", "대시보드의 모든 점유율은 브랜드 국적에 따라 달라집니다. 새 브랜드는 Nykaa의 원산지 정보와 K-뷰티 스토어를 근거로 자동 분류되며, 여기서 확인하거나 고칠 수 있습니다. 확인한 브랜드는 매일 밤 수집에서 덮어쓰지 않습니다.")} />
+      <PageHead eyebrow={tr("Admin", "관리")} title={{ people: tr("People", "사용자"), brands: tr("Brand classification", "브랜드 분류"), tiers: tr("Brand tiers", "브랜드 등급"), notes: tr("Data notes", "데이터 메모") }[tab]} sub={tab === "tiers" ? tr("The pinned brand and the focus set that every tab leads with.", "모든 탭이 먼저 보여주는 기준 브랜드와 주요 브랜드 목록.") : tab === "notes" ? tr("The data-quality log: coverage changes, sales, launches and artifacts, with cause and status.", "데이터 품질 기록: 수집 범위 변경, 세일, 출시, 데이터 왜곡과 원인·상태.") : tab === "people"
+        ? tr("Everyone who has an account: when they joined, their account id, when they were last on the dashboard and what they opened. Make or remove admins, and block or delete accounts.", "계정이 있는 모든 사용자: 가입일, 계정 ID, 마지막 접속, 열어 본 페이지. 관리자 지정·해제, 계정 차단·삭제 가능.")
+        : tr("Every share on the dashboard depends on each brand's origin. New brands are classified automatically from Nykaa's country of origin and the Korean Beauty store; confirm or correct them here. Confirmed brands are never overwritten by the nightly run.", "대시보드의 모든 점유율은 브랜드 국적에 따라 달라짐. 새 브랜드는 Nykaa 원산지 정보와 K-뷰티 스토어를 근거로 자동 분류되고, 여기서 확인·수정 가능. 확인한 브랜드는 매일 밤 수집에서 덮어쓰지 않음.")} />
       {isAdmin && (
         <div className="mt-6 flex gap-1.5">
           {([["people", tr("People", "사용자")], ["tiers", tr("Brand tiers", "브랜드 등급")], ["notes", tr("Data notes", "데이터 메모")], ["brands", tr("Brand classification", "브랜드 분류")]] as const).map(([k, l]) => (
@@ -83,12 +83,12 @@ function AdminPage() {
           ))}
         </div>
       )}
-      {!isAdmin ? <p className="mt-8 text-[14px] text-muted">{tr("Only admins can open this page.", "관리자만 열 수 있는 페이지입니다.")}</p>   : tab === "people" ? <><Access /><People /></> : tab === "tiers" ? <TiersAdmin known={[...slots.keys()]} /> : tab === "notes" ? <NotesAdmin /> : !brands.data ? <Loading what={tr("brands", "브랜드")} /> : (
+      {!isAdmin ? <p className="mt-8 text-[14px] text-muted">{tr("Only admins can open this page.", "관리자 전용 페이지.")}</p>   : tab === "people" ? <><Access /><People /></> : tab === "tiers" ? <TiersAdmin known={[...slots.keys()]} /> : tab === "notes" ? <NotesAdmin /> : !brands.data ? <Loading what={tr("brands", "브랜드")} /> : (
         <>
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search brand", "브랜드 검색")} className="w-56 rounded-xl border border-line bg-surface px-3.5 py-2 text-[13px] outline-none focus:border-accent-strong" />
             <button onClick={() => setOnlyOpen(!onlyOpen)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 ${onlyOpen ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line"}`}>{tr("Needs your check", "확인 필요")} ({counts.open})</button>
-            <span className="basis-full text-[12px] text-muted">{tr("17 Oct: brands with clear evidence (the seed list, or Nykaa's country of origin agreeing on 2+ products, 3+ for Korea) were confirmed automatically, marked \"auto-rule\". What is left is doubtful: one product to judge from, no signal, made in Korea by a possibly non-Korean brand, or brands marketed as Korean.", "10월 17일: 근거가 분명한 브랜드(초기 목록, 또는 Nykaa 원산지가 2개 이상 제품에서 일치, 한국은 3개 이상)는 자동 확인했습니다(\"auto-rule\" 표시). 남은 것은 판단이 필요한 브랜드입니다: 제품 1개뿐, 근거 없음, 한국 제조지만 한국 브랜드가 아닐 수 있음, 한국풍 마케팅 브랜드.")}</span>
+            <span className="basis-full text-[12px] text-muted">{tr("17 Oct: brands with clear evidence (the seed list, or Nykaa's country of origin agreeing on 2+ products, 3+ for Korea) were confirmed automatically, marked \"auto-rule\". What is left is doubtful: one product to judge from, no signal, made in Korea by a possibly non-Korean brand, or brands marketed as Korean.", "10월 17일: 근거가 분명한 브랜드(초기 목록, 또는 Nykaa 원산지가 2개 이상 제품에서 일치, K-뷰티는 3개 이상)는 자동 확인(\"auto-rule\" 표시). 남은 것은 판단이 필요한 브랜드: 제품 1개뿐, 근거 없음, 한국 제조지만 K-뷰티 브랜드가 아닐 수 있음, K-스타일 마케팅 브랜드.")}</span>
             <select value={origin} onChange={(e) => setOrigin(e.target.value)} className="rounded-xl border border-line bg-surface px-3 py-2 text-[13px]">
               <option value="all">{tr("All origins", "전체 국적")}</option>{ORIGINS.map((o) => <option key={o} value={o}>{ORIGIN_LABEL[o]}{o === "unknown" ? ` (${counts.unknown})` : ""}</option>)}
             </select>
@@ -101,8 +101,8 @@ function AdminPage() {
           <Card className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[1080px] text-[13px]">
               <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                <th className="px-4 py-3">{tr("Brand", "브랜드")}</th><th className="px-3 py-3">{tr("Origin", "국적")}</th><th className="px-3 py-3">{tr("Confirmed", "확인")}</th><th className="px-3 py-3" title={tr("An Indian or global brand marketing itself as Korean", "한국 브랜드처럼 마케팅하는 인도·글로벌 브랜드")}>{tr("Korean-style marketing", "K-스타일 마케팅")}</th>
-                <th className="px-3 py-3 text-right">{tr("Top-100 slots today", "오늘 상위 100위 자리")}</th><th className="px-3 py-3">{tr("Why the classifier chose it", "자동 분류 근거")}</th><th className="px-3 py-3">{tr("Note", "메모")}</th><th className="px-4 py-3">{tr("Last change", "최근 변경")}</th>
+                <th className="px-4 py-3">{tr("Brand", "브랜드")}</th><th className="px-3 py-3">{tr("Origin", "국적")}</th><th className="px-3 py-3">{tr("Confirmed", "확인")}</th><th className="px-3 py-3" title={tr("An Indian or global brand marketing itself as Korean", "K-뷰티 브랜드처럼 마케팅하는 인도·글로벌 브랜드")}>{tr("Korean-style marketing", "K-스타일 마케팅")}</th>
+                <th className="px-3 py-3 text-right">{tr("Top-100 slots today", "오늘 상위 100위 제품")}</th><th className="px-3 py-3">{tr("Why the classifier chose it", "자동 분류 근거")}</th><th className="px-3 py-3">{tr("Note", "메모")}</th><th className="px-4 py-3">{tr("Last change", "최근 변경")}</th>
               </tr></thead>
               <tbody>
                 {list.map((b) => {

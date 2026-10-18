@@ -9,7 +9,7 @@ import type { MarketEvent } from "@/lib/types";
 import { dayMonth, dayMonthYear, tr } from "@/lib/i18n";
 
 const KINDS = () => [
-  { id: "sale", label: tr("Sale event", "세일"), hint: tr("Pink Friday, Hot Pink Sale, festive", "Pink Friday, Hot Pink Sale, 명절 세일") },
+  { id: "sale", label: tr("Sale event", "세일"), hint: tr("Pink Friday, Hot Pink Sale, festive", "Pink Friday, Hot Pink 세일, 명절 세일") },
   { id: "launch", label: tr("Launch", "출시"), hint: tr("a product or range going live", "제품이나 라인 출시") },
   { id: "campaign", label: tr("Campaign", "캠페인"), hint: tr("ads, influencer push, celebrity tie-in", "광고, 인플루언서, 셀럽 협업") },
   { id: "competitor", label: tr("Competitor move", "경쟁사 동향"), hint: tr("something a rival did", "경쟁사가 한 일") },
@@ -31,7 +31,7 @@ export default function EventLog() {
       <div className="mb-4 flex flex-wrap items-baseline gap-3">
         <h2 className="font-display text-[17px] font-semibold tracking-tight">{tr("What was happening", "시장에서 있었던 일")}</h2>
         <p className="text-[13px] text-muted">
-          {tr("Sales, launches and campaigns you log here get marked on every chart, so a jump has a reason beside it.", "여기 기록한 세일·출시·캠페인은 모든 차트에 표시되어, 급등락 옆에 그 이유가 함께 보입니다.")}
+          {tr("Sales, launches and campaigns you log here get marked on every chart, so a jump has a reason beside it.", "여기 기록한 세일·출시·캠페인은 모든 차트에 표시 → 급등락 옆에서 이유를 함께 확인.")}
         </p>
         {isAdmin && (
           <button
@@ -50,11 +50,11 @@ export default function EventLog() {
           <p className="px-5 py-6 text-[13px] text-muted">{tr("Loading events…", "이벤트 불러오는 중…")}</p>
         ) : !events?.length ? (
           <div className="px-5 py-8 text-center">
-            <p className="text-[14px] font-medium">{tr("Nothing logged yet", "아직 기록된 이벤트가 없습니다")}</p>
+            <p className="text-[14px] font-medium">{tr("Nothing logged yet", "아직 기록된 이벤트 없음")}</p>
             <p className="mx-auto mt-1 max-w-[52ch] text-[13px] text-muted">
               {isAdmin
-                ? tr("Add the next Nykaa sale, an Innisfree campaign, or a rival's launch. The data can show you a spike; only you can say what caused it.", "다음 Nykaa 세일, Innisfree 캠페인, 경쟁사 출시 등을 추가하세요. 데이터는 급등을 보여 줄 뿐, 그 원인은 직접 기록해야 알 수 있습니다.")
-                : tr("The dashboard owner hasn't logged any market events yet.", "대시보드 관리자가 아직 시장 이벤트를 기록하지 않았습니다.")}
+                ? tr("Add the next Nykaa sale, an Innisfree campaign, or a rival's launch. The data can show you a spike; only you can say what caused it.", "다음 Nykaa 세일, Innisfree 캠페인, 경쟁사 출시 등을 추가. 데이터는 급등을 보여줄 뿐, 원인은 직접 기록해야 알 수 있음.")
+                : tr("The dashboard owner hasn't logged any market events yet.", "대시보드 관리자가 아직 기록한 시장 이벤트 없음.")}
             </p>
           </div>
         ) : (
@@ -161,7 +161,7 @@ function EventForm({ onDone }: { onDone: () => void }) {
           {busy ? tr("Saving…", "저장 중…") : tr("Save event", "이벤트 저장")}
         </button>
         {error && <span className="text-[12.5px] text-bad">{error}</span>}
-        {!valid && !error && <span className="text-[12.5px] text-muted">{tr("Give it a name and a date.", "이름과 날짜를 입력해 주세요.")}</span>}
+        {!valid && !error && <span className="text-[12.5px] text-muted">{tr("Give it a name and a date.", "이름과 날짜 입력 필요.")}</span>}
       </div>
     </Card>
   );

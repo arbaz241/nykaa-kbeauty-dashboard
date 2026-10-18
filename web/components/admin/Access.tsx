@@ -56,8 +56,8 @@ export default function Access() {
           <div className="max-w-[720px]">
             <div className="text-[15px] font-semibold">{required === undefined ? tr("Access", "접근") : required ? tr("Sign-in is required", "로그인 필요") : tr("Open: anyone with the link can use the site", "공개: 링크가 있으면 누구나 사용 가능")}</div>
             <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{required
-              ? tr("Visitors need an account. Turning it open lets anyone with the link in as a guest, with no account.", "방문자는 계정이 필요합니다. 공개로 바꾸면 링크가 있는 누구나 계정 없이 게스트로 들어옵니다.")
-              : tr("Visitors come in as guests without an account; each visit records the IP address, browser and page, seen only here. Admins still sign in to edit. Requiring sign-in ends every guest session at once.", "방문자는 계정 없이 게스트로 들어오며, 방문마다 IP 주소·브라우저·페이지가 기록되고 여기서만 볼 수 있습니다. 관리자는 편집하려면 로그인합니다. 로그인 필수로 바꾸면 모든 게스트 세션이 즉시 끝납니다.")}</p>
+              ? tr("Visitors need an account. Turning it open lets anyone with the link in as a guest, with no account.", "방문자는 계정 필요. 공개로 바꾸면 링크가 있는 누구나 계정 없이 게스트로 접속.")
+              : tr("Visitors come in as guests without an account; each visit records the IP address, browser and page, seen only here. Admins still sign in to edit. Requiring sign-in ends every guest session at once.", "방문자는 계정 없이 게스트로 접속. 방문마다 IP 주소·브라우저·페이지가 기록되고 여기서만 확인 가능. 편집은 관리자 로그인 필요. 로그인 필수로 바꾸면 모든 게스트 세션 즉시 종료.")}</p>
           </div>
           {required !== undefined && (required
             ? <button disabled={busy} onClick={() => flip(false)} className="rounded-full bg-brand px-4 py-2 text-[13px] font-medium text-on-brand disabled:opacity-50">{tr("Open the site to guests", "게스트에게 공개")}</button>
@@ -100,7 +100,7 @@ export default function Access() {
           </table>
         </div>
       </details>
-      <p className="mt-2 text-[12px] text-muted">{tr("An IP address shows the network, not the person: people on one office or mobile network can share one, and a VPN hides it. The browser id tells one browser from another on the same network.", "IP 주소는 사람이 아니라 네트워크를 나타냅니다. 같은 사무실·모바일 네트워크 사용자는 IP를 공유할 수 있고 VPN은 IP를 숨깁니다. 브라우저 ID로 같은 네트워크의 다른 브라우저를 구분합니다.")}</p>
+      <p className="mt-2 text-[12px] text-muted">{tr("An IP address shows the network, not the person: people on one office or mobile network can share one, and a VPN hides it. The browser id tells one browser from another on the same network.", "IP 주소는 사람이 아니라 네트워크 기준. 같은 사무실·모바일 네트워크 사용자는 IP를 공유할 수 있고, VPN은 IP를 숨김. 브라우저 ID로 같은 네트워크의 다른 브라우저 구분.")}</p>
     </section>
   );
 }

@@ -36,7 +36,7 @@ export function BrandSelect({ value, onChange, tiers, all, label = tr("Seen from
           {q ? (
             <div className="mt-2 max-h-[300px] overflow-y-auto">
               {[...tiers.focus, tiers.pinned].filter((b) => norm(b).includes(norm(q))).concat(others).map((b) => <Opt key={b} b={b} on={b === value} onPick={pick} tag={tiers.inSet(b) ? undefined : tr("scorecard depth", "간이 평가")} />)}
-              {!others.length && ![...tiers.focus, tiers.pinned].some((b) => norm(b).includes(norm(q))) && <p className="px-2 py-2 text-[12.5px] text-muted">{tr("No brand on today’s shelves matches.", "오늘 진열 목록에 일치하는 브랜드가 없습니다.")}</p>}
+              {!others.length && ![...tiers.focus, tiers.pinned].some((b) => norm(b).includes(norm(q))) && <p className="px-2 py-2 text-[12.5px] text-muted">{tr("No brand on today’s shelves matches.", "오늘 진열 목록에 일치하는 브랜드 없음.")}</p>}
             </div>
           ) : (
             <div className="mt-2 max-h-[340px] overflow-y-auto">
@@ -47,7 +47,7 @@ export function BrandSelect({ value, onChange, tiers, all, label = tr("Seen from
                   {brands.map((b) => <Opt key={b} b={b} on={b === value} onPick={pick} />)}
                 </div>
               ))}
-              <p className="mt-2 px-2 text-[11.5px] text-muted">{tr("Other brands: type above. They get a lighter scorecard; sections without data say so.", "다른 브랜드는 위에 입력해 찾으세요. 간이 평가로 보여 주며, 데이터가 없는 영역은 그렇다고 표시합니다.")}</p>
+              <p className="mt-2 px-2 text-[11.5px] text-muted">{tr("Other brands: type above. They get a lighter scorecard; sections without data say so.", "다른 브랜드는 위에 입력해 검색. 간이 평가로 표시하고, 데이터 없는 영역은 따로 표시.")}</p>
             </div>
           )}
         </div>

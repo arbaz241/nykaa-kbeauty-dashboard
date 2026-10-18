@@ -37,16 +37,16 @@ function criteriaFor(cat: string, anchor: string): Criterion<BrandFacts>[] {
       missing: (f) => (f.avgDiscount === null ? notOnShelf() : null) },
     { key: "offer", label: tr("Listings with an offer", "프로모션 제품 비중"), help: tr("Share of its top-100 listings carrying a gift, bundle or coupon", "상위 100위 제품 중 사은품·묶음·쿠폰이 붙은 비중"), better: null, value: (f) => f.offerShare, show: (f) => pct(f.offerShare), bar: true,
       missing: (f) => (f.offerShare === null ? notOnShelf() : null) },
-    { key: "listings", label: tr("Top-100 listings", "상위 100위 제품 수"), help: tr("Product slots in the top 100 of all tracked categories today", "오늘 추적 중인 전체 카테고리 상위 100위 안의 자리 수"), better: "high", value: (f) => f.slots, show: (f) => String(f.slots), sub: (f) => tr(`${f.categories.length} categories`, `카테고리 ${f.categories.length}개`), bar: true,
+    { key: "listings", label: tr("Top-100 listings", "상위 100위 제품 수"), help: tr("Product slots in the top 100 of all tracked categories today", "오늘 추적 중인 전체 카테고리 상위 100위 안의 제품 수"), better: "high", value: (f) => f.slots, show: (f) => String(f.slots), sub: (f) => tr(`${f.categories.length} categories`, `카테고리 ${f.categories.length}개`), bar: true,
       up: tr("More top-100 listings than", "상위 100위 제품이 더 많음"), down: tr("Fewer top-100 listings than", "상위 100위 제품이 더 적음") },
-    { key: "top20", label: tr("In the top 20", "상위 20위 안"), help: tr("Slots in the first 20 positions, where most clicks happen", "클릭이 가장 많이 일어나는 상위 20위 안의 자리 수"), better: "high", value: (f) => f.top20, show: (f) => String(f.top20), bar: true },
+    { key: "top20", label: tr("In the top 20", "상위 20위 안"), help: tr("Slots in the first 20 positions, where most clicks happen", "클릭이 가장 많이 일어나는 상위 20위 안의 제품 수"), better: "high", value: (f) => f.top20, show: (f) => String(f.top20), bar: true },
     { key: "rank", label: tr("Best shelf position", "최고 진열 순위"), help: tr("Highest position of any of its products today", "오늘 이 브랜드 제품 중 가장 높은 순위"), better: "low", value: (f) => f.bestRank, show: (f) => `#${f.bestRank}`,
       sub: (f) => (f.medianRank ? tr(`typical #${Math.round(f.medianRank)}`, `보통 #${Math.round(f.medianRank)}`) : null), missing: (f) => (f.bestRank ? null : tr("Not in any top 100 today", "오늘 어느 상위 100위에도 없음")) },
-    { key: "paid", label: tr("Paid placements", "광고 노출 비중"), help: tr("Share of its top-100 slots that are ads or featured", "상위 100위 자리 중 광고·추천 자리 비중"), better: null, value: (f) => f.paidShare, show: (f) => pct(f.paidShare), bar: true,
+    { key: "paid", label: tr("Paid placements", "광고 노출 비중"), help: tr("Share of its top-100 slots that are ads or featured", "상위 100위 제품 중 광고·추천 자리 비중"), better: null, value: (f) => f.paidShare, show: (f) => pct(f.paidShare), bar: true,
       missing: (f) => (f.paidShare === null ? notOnShelf() : null) },
     { key: "rating", label: tr("Star rating", "별점"), help: tr("Average star rating of its top-100 products", "상위 100위 제품의 평균 별점"), better: "high", value: (f) => f.rating, show: (f) => `★ ${f.rating!.toFixed(2)}`,
       missing: (f) => (f.rating ? null : tr("No rated product in today's top 100", "오늘 상위 100위에 평가된 제품 없음")) },
-    { key: "ratings", label: tr("Ratings, all time", "누적 평가 수"), help: tr("Total star ratings on its top-100 products; sizes that share one set of ratings on Nykaa count once", "상위 100위 제품의 별점 평가 합계. Nykaa에서 평가를 함께 쓰는 용량별 제품은 한 번만 셉니다"), better: "high", value: (f) => f.ratings, show: (f) => compact(f.ratings), bar: true },
+    { key: "ratings", label: tr("Ratings, all time", "누적 평가 수"), help: tr("Total star ratings on its top-100 products; sizes that share one set of ratings on Nykaa count once", "상위 100위 제품의 별점 평가 합계. Nykaa에서 평가를 공유하는 용량별 제품은 한 번만 집계"), better: "high", value: (f) => f.ratings, show: (f) => compact(f.ratings), bar: true },
     { key: "demand", label: tr("Reviews, last 3 months", "최근 3개월 리뷰"), help: tr("Dated reviews on its tracked products in the last 3 complete months (one count per product, sizes pooled): a stand-in for recent sales", "최근 완결된 3개월 동안 추적 제품에 작성된 리뷰 (제품당 한 번, 용량 합산). 최근 판매의 대리 지표"), better: "high", value: (f) => f.last3, show: (f) => compact(f.last3),
       sub: (f) => tr(`${DW().recent} · ${f.demandProducts} products`, `${DW().recent} · 제품 ${f.demandProducts}개`), bar: true, missing: (f) => (f.last3 === null ? notTracked() : null) },
     { key: "momentum", label: tr("Review growth", "리뷰 성장률"), help: tr(`Reviews ${DW().recent} against ${DW().prior}, products with complete history only`, `${DW().recent} 리뷰 vs ${DW().prior} 리뷰. 이력이 완전한 제품만`), better: "high", value: (f) => f.growth, show: (f) => signed(f.growth), sub: () => tr(`vs ${DW().prior}`, `${DW().prior} 대비`),
@@ -74,7 +74,7 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
   const { strong, weak } = a ? strongestWeakest(standings(a, rivals, criteria), 2) : { strong: [], weak: [] };
   const list = (xs: { label: string }[]) => xs.map((x) => x.label.toLowerCase()).join(tr(" and ", ", "));
   const title = a ? tr(`${strong.length ? `Innisfree beats most of these brands on ${list(strong)}` : "Innisfree leads these brands on no measure"}${weak.length ? ` and trails on ${list(weak)}` : ""}; its core basket costs more than ${cheaper} of ${priced.length} of them.`,
-      `${strong.length ? `Innisfree는 ${list(strong)}에서 이 브랜드들 대부분을 앞서고` : "Innisfree가 이 브랜드들보다 앞서는 지표는 없고"}${weak.length ? `, ${list(weak)}에서는 뒤집니다` : ""}. 핵심 바스켓 가격은 ${priced.length}개 브랜드 중 ${cheaper}개보다 비쌉니다.`) : tr("Brand vs brand.", "브랜드 대 브랜드.");
+      `${strong.length ? `Innisfree는 ${list(strong)}에서 이 브랜드들 대부분을 앞서고` : "Innisfree가 이 브랜드들보다 앞서는 지표는 없고"}${weak.length ? `, ${list(weak)}에서는 뒤처짐` : ""}. 핵심 바스켓 가격은 ${priced.length}개 브랜드 중 ${cheaper}개보다 비쌈.`) : tr("Brand vs brand.", "브랜드 대 브랜드.");
 
   const on = facts.filter((f) => f.slots > 0);
   const widest = [...on].sort((x, y) => y.slots - x.slots);
@@ -87,7 +87,7 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
   const cols: GridCol[] = facts.map((f) => ({ key: f.brand, anchor: f.brand === anchor, head: (
     <div>
       <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colors[f.brand] }} /><span className="text-[14px] font-semibold">{f.brand}</span>{!inSet(f.brand) && <span className="whitespace-nowrap rounded bg-sunken px-1 text-[10px] font-normal text-muted ring-1 ring-line">{tr("not in focus set", "주요 브랜드 외")}</span>}</div>
-      <div className="mt-0.5 text-[11px] leading-snug text-muted">{ORIGIN_LABEL[f.origin]}{f.madeIn ? tr(` · made in ${f.madeIn}`, ` · ${tx(f.madeIn)} 생산`) : ""}{f.kMarketing ? tr(" · sells as Korean", " · 한국 브랜드로 마케팅") : ""}{f.basket.source === "shelf" ? tr(" · prices from today's top 100 until its full range is crawled", " · 전체 라인업 수집 전까지 오늘 상위 100위 가격 사용") : ""}</div>
+      <div className="mt-0.5 text-[11px] leading-snug text-muted">{ORIGIN_LABEL[f.origin]}{f.madeIn ? tr(` · made in ${f.madeIn}`, ` · ${tx(f.madeIn)} 생산`) : ""}{f.kMarketing ? tr(" · sells as Korean", " · K-뷰티 브랜드로 마케팅") : ""}{f.basket.source === "shelf" ? tr(" · prices from today's top 100 until its full range is crawled", " · 전체 라인업 수집 전까지 오늘 상위 100위 가격 사용") : ""}</div>
     </div>
   ) }));
   const extra: ExtraRow<BrandFacts>[] = [
@@ -96,7 +96,7 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
 
   return (
     <ActionSection id="brands" kicker={tr("Brand scorecard · Innisfree vs the brands behind these products", "브랜드 스코어카드 · Innisfree vs 경쟁 제품의 브랜드")} title={title}
-      note={isHeroSet ? tr("Brands of the selected hero's rivals. Change the set below; the products above stay the analysed group.", "선택한 히어로의 경쟁 제품 브랜드입니다. 아래에서 브랜드를 바꿀 수 있으며, 위의 제품은 분석된 그룹 그대로입니다.") : tr("Change the brand set below.", "아래에서 브랜드를 바꿀 수 있습니다.")}>
+      note={isHeroSet ? tr("Brands of the selected hero's rivals. Change the set below; the products above stay the analysed group.", "선택한 히어로의 경쟁 제품 브랜드. 아래에서 브랜드 변경 가능, 위 제품은 분석된 그룹 그대로.") : tr("Change the brand set below.", "아래에서 브랜드 변경 가능.")}>
       <Card className="mb-4 px-4 py-3">
         <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
           <span>{tr("Brands compared · up to 6, Innisfree always included", "비교 브랜드 · 최대 6개, Innisfree 항상 포함")}</span>
@@ -106,14 +106,14 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
       </Card>
       {on.length >= 2 && (
         <div className="mb-4 grid gap-3 md:grid-cols-2">
-          <Finding label={tr("Shelf presence", "진열 존재감")}>{tr(<><b>{widest[0].brand}</b> has the widest presence: {widest[0].slots} top-100 listings across {widest[0].categories.length} categories, against {widest[widest.length - 1].slots} for {widest[widest.length - 1].brand}.</>, <><b>{widest[0].brand}</b>의 존재감이 가장 넓습니다: 카테고리 {widest[0].categories.length}개에 걸쳐 상위 100위 제품 {widest[0].slots}개 ({widest[widest.length - 1].brand}는 {widest[widest.length - 1].slots}개).</>)}</Finding>
-          {byPrice.length >= 2 && <Finding label={tr("Price (core basket)", "가격 (핵심 바스켓)")}>{tr(<><b>{byPrice[0].brand}</b> is the most affordable at {inr(byPrice[0].basket.overall)}; <b>{byPrice[byPrice.length - 1].brand}</b> the most premium at {inr(byPrice[byPrice.length - 1].basket.overall)}.</>, <>가장 저렴한 곳은 <b>{byPrice[0].brand}</b>({inr(byPrice[0].basket.overall)}), 가장 고가는 <b>{byPrice[byPrice.length - 1].brand}</b>({inr(byPrice[byPrice.length - 1].basket.overall)})입니다.</>)}</Finding>}
-          {mom.length >= 2 && <Finding label={tr("Demand momentum", "수요 모멘텀")} tone={norm(mom[0].brand) === norm(anchor) ? "good" : undefined}>{tr(<>Momentum favours <b>{mom[0].brand}</b> ({signed(mom[0].growth)} reviews, {DW().recent} vs {DW().prior}); <b>{mom[mom.length - 1].brand}</b> is weakest ({signed(mom[mom.length - 1].growth)}).</>, <>모멘텀이 가장 좋은 곳은 <b>{mom[0].brand}</b>(리뷰 {signed(mom[0].growth)}, {DW().recent} vs {DW().prior}), 가장 약한 곳은 <b>{mom[mom.length - 1].brand}</b>({signed(mom[mom.length - 1].growth)})입니다.</>)}</Finding>}
-          {srch[0]?.searchTerms > 0 && <Finding label={tr("Search", "검색")}>{tr(<><b>{srch[0].brand}</b> shows up in the most K-beauty searches: top 10 unpaid for {srch[0].searchTerms} tracked terms{a ? `, against ${a.searchTerms} for Innisfree` : ""}.</>, <>K-뷰티 검색 노출이 가장 많은 곳은 <b>{srch[0].brand}</b>입니다: 추적 검색어 {srch[0].searchTerms}개에서 비광고 상위 10위{a ? ` (Innisfree는 ${a.searchTerms}개)` : ""}.</>)}</Finding>}
+          <Finding label={tr("Shelf presence", "진열 존재감")}>{tr(<><b>{widest[0].brand}</b> has the widest presence: {widest[0].slots} top-100 listings across {widest[0].categories.length} categories, against {widest[widest.length - 1].slots} for {widest[widest.length - 1].brand}.</>, <><b>{widest[0].brand}</b>: 존재감이 가장 넓음. 카테고리 {widest[0].categories.length}개에 걸쳐 상위 100위 제품 {widest[0].slots}개 ({widest[widest.length - 1].brand}는 {widest[widest.length - 1].slots}개).</>)}</Finding>
+          {byPrice.length >= 2 && <Finding label={tr("Price (core basket)", "가격 (핵심 바스켓)")}>{tr(<><b>{byPrice[0].brand}</b> is the most affordable at {inr(byPrice[0].basket.overall)}; <b>{byPrice[byPrice.length - 1].brand}</b> the most premium at {inr(byPrice[byPrice.length - 1].basket.overall)}.</>, <>가장 저렴한 곳: <b>{byPrice[0].brand}</b>({inr(byPrice[0].basket.overall)}), 가장 고가: <b>{byPrice[byPrice.length - 1].brand}</b>({inr(byPrice[byPrice.length - 1].basket.overall)}).</>)}</Finding>}
+          {mom.length >= 2 && <Finding label={tr("Demand momentum", "수요 모멘텀")} tone={norm(mom[0].brand) === norm(anchor) ? "good" : undefined}>{tr(<>Momentum favours <b>{mom[0].brand}</b> ({signed(mom[0].growth)} reviews, {DW().recent} vs {DW().prior}); <b>{mom[mom.length - 1].brand}</b> is weakest ({signed(mom[mom.length - 1].growth)}).</>, <>모멘텀이 가장 좋은 곳: <b>{mom[0].brand}</b>(리뷰 {signed(mom[0].growth)}, {DW().recent} vs {DW().prior}), 가장 약한 곳: <b>{mom[mom.length - 1].brand}</b>({signed(mom[mom.length - 1].growth)}).</>)}</Finding>}
+          {srch[0]?.searchTerms > 0 && <Finding label={tr("Search", "검색")}>{tr(<><b>{srch[0].brand}</b> shows up in the most K-beauty searches: top 10 unpaid for {srch[0].searchTerms} tracked terms{a ? `, against ${a.searchTerms} for Innisfree` : ""}.</>, <>K-뷰티 검색 노출이 가장 많은 곳: <b>{srch[0].brand}</b>— 추적 검색어 {srch[0].searchTerms}개에서 비광고 상위 10위{a ? ` (Innisfree는 ${a.searchTerms}개)` : ""}.</>)}</Finding>}
         </div>
       )}
       <CompareGrid cols={cols} items={facts} criteria={criteria} extra={extra} groups={GROUPS()} colors={facts.map((f) => colors[f.brand])} labelWidth={160} />
-      <p className="mt-2 text-[11.5px] text-muted">{tr("Shelf, rating and paid figures are from today’s top-100 listings; prices from each brand’s full Nykaa range where tracked. Hover a row name for its definition.", "진열·평점·광고 수치는 오늘 상위 100위 제품 기준이며, 가격은 추적 중인 브랜드의 Nykaa 전체 라인업 기준입니다. 행 이름에 마우스를 올리면 정의가 나옵니다.")}</p>
+      <p className="mt-2 text-[11.5px] text-muted">{tr("Shelf, rating and paid figures are from today’s top-100 listings; prices from each brand’s full Nykaa range where tracked. Hover a row name for its definition.", "진열·평점·광고 수치는 오늘 상위 100위 제품 기준, 가격은 추적 브랜드의 Nykaa 전체 라인업 기준. 행 이름에 마우스를 올리면 정의 표시.")}</p>
     </ActionSection>
   );
 }
@@ -134,10 +134,10 @@ export function WhereCompete({ facts, anchor, rows, catalog, uspBy, comps, color
   });
   const h2hCats = new Set(lines.flatMap((l) => l.h2h.map((x) => shelfCat(x.g.category))));
   const title = tr(`Innisfree meets these brands head-to-head in ${h2hCats.size} categor${h2hCats.size === 1 ? "y" : "ies"}${gaps.length ? `; it sells nothing in ${gaps.map((c) => CATEGORY_LABEL[c].toLowerCase()).join(", ")}, where rivals rank` : ""}.`,
-    `Innisfree는 카테고리 ${h2hCats.size}곳에서 이 브랜드들과 정면으로 경쟁합니다${gaps.length ? `. 경쟁사가 순위에 오른 ${gaps.map((c) => CATEGORY_LABEL[c]).join(", ")}에서는 판매 제품이 없습니다` : ""}.`);
+    `Innisfree는 카테고리 ${h2hCats.size}곳에서 이 브랜드들과 정면 경쟁${gaps.length ? `. 경쟁사가 순위에 오른 ${gaps.map((c) => CATEGORY_LABEL[c]).join(", ")}에선 판매 제품 없음` : ""}.`);
   return (
     <ActionSection id="compete" kicker={tr("Where they compete", "경쟁 지점")} title={title}
-      note={tr("Head-to-head: a rival product the USP analysis set against an Innisfree hero, with that rival's lead benefit. Grid: top-100 listings today, or how much a brand sells there without ranking (full range for tracked brands). Click a category row to open it.", "정면 경쟁: 소구점 분석에서 Innisfree 히어로와 맞붙인 경쟁 제품과 그 대표 효능. 표: 오늘 상위 100위 제품 수, 또는 순위 밖에서 판매하는 제품 수(추적 브랜드는 전체 라인업 기준). 카테고리 행을 누르면 해당 카테고리로 이동합니다.")}>
+      note={tr("Head-to-head: a rival product the USP analysis set against an Innisfree hero, with that rival's lead benefit. Grid: top-100 listings today, or how much a brand sells there without ranking (full range for tracked brands). Click a category row to open it.", "정면 경쟁: 소구점 분석에서 Innisfree 히어로와 맞붙인 경쟁 제품과 대표 효능. 표: 오늘 상위 100위 제품 수, 또는 순위 밖에서 판매 중인 제품 수(추적 브랜드는 전체 라인업 기준). 카테고리 행을 누르면 해당 카테고리로 이동.")}>
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {lines.map(({ f, h2h, rest }) => (
           <Card key={f.brand} className="px-4 py-3.5">
@@ -147,7 +147,7 @@ export function WhereCompete({ facts, anchor, rows, catalog, uspBy, comps, color
                 const benefit = [...p.analysis.key_benefits].sort((x, y) => y.emphasis - x.emphasis)[0]?.benefit;
                 return <li key={g.anchor_product_id + p.product_id} className="text-[12px] leading-snug"><b className="font-semibold">{CATEGORY_LABEL[shelfCat(g.category)]}</b>: {shortTitle(p.name, p.brand)} vs {shortTitle(g.anchor_name, "Innisfree")}{benefit && <span className="block text-ink-2">{tr("Leads on", "대표 효능")}: {tx(benefit)}</span>}</li>;
               })}</ul>
-            ) : <p className="mt-1.5 text-[12px] text-muted">{tr("No head-to-head pairing in the USP analysis.", "소구점 분석에 정면 경쟁 짝이 없습니다.")}</p>}
+            ) : <p className="mt-1.5 text-[12px] text-muted">{tr("No head-to-head pairing in the USP analysis.", "소구점 분석에 정면 경쟁 짝 없음.")}</p>}
             {rest.length > 0 && <p className="mt-2 text-[11.5px] text-muted">{tr("Also both sell", "둘 다 판매")}: {rest.map((c) => CATEGORY_LABEL[c]).join(", ")}</p>}
             {!h2h.length && !rest.length && <p className="mt-1 text-[11.5px] text-muted">{tr(`No overlap with Innisfree’s range${f.basket.source === "shelf" ? " (top 100 only)" : ""}.`, `Innisfree 라인업과 겹치는 곳 없음${f.basket.source === "shelf" ? " (상위 100위 기준)" : ""}.`)}</p>}
           </Card>
@@ -165,7 +165,7 @@ export function PriceBasket({ facts, anchor }: { facts: BrandFacts[]; anchor: st
   const a = facts.find((f) => f.brand === anchor);
   const rivals = facts.filter((f) => f.brand !== anchor && f.basket.vsAnchor !== null).sort((x, y) => x.basket.vsAnchor! - y.basket.vsAnchor!);
   const title = a?.basket.overall ? tr(`Innisfree's core basket averages ${inr(a.basket.overall)} MRP${rivals.length ? `; ${rivals[0].brand} is the cheapest rival at ${rivals[0].basket.vsAnchor!.toFixed(2)}× and ${rivals[rivals.length - 1].brand} the dearest at ${rivals[rivals.length - 1].basket.vsAnchor!.toFixed(2)}×` : ""}.`,
-      `Innisfree 핵심 바스켓의 평균 정가는 ${inr(a.basket.overall)}입니다${rivals.length ? `. 가장 저렴한 경쟁사는 ${rivals[0].brand}(${rivals[0].basket.vsAnchor!.toFixed(2)}배), 가장 비싼 곳은 ${rivals[rivals.length - 1].brand}(${rivals[rivals.length - 1].basket.vsAnchor!.toFixed(2)}배)` : ""}.`) : tr("Like-for-like MRP by category.", "카테고리별 동일 조건 정가 비교.");
+      `Innisfree 핵심 바스켓 평균 정가: ${inr(a.basket.overall)}${rivals.length ? `. 가장 저렴한 경쟁사 ${rivals[0].brand}(${rivals[0].basket.vsAnchor!.toFixed(2)}배), 가장 비싼 곳 ${rivals[rivals.length - 1].brand}(${rivals[rivals.length - 1].basket.vsAnchor!.toFixed(2)}배)` : ""}.`) : tr("Like-for-like MRP by category.", "카테고리별 동일 조건 정가 비교.");
   const cellDetail = (f: BrandFacts, c: string) => {
     const v = f.basket.byCategory[c]; const av = a?.basket.byCategory[c];
     return { kicker: `${f.brand} · ${CATEGORY_LABEL[c]}`, title: tr(`Median MRP ${inr(v.price)}`, `정가 중앙값 ${inr(v.price)}`), body: <Points items={[
@@ -177,7 +177,7 @@ export function PriceBasket({ facts, anchor }: { facts: BrandFacts[]; anchor: st
   };
   const gap = (f: BrandFacts) => (f.basket.source === "shelf" ? tr("Crawl pending", "수집 대기") : tr("Not sold", "미판매"));
   return (
-    <ActionSection id="price" kicker={tr("Price · like for like, on MRP", "가격 · 정가 기준 동일 조건 비교")} title={title} note={tr(`Median full-size MRP in each core category (${basketLabel()}). "×" compares with Innisfree on the categories both sell; click a price for how it was built.`, `핵심 카테고리별 정규 용량 정가 중앙값 (${basketLabel()}). "×"는 둘 다 판매하는 카테고리에서 Innisfree와 비교한 값이며, 가격을 누르면 계산 방법이 나옵니다.`)}>
+    <ActionSection id="price" kicker={tr("Price · like for like, on MRP", "가격 · 정가 기준 동일 조건 비교")} title={title} note={tr(`Median full-size MRP in each core category (${basketLabel()}). "×" compares with Innisfree on the categories both sell; click a price for how it was built.`, `핵심 카테고리별 정규 용량 정가 중앙값 (${basketLabel()}). "×" = 둘 다 판매하는 카테고리에서 Innisfree 대비 값, 가격을 누르면 계산 방법 표시.`)}>
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-[12.5px] tabular">
           <thead>
@@ -204,7 +204,7 @@ export function PriceBasket({ facts, anchor }: { facts: BrandFacts[]; anchor: st
           </tbody>
         </table>
       </Card>
-      <p className="mt-2 text-[11.5px] text-muted">{tr("“Not sold”: the brand has no full-size product in that category on Nykaa. “Crawl pending”: brands outside the 22 tracked K-beauty brands are priced from today’s top 100 until the weekly catalogue run (first run 12 Oct) collects their full range. Green/red ×: cheaper/dearer than Innisfree.", "“미판매”: 해당 카테고리에 Nykaa 정규 용량 제품이 없음. “수집 대기”: 추적 중인 K-뷰티 22개 브랜드 외의 브랜드는 주간 카탈로그 수집(첫 수집 10월 12일)이 전체 라인업을 모을 때까지 오늘 상위 100위 가격을 씁니다. 초록/빨강 ×: Innisfree보다 저렴/비쌈.")}</p>
+      <p className="mt-2 text-[11.5px] text-muted">{tr("“Not sold”: the brand has no full-size product in that category on Nykaa. “Crawl pending”: brands outside the 22 tracked K-beauty brands are priced from today’s top 100 until the weekly catalogue run (first run 12 Oct) collects their full range. Green/red ×: cheaper/dearer than Innisfree.", "“미판매”: 해당 카테고리에 Nykaa 정규 용량 제품 없음. “수집 대기”: 추적 중인 K-뷰티 22개 브랜드 외 브랜드는 주간 카탈로그 수집(첫 수집 10월 12일)이 전체 라인업을 모을 때까지 오늘 상위 100위 가격 사용. 초록/빨강 ×: Innisfree보다 저렴/비쌈.")}</p>
     </ActionSection>
   );
 }

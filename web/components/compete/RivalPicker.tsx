@@ -70,13 +70,13 @@ export default function RivalPicker({ cat, anchorBrand, current, edited, rows, c
           <div>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Find any product in this category", "이 카테고리 제품 찾기")}
               className="w-full rounded-xl border border-line bg-page px-3 py-1.5 text-[12.5px] outline-none focus:border-accent-strong" />
-            <div className="mt-1.5 max-h-[260px] overflow-y-auto">{q ? (found.length ? found.map(opt) : <p className="px-2 py-2 text-[12px] text-muted">{tr("No match on the shelf or in the tracked ranges.", "진열·추적 라인업에 일치하는 제품이 없습니다.")}</p>) : <p className="px-2 py-2 text-[12px] text-muted">{tr("Today's top 100 and the tracked brands' ranges.", "오늘의 상위 100위와 추적 브랜드 라인업.")}</p>}</div>
+            <div className="mt-1.5 max-h-[260px] overflow-y-auto">{q ? (found.length ? found.map(opt) : <p className="px-2 py-2 text-[12px] text-muted">{tr("No match on the shelf or in the tracked ranges.", "진열·추적 라인업에 일치하는 제품 없음.")}</p>) : <p className="px-2 py-2 text-[12px] text-muted">{tr("Today's top 100 and the tracked brands' ranges.", "오늘의 상위 100위와 추적 브랜드 라인업.")}</p>}</div>
           </div>
           <div><div className="px-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("Shelf leaders here", "이 카테고리 진열 상위")}</div>{leaders.map(opt)}</div>
-          <div><div className="px-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("Rising challengers (chosen period)", "상승 중인 도전자 (선택 기간)")}</div>{climbers.length ? climbers.map(opt) : <p className="px-2 py-1.5 text-[12px] text-muted">{tr("None climbed 5+ places in the period.", "기간 중 5계단 이상 오른 제품이 없습니다.")}</p>}</div>
+          <div><div className="px-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("Rising challengers (chosen period)", "상승 중인 도전자 (선택 기간)")}</div>{climbers.length ? climbers.map(opt) : <p className="px-2 py-1.5 text-[12px] text-muted">{tr("None climbed 5+ places in the period.", "기간 중 5계단 이상 오른 제품 없음.")}</p>}</div>
         </div>
       )}
-      <p className="mt-2 text-[11.5px] text-muted">{tr("Your changes are kept in this browser only. Added products get every number below; the AI-written message comparison covers the analysed set only.", "변경 사항은 이 브라우저에만 저장됩니다. 추가한 제품도 아래 모든 수치가 나오지만, AI가 쓴 메시지 비교는 분석된 구성만 다룹니다.")}</p>
+      <p className="mt-2 text-[11.5px] text-muted">{tr("Your changes are kept in this browser only. Added products get every number below; the AI-written message comparison covers the analysed set only.", "변경 사항은 이 브라우저에만 저장. 추가한 제품도 아래 모든 수치가 나오지만, AI 메시지 비교는 분석된 구성만 해당.")}</p>
     </Card>
   );
 }

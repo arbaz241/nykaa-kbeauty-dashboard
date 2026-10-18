@@ -23,7 +23,7 @@ export default function PeriodBar({ shelf, freeze }: { shelf?: ShelfWindow | nul
       </div>
       {shelf && <div className="mt-1 px-1 text-[11.5px] text-muted tabular">{dayMonth(shelf.start)} – {dayMonth(shelf.end)} · {tr(`${shelf.days.length} days collected`, `수집 ${shelf.days.length}일`)}</div>}
       {frozenIn && <div className="mt-1 px-1 text-[11.5px] leading-snug text-warn">{tr(`Nykaa has not updated rating counts since ${dayMonth(freeze!.since)}, so buying figures run to ${dayMonth(freeze!.lastLive)}. Ranks, prices and offers are current.`,
-        `Nykaa가 ${dayMonth(freeze!.since)}부터 평가 수를 갱신하지 않아 구매 수치는 ${dayMonth(freeze!.lastLive)}까지입니다. 순위·가격·프로모션은 최신입니다.`)} <Link href="/overview/#how" className="underline underline-offset-2">{tr("Why", "이유")}</Link></div>}
+        `Nykaa가 ${dayMonth(freeze!.since)}부터 평가 수를 갱신하지 않아 구매 수치는 ${dayMonth(freeze!.lastLive)}까지. 순위·가격·프로모션은 최신.`)} <Link href="/overview/#how" className="underline underline-offset-2">{tr("Why", "이유")}</Link></div>}
     </div>
   );
 }

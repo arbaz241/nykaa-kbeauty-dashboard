@@ -66,15 +66,15 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     const passed = anchorBest !== Infinity && m.rank < anchorBest;
     out.push({
       id: `climb-${m.product_id}-${m.category}`,
-      soWhat: passed ? tr(`A rival now outranks ${anchor}'s best product in ${cat(m.category)}, so shoppers browsing that list reach it first.`, `${cat(m.category)}에서 경쟁 제품이 ${anchor}의 최고 순위 제품을 앞질러, 목록을 보는 소비자가 경쟁 제품을 먼저 만납니다.`)
-        : tr(`A rival is gaining visibility in a category ${anchor} sells in.`, `${josa(anchor, "이/가")} 판매 중인 카테고리에서 경쟁 제품의 노출이 늘고 있습니다.`),
+      soWhat: passed ? tr(`A rival now outranks ${anchor}'s best product in ${cat(m.category)}, so shoppers browsing that list reach it first.`, `${cat(m.category)}에서 경쟁 제품이 ${anchor}의 최고 순위 제품을 앞지름 → 목록을 보는 소비자가 경쟁 제품을 먼저 봄.`)
+        : tr(`A rival is gaining visibility in a category ${anchor} sells in.`, `${josa(anchor, "이/가")} 판매 중인 카테고리에서 경쟁 제품 노출 증가 중.`),
       tone: passed ? "threat" : "watch",
       weight: m.gain_14d + (passed ? 40 : 0),
       headline: tr(`${m.brand} climbed ${m.gain_14d} places in ${cat(m.category)}${passed ? ` — now ahead of ${anchor}` : ""}`,
         `${m.brand}, ${cat(m.category)}에서 ${m.gain_14d}계단 상승${passed ? ` — ${anchor} 추월` : ""}`),
       detail: passed
         ? tr(`${shorten(m.name, m.brand)} moved from rank ${m.rank_14d} to ${m.rank} in two weeks. ${anchor}'s best product in ${cat(m.category)} sits at ${anchorBest}.`,
-          `${shorten(m.name, m.brand)}: 2주 만에 ${m.rank_14d}위 → ${m.rank}위. ${cat(m.category)}에서 ${anchor}의 최고 순위 제품은 ${anchorBest}위입니다.`)
+          `${shorten(m.name, m.brand)}: 2주 만에 ${m.rank_14d}위 → ${m.rank}위. ${cat(m.category)}에서 ${anchor} 최고 순위 제품은 ${anchorBest}위.`)
         : tr(`${shorten(m.name, m.brand)} moved from rank ${m.rank_14d} to ${m.rank} in two weeks.`, `${shorten(m.name, m.brand)}: 2주 만에 ${m.rank_14d}위 → ${m.rank}위.`),
       evidence: [
         { label: tr("Rank now", "현재 순위"), value: `${m.rank}` },
@@ -90,12 +90,12 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (!hasPast(m.category) || !m.gain_14d || m.gain_14d > -20) continue;
     out.push({
       id: `slip-${m.product_id}-${m.category}`,
-      soWhat: tr(`${anchor} is losing visibility in ${cat(m.category)}; check this product's price, stock and offers.`, `${cat(m.category)}에서 ${anchor}의 노출이 줄고 있습니다. 이 제품의 가격·재고·프로모션을 확인해 보세요.`),
+      soWhat: tr(`${anchor} is losing visibility in ${cat(m.category)}; check this product's price, stock and offers.`, `${cat(m.category)}에서 ${anchor} 노출 감소 중. 이 제품의 가격·재고·프로모션 확인 필요.`),
       tone: "threat",
       weight: Math.abs(m.gain_14d) + 30,
       headline: tr(`${anchor} fell ${Math.abs(m.gain_14d)} places in ${cat(m.category)}`, `${anchor}, ${cat(m.category)}에서 ${Math.abs(m.gain_14d)}계단 하락`),
       detail: tr(`${shorten(m.name, m.brand)} went from rank ${m.rank_14d} to ${m.rank}. Nothing in the price or discount data changed, so this is Nykaa's ranking moving, not a promotion ending.`,
-        `${shorten(m.name, m.brand)}: ${m.rank_14d}위 → ${m.rank}위. 가격·할인 데이터에는 변화가 없어, 프로모션 종료가 아니라 Nykaa 순위 자체가 움직인 것입니다.`),
+        `${shorten(m.name, m.brand)}: ${m.rank_14d}위 → ${m.rank}위. 가격·할인 변화가 없어 프로모션 종료가 아니라 Nykaa 순위 자체가 움직인 것.`),
       evidence: [{ label: tr("Rank now", "현재 순위"), value: `${m.rank}` }, { label: tr("14 days ago", "14일 전"), value: `${m.rank_14d}` }],
       brand: m.brand, category: m.category, product: ref(m), source: "Market",
     });
@@ -107,13 +107,13 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     const isAnchor = same(d.brand, anchor);
     out.push({
       id: `demand-${d.product_id}`,
-      soWhat: isAnchor ? tr(`A product to back: buying is accelerating.`, `밀어줄 제품: 구매가 빨라지고 있습니다.`)
-        : tr(`A rival is winning buyers in ${cat(d.category)}; compare its price and claims with ${anchor}'s nearest product.`, `${cat(d.category)}에서 경쟁 제품이 구매자를 모으고 있습니다. ${anchor}의 가장 가까운 제품과 가격·소구점을 비교해 보세요.`),
+      soWhat: isAnchor ? tr(`A product to back: buying is accelerating.`, `밀어줄 제품: 구매 속도 증가 중.`)
+        : tr(`A rival is winning buyers in ${cat(d.category)}; compare its price and claims with ${anchor}'s nearest product.`, `${cat(d.category)}에서 경쟁 제품이 구매자를 모으는 중. ${anchor}의 가장 가까운 제품과 가격·소구점 비교 필요.`),
       tone: isAnchor ? "opening" : "threat",
       weight: 60 + Math.min(d.momentum, 8) * 12 + (isAnchor ? 0 : 15),
       headline: tr(`${d.brand}\u2019s ${shorten(d.name, d.brand)} is converting — reviews up ${pct(d.momentum)}`, `${d.brand} ${shorten(d.name, d.brand)}: 구매 증가 (리뷰 ${pct(d.momentum)})`),
       detail: tr(`${d.recent} reviews in the last three months against ${d.prior} in the three before — ${cat(d.category)}. Review count is the only public proxy for purchases, so this is demand moving, not visibility.`,
-        `최근 3개월 리뷰 ${d.recent}건, 직전 3개월 ${d.prior}건 — ${cat(d.category)}. 리뷰 수는 구매를 가늠할 수 있는 유일한 공개 지표이므로, 노출이 아니라 수요가 움직인 것입니다.`),
+        `최근 3개월 리뷰 ${d.recent}건, 직전 3개월 ${d.prior}건 — ${cat(d.category)}. 리뷰 수는 구매를 가늠할 수 있는 유일한 공개 지표 → 노출이 아니라 수요가 움직인 것.`),
       evidence: [
         { label: tr("Last 3 months", "최근 3개월"), value: `${d.recent}` },
         { label: tr("Prior 3 months", "직전 3개월"), value: `${d.prior}` },
@@ -128,14 +128,14 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (d.momentum === null || d.momentum > -0.45 || d.prior < 80) continue;
     out.push({
       id: `fade-${d.product_id}`,
-      soWhat: same(d.brand, anchor) ? tr(`Find out why buying is falling (price, stock or a rival) before it shows on the shelf.`, `진열 순위에 드러나기 전에 구매가 줄어드는 이유(가격, 재고, 경쟁 제품)를 확인해 보세요.`)
-        : tr(`A rival is losing buyers in ${cat(d.category)}: an opening for ${anchor}'s product there.`, `${cat(d.category)}에서 경쟁 제품이 구매자를 잃고 있습니다. ${anchor} 제품에는 기회입니다.`),
+      soWhat: same(d.brand, anchor) ? tr(`Find out why buying is falling (price, stock or a rival) before it shows on the shelf.`, `진열 순위에 드러나기 전에 구매가 줄어드는 이유(가격, 재고, 경쟁 제품) 확인 필요.`)
+        : tr(`A rival is losing buyers in ${cat(d.category)}: an opening for ${anchor}'s product there.`, `${cat(d.category)}에서 경쟁 제품이 구매자를 잃는 중. ${anchor} 제품엔 기회.`),
       tone: same(d.brand, anchor) ? "threat" : "opening",
       weight: 55 + Math.abs(d.momentum) * 20,
       headline: tr(`${d.brand}\u2019s ${shorten(d.name, d.brand)} is fading — reviews down ${pct(d.momentum)}`, `${d.brand} ${shorten(d.name, d.brand)}: 구매 감소 (리뷰 ${pct(d.momentum)})`),
       detail: tr(`${d.prior} reviews three-to-six months ago, ${d.recent} since. ${
         same(d.brand, anchor) ? "This is the anchor losing purchase volume." : "A rival losing volume in a category you sell in."
-      }`, `3–6개월 전 리뷰 ${d.prior}건, 이후 ${d.recent}건. ${same(d.brand, anchor) ? "기준 브랜드의 구매량이 줄고 있습니다." : "우리가 판매하는 카테고리에서 경쟁 제품의 판매량이 줄고 있습니다."}`),
+      }`, `3–6개월 전 리뷰 ${d.prior}건, 이후 ${d.recent}건. ${same(d.brand, anchor) ? "기준 브랜드 구매량 감소 중." : "우리가 판매하는 카테고리에서 경쟁 제품 판매량 감소 중."}`),
       evidence: [
         { label: tr("Prior 3 months", "직전 3개월"), value: `${d.prior}` },
         { label: tr("Last 3 months", "최근 3개월"), value: `${d.recent}` },
@@ -160,15 +160,15 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (dep < 0.45) continue;
     out.push({
       id: `paid-${brand}`,
-      soWhat: same(brand, anchor) ? tr(`${anchor}'s search visibility depends on spend.`, `${anchor}의 검색 노출은 광고비에 달려 있습니다.`)
-        : tr(`Its visibility stops when its spend does: those searches can be won organically or with targeted ads.`, `광고를 멈추면 노출도 멈춥니다. 이 검색어는 자연 노출이나 타깃 광고로 가져올 수 있습니다.`),
+      soWhat: same(brand, anchor) ? tr(`${anchor}'s search visibility depends on spend.`, `${anchor} 검색 노출이 광고비에 의존.`)
+        : tr(`Its visibility stops when its spend does: those searches can be won organically or with targeted ads.`, `광고를 멈추면 노출도 멈춤. 이 검색어는 자연 노출이나 타깃 광고로 가져올 수 있음.`),
       tone: same(brand, anchor) ? "watch" : "opening",
       weight: 50 + dep * 40,
       headline: tr(`${brand} is paying for ${Math.round(dep * 100)}% of its search presence`, `${brand}, 검색 노출의 ${Math.round(dep * 100)}%가 광고`),
       detail: tr(`${v.paid} of ${total} appearances across the tracked Korean-intent queries this week were paid slots. Its earned position is ${
         v.earned === 0 ? "nothing at all" : `just ${v.earned} results`
       } — the visibility stops the day the spend does.`,
-        `이번 주 K-뷰티 관련 추적 검색어에서 노출 ${total}회 중 ${v.paid}회가 광고 자리였습니다. 자연 노출은 ${v.earned === 0 ? "전혀 없습니다" : `${v.earned}건뿐입니다`}. 광고를 멈추는 날 노출도 사라집니다.`),
+        `이번 주 K-뷰티 관련 추적 검색어 노출 ${total}회 중 ${v.paid}회가 광고 자리. 자연 노출은 ${v.earned === 0 ? "전혀 없음" : `${v.earned}건뿐`}. 광고를 멈추는 날 노출도 사라짐.`),
       evidence: [
         { label: tr("Paid slots", "광고 자리"), value: `${v.paid}` },
         { label: tr("Earned slots", "자연 노출 자리"), value: `${v.earned}` },
@@ -185,13 +185,13 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (!anchorCats.has(m.category) && anchorCats.size > 0) continue;
     out.push({
       id: `price-${m.product_id}-${m.category}`,
-      soWhat: same(m.brand, anchor) ? tr(`Check the margin impact of this cut.`, `이번 인하가 마진에 미치는 영향을 확인해 보세요.`)
-        : tr(`${anchor}'s products in ${cat(m.category)} now look relatively more expensive.`, `${cat(m.category)}에서 ${anchor} 제품이 상대적으로 비싸 보이게 되었습니다.`),
+      soWhat: same(m.brand, anchor) ? tr(`Check the margin impact of this cut.`, `이번 인하가 마진에 미치는 영향 확인 필요.`)
+        : tr(`${anchor}'s products in ${cat(m.category)} now look relatively more expensive.`, `${cat(m.category)}에서 ${anchor} 제품이 상대적으로 비싸 보이게 됨.`),
       tone: same(m.brand, anchor) ? "watch" : "threat",
       weight: 45 + Math.abs(m.price_change_14d) * 100,
       headline: tr(`${m.brand} cut ${shorten(m.name, m.brand)} by ${pct(m.price_change_14d)} in ${cat(m.category)}`, `${m.brand}, ${cat(m.category)} ${shorten(m.name, m.brand)} 가격 ${Math.round(Math.abs(m.price_change_14d) * 100)}% 인하`),
       detail: tr(`₹${m.price_14d} to ₹${m.price} at the same MRP, so this is a genuine discount rather than Nykaa switching the pack size shown.`,
-        `정가(MRP)는 그대로인데 ₹${m.price_14d} → ₹${m.price}. Nykaa가 표시 용량을 바꾼 것이 아니라 실제 할인입니다.`),
+        `정가(MRP)는 그대로인데 ₹${m.price_14d} → ₹${m.price}. Nykaa 표시 용량 변경이 아니라 실제 할인.`),
       evidence: [
         { label: tr("Was", "이전"), value: `₹${m.price_14d}` },
         { label: tr("Now", "현재"), value: `₹${m.price}` },
@@ -207,8 +207,8 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (!isAnchor && (a.rating_count ?? 0) < 5000) continue;
     out.push({
       id: `oos-${a.product_id}`,
-      soWhat: isAnchor ? tr(`Every day out of stock sends buyers to rivals: restock first.`, `품절인 하루하루 구매자가 경쟁사로 갑니다. 재입고가 먼저입니다.`)
-        : tr(`Its buyers need a substitute now: a chance for ${anchor}'s alternative.`, `이 제품의 구매자는 지금 대체품이 필요합니다. ${anchor} 대안 제품의 기회입니다.`),
+      soWhat: isAnchor ? tr(`Every day out of stock sends buyers to rivals: restock first.`, `품절인 하루하루 구매자가 경쟁사로 넘어감. 재입고가 먼저.`)
+        : tr(`Its buyers need a substitute now: a chance for ${anchor}'s alternative.`, `이 제품 구매자는 지금 대체품이 필요함. ${anchor} 대안 제품의 기회.`),
       tone: isAnchor ? "threat" : "opening",
       weight: isAnchor ? 70 + Math.min((a.rating_count ?? 0) / 1000, 30) : 40 + Math.min((a.rating_count ?? 0) / 2000, 25),
       headline: isAnchor
@@ -216,9 +216,9 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
         : tr(`${a.brand} is out of stock on ${shorten(a.name, a.brand)}`, `${a.brand} ${shorten(a.name, a.brand)} 품절`),
       detail: isAnchor
         ? tr(`${n0(a.rating_count ?? 0)} ratings of demand with nothing to sell. Shelf rankings never show this — Nykaa only lists what it can ship.`,
-          `평가 ${n0(a.rating_count ?? 0)}건만큼의 수요가 있는데 팔 물건이 없습니다. Nykaa는 배송 가능한 제품만 진열하므로 진열 순위에는 드러나지 않습니다.`)
+          `평가 ${n0(a.rating_count ?? 0)}건만큼 수요가 있는데 팔 물건이 없음. Nykaa는 배송 가능한 제품만 진열하므로 진열 순위엔 드러나지 않음.`)
         : tr(`A rival's product with ${n0(a.rating_count ?? 0)} ratings is unavailable. Its buyers are shopping for a substitute right now.`,
-          `평가 ${n0(a.rating_count ?? 0)}건의 경쟁 제품이 품절입니다. 구매자들이 지금 대체품을 찾고 있습니다.`),
+          `평가 ${n0(a.rating_count ?? 0)}건의 경쟁 제품 품절. 구매자들이 지금 대체품을 찾는 중.`),
       evidence: [
         { label: tr("Ratings", "평가 수"), value: n0(a.rating_count ?? 0) },
         { label: tr("Price", "가격"), value: a.price ? `₹${a.price}` : "–" },
@@ -238,12 +238,12 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     const cats = [...new Set(list.map((m) => cat(m.category)))];
     out.push({
       id: `entry-${brand}`,
-      soWhat: tr(`A coordinated push into the top lists; expect more competition for the same places.`, `상위 목록을 노린 계획적인 공세입니다. 같은 자리를 두고 경쟁이 심해질 것입니다.`),
+      soWhat: tr(`A coordinated push into the top lists; expect more competition for the same places.`, `상위 목록을 노린 계획적 공세. 같은 자리를 두고 경쟁 심화 예상.`),
       tone: "watch",
       weight: 35 + list.length * 8,
       headline: tr(`${brand} put ${list.length} new products into the top 60 in two weeks`, `${brand}, 2주 만에 신제품 ${list.length}개 상위 60위 진입`),
       detail: tr(`Across ${cats.join(", ")}. Best new entry is rank ${Math.min(...list.map((m) => m.rank))}. A cluster of entries this tight is a push, not a coincidence.`,
-        `카테고리: ${cats.join(", ")}. 신규 진입 최고 순위는 ${Math.min(...list.map((m) => m.rank))}위. 이렇게 몰린 진입은 우연이 아니라 공세입니다.`),
+        `카테고리: ${cats.join(", ")}. 신규 진입 최고 순위 ${Math.min(...list.map((m) => m.rank))}위. 이렇게 몰린 진입은 우연이 아니라 공세.`),
       evidence: [
         { label: tr("New entries", "신규 진입"), value: `${list.length}` },
         { label: tr("Best rank", "최고 순위"), value: `${Math.min(...list.map((m) => m.rank))}` },
@@ -263,12 +263,12 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     if (Math.abs(delta) >= 0.005) {
       out.push({
         id: "origin-shift",
-      soWhat: tr(`The bar any claim about Korean brands has to beat.`, `한국 브랜드에 대한 모든 판단의 기준선입니다.`),
+      soWhat: tr(`The bar any claim about Korean brands has to beat.`, `K-뷰티 브랜드 관련 모든 판단의 기준선.`),
         tone: delta > 0 ? "opening" : "watch",
         weight: 30 + Math.abs(delta) * 400,
         headline: tr(`K-beauty's share of shelf ${delta > 0 ? "rose" : "slipped"} to ${(nowShare * 100).toFixed(1)}%`, `K-뷰티 진열 점유율 ${(nowShare * 100).toFixed(1)}%로 ${delta > 0 ? "상승" : "하락"}`),
         detail: tr(`From ${(thenShare * 100).toFixed(1)}% two weeks ago, across every tracked shelf. This is the baseline any claim about Korean brands has to beat.`,
-          `추적 중인 전체 카테고리 기준, 2주 전 ${(thenShare * 100).toFixed(1)}%에서 변화. 한국 브랜드에 대한 모든 판단의 기준선입니다.`),
+          `추적 중인 전체 카테고리 기준, 2주 전 ${(thenShare * 100).toFixed(1)}%에서 변화. K-뷰티 브랜드 관련 모든 판단의 기준선.`),
         evidence: [
           { label: tr("Now", "현재"), value: `${(nowShare * 100).toFixed(1)}%` },
           { label: tr("2 weeks ago", "2주 전"), value: `${(thenShare * 100).toFixed(1)}%` },

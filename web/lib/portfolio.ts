@@ -13,8 +13,8 @@ export type Quadrant = "star" | "cash_cow" | "question" | "dog";
 const quad = (label: [string, string], read: [string, string], action: [string, string], tone: "good" | "bad" | undefined) =>
   ({ get label() { return tr(...label); }, get read() { return tr(...read); }, get action() { return tr(...action); }, tone });
 export const QUADRANT: Record<Quadrant, { label: string; read: string; action: string; tone: "good" | "bad" | undefined }> = {
-  star: quad(["Star", "스타"], ["Growing category, Innisfree leads", "성장 카테고리, Innisfree 선두"], ["Invest to keep the lead: it is where growth and position meet.", "선두를 지키도록 투자: 성장과 위치가 만나는 곳입니다."], "good"),
-  cash_cow: quad(["Cash cow", "캐시카우"], ["Slower category, Innisfree leads", "저성장 카테고리, Innisfree 선두"], ["Defend the position at the lowest cost; it funds the rest.", "최소 비용으로 위치 방어: 다른 곳에 쓸 재원을 만듭니다."], "good"),
+  star: quad(["Star", "스타"], ["Growing category, Innisfree leads", "성장 카테고리, Innisfree 선두"], ["Invest to keep the lead: it is where growth and position meet.", "선두를 지키도록 투자: 성장과 위치가 만나는 곳."], "good"),
+  cash_cow: quad(["Cash cow", "캐시카우"], ["Slower category, Innisfree leads", "저성장 카테고리, Innisfree 선두"], ["Defend the position at the lowest cost; it funds the rest.", "최소 비용으로 위치 방어: 다른 곳에 쓸 재원 확보."], "good"),
   question: quad(["Question mark", "물음표"], ["Growing category, Innisfree trails", "성장 카테고리, Innisfree 열세"], ["Decide: push hard enough to become a leader, or step back.", "결정 필요: 선두가 될 만큼 밀어붙일지, 물러설지."], undefined),
   dog: quad(["Dog", "도그"], ["Slower category, Innisfree trails", "저성장 카테고리, Innisfree 열세"], ["Hold spend; keep the hero visible only if it earns its place.", "지출 유지: 히어로 제품은 제 몫을 할 때만 노출을 유지."], "bad"),
 };

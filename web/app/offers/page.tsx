@@ -21,7 +21,7 @@ import { dayMonth, tr } from "@/lib/i18n";
 import type { BrandOffer } from "@/lib/types";
 
 const NAV = (): NavItem[] => [
-  { id: "summary", label: tr("In one line", "요약") }, { id: "discounts", label: tr("Who discounts most", "할인 깊이") }, { id: "cuts", label: tr("Price cuts in the period", "기간 중 가격 인하") },
+  { id: "summary", label: tr("In one line", "요약") }, { id: "discounts", label: tr("Who discounts most", "할인 폭") }, { id: "cuts", label: tr("Price cuts in the period", "기간 중 가격 인하") },
   { id: "calendar", label: tr("Sales calendar", "세일 캘린더") }, { id: "offers", label: tr("Brand offers", "브랜드 프로모션") },
   { id: "tags", label: tr("Offers on the shelf", "진열 프로모션") }, { id: "effect", label: tr("Do offers move rank?", "프로모션 효과") }, { id: "events", label: tr("Event log", "이벤트 기록") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
@@ -111,7 +111,7 @@ function OffersPage() {
     return { brands: [...by.values()].filter((x) => x.cut + x.raised > 0).sort((a, b) => b.cut - a.cut || b.raised - a.raised).slice(0, 12), byO };
   }, [ix, dims, win]);
 
-  if (!m.ready || !win || !offers.data || !home.data) return <Shell active="Offers"><PageHead eyebrow={tr("Offers & events", "프로모션·이벤트")} title={tr("What Nykaa and the brands are running", "Nykaa와 브랜드의 프로모션")} sub="" /><Loading what={tr("offers and events", "프로모션·이벤트")} /></Shell>;
+  if (!m.ready || !win || !offers.data || !home.data) return <Shell active="Offers"><PageHead eyebrow={tr("Offers & events", "프로모션·이벤트")} title={tr("What Nykaa and the brands are running", "Nykaa·브랜드 프로모션")} sub="" /><Loading what={tr("offers and events", "프로모션·이벤트")} /></Shell>;
 
   // plan v3: one table, no scope switch; the main brands and brands with their own offer first
   const shown = [...brands].sort((a, b) => Number(b.own.length > 0) - Number(a.own.length > 0) || Number(tiers.inSet(b.brand)) - Number(tiers.inSet(a.brand)) || a.brand.localeCompare(b.brand));
@@ -131,36 +131,36 @@ function OffersPage() {
 
   return (
     <Shell active="Offers" asOf={m.latest ?? undefined}>
-      <PageHead eyebrow={tr("Offers & events", "프로모션·이벤트")} title={tr("What Nykaa and the brands are running", "Nykaa와 브랜드가 진행 중인 것")}
-        sub={tr("Nykaa's sales and homepage banners, read every night, and the offers each brand runs, so a move on the shelf can be read against them.", "매일 밤 수집한 Nykaa 세일·홈페이지 배너와 브랜드별 프로모션. 진열 순위 변화를 이것과 함께 읽을 수 있습니다.")}
+      <PageHead eyebrow={tr("Offers & events", "프로모션·이벤트")} title={tr("What Nykaa and the brands are running", "지금 Nykaa와 브랜드가 진행 중인 것")}
+        sub={tr("Nykaa's sales and homepage banners, read every night, and the offers each brand runs, so a move on the shelf can be read against them.", "매일 밤 수집한 Nykaa 세일·홈페이지 배너와 브랜드별 프로모션. 순위 변화와 함께 보면 됨.")}
         right={<PeriodBar shelf={win} freeze={m.freeze} />} />
       <SectionNav items={NAV()} />
 
       <section id="summary" className="mt-8 scroll-mt-32">
         <Verdict eyebrow={tr(`In one line · ${spanLabel(m.period.days)}`, `요약 · ${spanLabel(m.period.days)}`)}
           points={[
-            tr(<>Typical discount on today&rsquo;s top 100: Indian brands <b>{pct(disc.byOrigin.local.med)}</b> off the printed price, global <b>{pct(disc.byOrigin.global.med)}</b>, Korean <b>{pct(disc.byOrigin.kbeauty.med)}</b>.</>, <>오늘 상위 100위 일반 할인율: 인도 <b>{pct(disc.byOrigin.local.med)}</b>, 글로벌 <b>{pct(disc.byOrigin.global.med)}</b>, 한국 <b>{pct(disc.byOrigin.kbeauty.med)}</b>.</>),
-            cuts ? tr(<>Over the period, {cuts.byO.get("kbeauty")?.cut ?? 0} Korean, {cuts.byO.get("local")?.cut ?? 0} Indian and {cuts.byO.get("global")?.cut ?? 0} global listings were sold at least 5% cheaper by the end{cuts.brands[0] ? <>; {cuts.brands[0].brand} cut the most ({cuts.brands[0].cut})</> : null}.</>, <>기간 중 5% 이상 싸게 팔린 제품: 한국 {cuts.byO.get("kbeauty")?.cut ?? 0}, 인도 {cuts.byO.get("local")?.cut ?? 0}, 글로벌 {cuts.byO.get("global")?.cut ?? 0}개{cuts.brands[0] ? <>. 가장 많이 내린 브랜드: {cuts.brands[0].brand} ({cuts.brands[0].cut})</> : null}.</>) : null,
-            effect && effect.n ? tr(<>When an offer starts on a product it rises in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for products without one.</>, <>프로모션이 시작되면 {pct(effect.up)}의 경우 순위 상승 (없는 제품 {pct(effect.baseUp)}).</>) : null,
-            liveSales.length ? tr(<>Live on Nykaa&rsquo;s homepage: <b>{liveSales.map((r) => r.label).join(", ")}</b>.</>, <>Nykaa 홈페이지 진행 중: <b>{liveSales.map((r) => r.label).join(", ")}</b>.</>) : null,
-            tr(<>Brand offers and the homepage are read nightly since 17 Oct ({offerDays.length} night{offerDays.length === 1 ? "" : "s"} so far), so their trends appear after about two weeks. Prices and offer tags go back to 13 Sep.</>, <>브랜드 프로모션과 홈페이지는 10월 17일부터 매일 수집(지금까지 {offerDays.length}일)하므로 추세는 약 2주 후에 보입니다. 가격과 프로모션 표시는 9월 13일부터 있습니다.</>),
+            tr(<>Typical discount on today&rsquo;s top 100: Indian brands <b>{pct(disc.byOrigin.local.med)}</b> off the printed price, global <b>{pct(disc.byOrigin.global.med)}</b>, Korean <b>{pct(disc.byOrigin.kbeauty.med)}</b>.</>, <>오늘 상위 100위 보통 할인율: 인도 <b>{pct(disc.byOrigin.local.med)}</b>, 글로벌 <b>{pct(disc.byOrigin.global.med)}</b>, K-뷰티 <b>{pct(disc.byOrigin.kbeauty.med)}</b>.</>),
+            cuts ? tr(<>Over the period, {cuts.byO.get("kbeauty")?.cut ?? 0} Korean, {cuts.byO.get("local")?.cut ?? 0} Indian and {cuts.byO.get("global")?.cut ?? 0} global listings were sold at least 5% cheaper by the end{cuts.brands[0] ? <>; {cuts.brands[0].brand} cut the most ({cuts.brands[0].cut})</> : null}.</>, <>기간 중 5% 이상 싸게 팔린 제품: K-뷰티 {cuts.byO.get("kbeauty")?.cut ?? 0}, 인도 {cuts.byO.get("local")?.cut ?? 0}, 글로벌 {cuts.byO.get("global")?.cut ?? 0}개{cuts.brands[0] ? <>. 가격을 가장 많이 내린 브랜드: {cuts.brands[0].brand} ({cuts.brands[0].cut})</> : null}.</>) : null,
+            effect && effect.n ? tr(<>When an offer starts on a product it rises in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for products without one.</>, <>프로모션 시작 시 {pct(effect.up)}확률로 순위 상승 (없는 제품 {pct(effect.baseUp)}).</>) : null,
+            liveSales.length ? tr(<>Live on Nykaa&rsquo;s homepage: <b>{liveSales.map((r) => r.label).join(", ")}</b>.</>, <>지금 Nykaa 홈페이지: <b>{liveSales.map((r) => r.label).join(", ")}</b>.</>) : null,
+            tr(<>Brand offers and the homepage are read nightly since 17 Oct ({offerDays.length} night{offerDays.length === 1 ? "" : "s"} so far), so their trends appear after about two weeks. Prices and offer tags go back to 13 Sep.</>, <>브랜드 프로모션·홈페이지는 10월 17일부터 매일 수집(지금까지 {offerDays.length}일) → 추세는 약 2주 뒤부터. 가격·프로모션 표시는 9월 13일부터 있음.</>),
           ].filter(Boolean) as React.ReactNode[]}>
           {(() => { const os = (["kbeauty", "local", "global"] as const).map((o) => ({ o, v: disc.byOrigin[o].med })).sort((a, b) => a.v - b.v); const lo = os[0]; const hi = os[os.length - 1];
             const tie = os.filter((x) => Math.round(x.v * 100) === Math.round(lo.v * 100)).map((x) => ORIGIN_LABEL[x.o]).join(tr(" and ", "·"));
             return tr(<>{tie} brands discount least ({pct(lo.v)} off the printed price) and {ORIGIN_LABEL[hi.o]} brands most ({pct(hi.v)}); {running.length} of the {brands.length} brands we check run an offer of their own ({kRunning.length} Korean).</>,
-              <>{tie} 브랜드가 가장 적게({pct(lo.v)}), {ORIGIN_LABEL[hi.o]} 브랜드가 가장 많이({pct(hi.v)}) 할인합니다. 확인한 {brands.length}개 브랜드 중 {running.length}개가 자체 프로모션 진행 (한국 {kRunning.length}개).</>); })()}
+              <>{tie} 브랜드가 가장 적게({pct(lo.v)}), {ORIGIN_LABEL[hi.o]} 브랜드가 가장 많이({pct(hi.v)}) 할인. 확인한 {brands.length}개 브랜드 중 {running.length}개가 자체 프로모션 진행 (K-뷰티 {kRunning.length}개).</>); })()}
         </Verdict>
       </section>
 
-      <ActionSection id="discounts" kicker={tr("Who discounts most", "할인 깊이")} title={tr(`${disc.deepest[0]?.brand ?? "–"} sells deepest below its printed price (${pct(disc.deepest[0]?.med ?? 0)} off, typical across its listings)`, `정가 대비 가장 깊게 할인하는 브랜드: ${disc.deepest[0]?.brand ?? "–"} (일반 ${pct(disc.deepest[0]?.med ?? 0)})`)}
-        note={tr("Discount = how far the selling price is below the printed price (MRP) on today's top-100 listings. Typical = the middle value of a brand's listings (3 or more). \"vs category\" compares each listing with the middle discount of its own category.", "할인 = 오늘 상위 100위 제품의 정가(MRP) 대비 판매가 차이. 일반 = 브랜드 제품(3개 이상)의 중앙값. \"카테고리 대비\"는 각 제품을 해당 카테고리 중앙값과 비교합니다.")}>
+      <ActionSection id="discounts" kicker={tr("Who discounts most", "할인 폭")} title={tr(`${disc.deepest[0]?.brand ?? "–"} sells deepest below its printed price (${pct(disc.deepest[0]?.med ?? 0)} off, typical across its listings)`, `정가 대비 할인 폭이 가장 큰 브랜드: ${disc.deepest[0]?.brand ?? "–"} (보통 ${pct(disc.deepest[0]?.med ?? 0)})`)}
+        note={tr("Discount = how far the selling price is below the printed price (MRP) on today's top-100 listings. Typical = the middle value of a brand's listings (3 or more). \"vs category\" compares each listing with the middle discount of its own category.", "할인 = 오늘 상위 100위 제품의 정가(MRP) 대비 판매가 차이. 보통 = 브랜드 제품(3개 이상)의 중앙값. \"카테고리 대비\" = 각 제품을 해당 카테고리 중앙값과 비교.")}>
         <div className="grid gap-3 md:grid-cols-3">
           {(["kbeauty", "local", "global"] as const).map((o) => (
             <Card key={o} className="px-5 py-4"><div className="text-[12.5px] text-muted">{ORIGIN_LABEL[o]}</div><div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(disc.byOrigin[o].med)}</div>
-              <Basis>{tr(`typical discount · ${pct(disc.byOrigin[o].none)} of ${disc.byOrigin[o].n} listings sell at the printed price`, `일반 할인율 · ${disc.byOrigin[o].n}개 중 ${pct(disc.byOrigin[o].none)}는 정가 판매`)}</Basis></Card>))}
+              <Basis>{tr(`typical discount · ${pct(disc.byOrigin[o].none)} of ${disc.byOrigin[o].n} listings sell at the printed price`, `보통 할인율 · ${disc.byOrigin[o].n}개 중 ${pct(disc.byOrigin[o].none)} 정가 판매`)}</Basis></Card>))}
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {[{ t: tr("Deepest discounts", "할인이 가장 깊은 브랜드"), rows: disc.deepest }, { t: tr("Closest to the printed price", "정가에 가장 가까운 브랜드"), rows: disc.shallowest }].map((g) => (
+          {[{ t: tr("Deepest discounts", "할인 폭이 가장 큰 브랜드"), rows: disc.deepest }, { t: tr("Closest to the printed price", "정가에 가장 가까운 브랜드"), rows: disc.shallowest }].map((g) => (
             <Card key={g.t} className="px-5 py-4">
               <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{g.t}</div>
               <ul className="mt-2 divide-y divide-line/60">{g.rows.map((b) => (
@@ -170,8 +170,8 @@ function OffersPage() {
         </div>
       </ActionSection>
 
-      {cuts && <ActionSection id="cuts" kicker={tr("Price cuts in the period", "기간 중 가격 인하")} title={cuts.brands[0] ? tr(`${cuts.brands[0].brand} cut the price on the most listings (${cuts.brands[0].cut})`, `가장 많은 제품 가격을 내린 브랜드: ${cuts.brands[0].brand} (${cuts.brands[0].cut}개)`) : tr("No price cuts of 5% or more in the period", "기간 중 5% 이상 가격 인하 없음")}
-        note={tr(`Listings on the shelf at the start and end of the ${spanLabel(m.period.days)} with the same printed price, sold at least 5% cheaper (cut) or dearer (raised) by the end. A changed printed price means a new pack, so it is left out.`, `${spanLabel(m.period.days)} 시작과 끝에 모두 있고 정가가 같은 제품 중 판매가가 5% 이상 내리거나(인하) 오른(인상) 제품. 정가가 바뀌면 새 포장이므로 제외합니다.`)}>
+      {cuts && <ActionSection id="cuts" kicker={tr("Price cuts in the period", "기간 중 가격 인하")} title={cuts.brands[0] ? tr(`${cuts.brands[0].brand} cut the price on the most listings (${cuts.brands[0].cut})`, `가격을 내린 제품이 가장 많은 브랜드: ${cuts.brands[0].brand} (${cuts.brands[0].cut}개)`) : tr("No price cuts of 5% or more in the period", "기간 중 5% 이상 가격 인하 없음")}
+        note={tr(`Listings on the shelf at the start and end of the ${spanLabel(m.period.days)} with the same printed price, sold at least 5% cheaper (cut) or dearer (raised) by the end. A changed printed price means a new pack, so it is left out.`, `${spanLabel(m.period.days)} 시작·끝에 모두 있고 정가가 같은 제품 중 판매가가 5% 이상 내리거나(인하) 오른(인상) 제품. 정가가 바뀐 경우는 새 포장으로 보고 제외.`)}>
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-[13px]">
             <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">{tr("Brand", "브랜드")}</th><th className="px-2">{tr("Sold cheaper", "인하")}</th><th className="px-2">{tr("Sold dearer", "인상")}</th><th className="px-2 pr-4">{tr("Listings checked", "확인 제품")}</th></tr></thead>
@@ -181,8 +181,8 @@ function OffersPage() {
         </Card>
       </ActionSection>}
 
-      <ActionSection id="calendar" kicker={tr("Sales calendar", "세일 캘린더")} title={tr(`What ran in the ${spanLabel(m.period.days)}`, `${spanLabel(m.period.days)} 진행된 것`)}
-        note={tr("Sales and campaigns from Nykaa's homepage (read nightly), brand banners in its carousel, and the event log below. Past sales from deal-site calendars stay marked estimated until confirmed.", "Nykaa 홈페이지(매일 수집)의 세일·캠페인, 배너 속 브랜드, 아래 이벤트 기록. 딜 사이트 달력에서 가져온 과거 세일은 확인 전까지 추정으로 표시합니다.")}>
+      <ActionSection id="calendar" kicker={tr("Sales calendar", "세일 캘린더")} title={tr(`What ran in the ${spanLabel(m.period.days)}`, `${spanLabel(m.period.days)} 동안 진행된 것`)}
+        note={tr("Sales and campaigns from Nykaa's homepage (read nightly), brand banners in its carousel, and the event log below. Past sales from deal-site calendars stay marked estimated until confirmed.", "Nykaa 홈페이지(매일 수집)의 세일·캠페인, 배너 속 브랜드, 아래 이벤트 기록. 딜 사이트 달력에서 가져온 과거 세일은 확인 전까지 '추정'으로 표시.")}>
         <Card className="overflow-x-auto px-4 py-4">
           <div className="min-w-[760px]">
             <div className="ml-[220px] flex justify-between text-[11px] text-muted"><span>{dayMonth(win.start)}</span><span>{dayMonth(win.days[Math.floor(win.days.length / 2)])}</span><span>{dayMonth(win.end)}</span></div>
@@ -196,13 +196,13 @@ function OffersPage() {
                   </div>
                 </div>
               );
-            }) : <p className="text-[13px] text-muted">{tr("Nothing logged or seen on the homepage in this period.", "이 기간에 기록되거나 홈페이지에서 본 이벤트가 없습니다.")}</p>}
+            }) : <p className="text-[13px] text-muted">{tr("Nothing logged or seen on the homepage in this period.", "이 기간에 기록됐거나 홈페이지에 뜬 이벤트 없음.")}</p>}
           </div>
         </Card>
       </ActionSection>
 
-      <ActionSection id="offers" kicker={tr("Brand offers", "브랜드 프로모션")} title={tr(`${running.length} brands are running their own offer`, `${running.length}개 브랜드가 자체 프로모션 진행 중`)}
-        note={tr(<>From each brand&rsquo;s Nykaa product page on {today ? dayMonth(today) : "–"}. <b>Brand offer</b> = run on that brand; <b>Nykaa-wide</b> = a category, Luxe, members or new-customer offer that also shows on its page. Nights with an offer count from 17 Oct.</>, <>{today ? dayMonth(today) : "–"} 각 브랜드 Nykaa 제품 페이지 기준. <b>브랜드 프로모션</b> = 해당 브랜드 행사, <b>Nykaa 전체</b> = 카테고리·Luxe·회원·신규 고객 행사가 페이지에 함께 표시된 것. 프로모션 일수는 10월 17일부터 셉니다.</>)}
+      <ActionSection id="offers" kicker={tr("Brand offers", "브랜드 프로모션")} title={tr(`${running.length} brands are running their own offer`, `${running.length}개 브랜드 자체 프로모션 진행 중`)}
+        note={tr(<>From each brand&rsquo;s Nykaa product page on {today ? dayMonth(today) : "–"}. <b>Brand offer</b> = run on that brand; <b>Nykaa-wide</b> = a category, Luxe, members or new-customer offer that also shows on its page. Nights with an offer count from 17 Oct.</>, <>{today ? dayMonth(today) : "–"} 각 브랜드 Nykaa 상품 페이지 기준. <b>브랜드 프로모션</b> = 해당 브랜드 단독 행사, <b>Nykaa 전체</b> = 카테고리·Luxe·회원·신규 고객 행사가 페이지에 함께 뜬 것. 프로모션 일수는 10월 17일부터 집계.</>)}
 >
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-[13px]">
@@ -224,7 +224,7 @@ function OffersPage() {
 
       {tagSeries && (
         <ActionSection id="tags" kicker={tr("Offers on the shelf", "진열 프로모션")} title={tr("Share of top-100 listings carrying an offer tag, by origin", "국적별 프로모션 표시 제품 비율 (상위 100위)")}
-          note={tr("Nykaa's own offer tag on the listing (free gift, buy-one-get-one, extra % off), as shown on the category pages each morning.", "매일 아침 카테고리 페이지에 표시된 Nykaa 프로모션 표시(사은품, 1+1, 추가 할인).")}>
+          note={tr("Nykaa's own offer tag on the listing (free gift, buy-one-get-one, extra % off), as shown on the category pages each morning.", "매일 아침 카테고리 페이지에 붙는 Nykaa 프로모션 표시(사은품, 1+1, 추가 할인).")}>
           <Card className="px-4 py-4">
             <LineChart labels={win.days.map((d) => dayMonth(d))} format={(v) => `${Math.round(v)}%`} yLabel={tr("% of listings", "제품 비율 %")}
               markers={calRows.filter((r) => r.color === "#b4532a").map((r) => ({ from: dayIdx(r.start), to: dayIdx(r.end), label: r.label, color: "#b4532a" }))}
@@ -234,12 +234,12 @@ function OffersPage() {
       )}
 
       {effect && (
-        <ActionSection id="effect" kicker={tr("Do offers move rank?", "프로모션이 순위를 올리나?")}
-          title={effect.n ? tr(<>When an offer tag appears, the listing moves up in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for listings without one</>, <>프로모션 표시가 생기면 {pct(effect.up)}의 경우 순위가 오릅니다 (표시 없는 제품 {pct(effect.baseUp)})</>) : tr("Not enough offer switches in this period yet", "이 기간에는 프로모션 변화가 아직 적습니다")}
-          note={tr(<>Rank the day before the tag appeared vs three collected days later, for {effect.n} switches in the {spanLabel(m.period.days)}; the comparison is every other listing over spans of the same length ({effect.baseN.toLocaleString("en-IN")}). It shows association, not proof.</>, <>{spanLabel(m.period.days)} 동안 프로모션 표시가 생긴 {effect.n}건에 대해 전날 순위와 3일 뒤 순위를 비교. 비교군은 같은 길이 구간의 다른 모든 제품({effect.baseN.toLocaleString("en-IN")}건). 연관성이지 인과 증명은 아닙니다.</>)}>
+        <ActionSection id="effect" kicker={tr("Do offers move rank?", "프로모션이 순위를 올릴까?")}
+          title={effect.n ? tr(<>When an offer tag appears, the listing moves up in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for listings without one</>, <>프로모션 표시가 붙으면 {pct(effect.up)}확률로 순위 상승 (표시 없는 제품 {pct(effect.baseUp)})</>) : tr("Not enough offer switches in this period yet", "이 기간엔 프로모션 변화가 아직 적음")}
+          note={tr(<>Rank the day before the tag appeared vs three collected days later, for {effect.n} switches in the {spanLabel(m.period.days)}; the comparison is every other listing over spans of the same length ({effect.baseN.toLocaleString("en-IN")}). It shows association, not proof.</>, <>{spanLabel(m.period.days)} 동안 프로모션 표시가 새로 생긴 {effect.n}건에 대해 전날 순위와 3일 뒤 순위를 비교. 비교군 = 같은 길이 구간의 다른 모든 제품({effect.baseN.toLocaleString("en-IN")}건). 연관성일 뿐 인과 증명은 아님.</>)}>
           <div className="grid gap-3 md:grid-cols-3">
-            <Card className="px-5 py-4"><div className="text-[12.5px] text-muted">{tr("Median places gained, with a new offer", "새 프로모션 시 순위 상승 중앙값")}</div><div className="mt-1 font-display text-[28px] font-semibold tabular">{effect.med === null ? "–" : `${effect.med > 0 ? "+" : ""}${effect.med}`}</div><Basis>{tr(`${effect.n} offer switches`, `프로모션 변화 ${effect.n}건`)}</Basis></Card>
-            <Card className="px-5 py-4"><div className="text-[12.5px] text-muted">{tr("Median places gained, all others", "기타 제품 순위 상승 중앙값")}</div><div className="mt-1 font-display text-[28px] font-semibold tabular">{effect.baseMed === null ? "–" : `${effect.baseMed > 0 ? "+" : ""}${effect.baseMed}`}</div><Basis>{tr("same-length spans", "같은 길이 구간")}</Basis></Card>
+            <Card className="px-5 py-4"><div className="text-[12.5px] text-muted">{tr("Median places gained, with a new offer", "새 프로모션 제품의 순위 상승 중앙값")}</div><div className="mt-1 font-display text-[28px] font-semibold tabular">{effect.med === null ? "–" : `${effect.med > 0 ? "+" : ""}${effect.med}`}</div><Basis>{tr(`${effect.n} offer switches`, `프로모션 변화 ${effect.n}건`)}</Basis></Card>
+            <Card className="px-5 py-4"><div className="text-[12.5px] text-muted">{tr("Median places gained, all others", "기타 제품의 순위 상승 중앙값")}</div><div className="mt-1 font-display text-[28px] font-semibold tabular">{effect.baseMed === null ? "–" : `${effect.baseMed > 0 ? "+" : ""}${effect.baseMed}`}</div><Basis>{tr("same-length spans", "같은 길이 구간")}</Basis></Card>
             <Card className="px-5 py-4"><div className="text-[12.5px] text-muted">{tr("Moved up", "순위 상승 비율")}</div><div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(effect.up)} <span className="text-[15px] text-muted">vs {pct(effect.baseUp)}</span></div><Basis>{tr("with a new offer vs all others", "새 프로모션 vs 기타")}</Basis></Card>
           </div>
         </ActionSection>
@@ -247,12 +247,12 @@ function OffersPage() {
 
       <EventLog />
       <MethodNotes parts={{
-        sources: [tr("Price and printed price (MRP) of every product in the top 100s, every night; offer tags on the lists; the offers on each tracked brand's product page (from 17 Oct); the banners on Nykaa's homepage (from 17 Oct); the event log (owner's entries, homepage sales, estimates marked as such).", "상위 100위 모든 제품의 판매가와 정가(MRP), 매일 밤; 목록의 프로모션 표시; 추적 브랜드 상품 페이지의 프로모션(10월 17일부터); Nykaa 홈페이지 배너(10월 17일부터); 이벤트 기록(직접 입력, 홈페이지 세일, 추정은 표시).")],
-        calc: [tr("Discount = 1 − price ÷ printed price. Median per brand and per origin, over today's top-100 products.", "할인율 = 1 − 판매가 ÷ 정가. 오늘 상위 100위 제품 기준 브랜드별·국적별 중앙값."),
-          tr("A price cut counts only when the printed price stayed the same at both ends of the period (otherwise it's a new pack, not a discount).", "가격 인하는 기간 처음과 끝의 정가가 같을 때만 셉니다(정가가 바뀌면 할인이 아니라 새 포장)."),
-          tr("Do offers move rank: products that gained an offer tag in the period against those that didn't, share that rose 5+ places.", "프로모션 효과: 기간 중 프로모션 표시가 생긴 제품과 아닌 제품의 5계단 이상 상승 비율 비교.")],
-        assume: [tr("The price shown in Nykaa's app is what shoppers pay before coupons and bank offers.", "Nykaa 앱의 표시 가격을 쿠폰·카드 할인 전 실제 가격으로 봅니다.")],
-        limits: [tr("Brand offers and homepage banners have been read only since 17 Oct, so their trends need a few weeks. Sale dates before then are estimates and are marked so.", "브랜드 프로모션과 홈페이지 배너는 10월 17일부터 수집해 추세를 보려면 몇 주가 필요합니다. 그 이전 세일 날짜는 추정이며 그렇게 표시합니다.")],
+        sources: [tr("Price and printed price (MRP) of every product in the top 100s, every night; offer tags on the lists; the offers on each tracked brand's product page (from 17 Oct); the banners on Nykaa's homepage (from 17 Oct); the event log (owner's entries, homepage sales, estimates marked as such).", "상위 100위 전 제품의 판매가·정가(MRP), 매일 밤 / 목록의 프로모션 표시 / 추적 브랜드 상품 페이지의 프로모션(10월 17일부터) / Nykaa 홈페이지 배너(10월 17일부터) / 이벤트 기록(직접 입력, 홈페이지 세일, 추정은 따로 표시).")],
+        calc: [tr("Discount = 1 − price ÷ printed price. Median per brand and per origin, over today's top-100 products.", "할인율 = 1 − 판매가 ÷ 정가. 오늘 상위 100위 제품 기준, 브랜드별·국적별 중앙값."),
+          tr("A price cut counts only when the printed price stayed the same at both ends of the period (otherwise it's a new pack, not a discount).", "가격 인하는 기간 처음과 끝의 정가가 같을 때만 집계 (정가가 바뀌면 할인이 아니라 새 포장)."),
+          tr("Do offers move rank: products that gained an offer tag in the period against those that didn't, share that rose 5+ places.", "프로모션 효과: 기간 중 프로모션 표시가 새로 생긴 제품과 그렇지 않은 제품의 5계단 이상 상승 비율 비교.")],
+        assume: [tr("The price shown in Nykaa's app is what shoppers pay before coupons and bank offers.", "Nykaa 앱 표시 가격 = 쿠폰·카드 할인 전 실제 가격으로 봄.")],
+        limits: [tr("Brand offers and homepage banners have been read only since 17 Oct, so their trends need a few weeks. Sale dates before then are estimates and are marked so.", "브랜드 프로모션·홈페이지 배너는 10월 17일부터 수집해 추세를 보려면 몇 주 필요. 그 이전 세일 날짜는 추정이며 따로 표시.")],
       }} />
     </Shell>
   );

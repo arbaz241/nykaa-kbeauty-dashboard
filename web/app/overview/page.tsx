@@ -24,7 +24,8 @@ import { dayMonth, tr } from "@/lib/i18n";
 
 /** The Brief (plan v4, owner 18 Oct 2026: "this can be the tab that shows the accuracy and soundness of our data with
  *  the facts available from outside sources, primarily Nykaa"). Nykaa's own size by year and quarter, what Nykaa says
- *  held against what its shelf shows, how far to trust our data, then what changed: Innisfree first, then Korean
+ *  backing what its shelf shows (owner 18 Oct: verdicts and data checks are for the owner, not the page), then
+ *  what changed: Innisfree first, then Korean
  *  brands, then the whole market, each with outside headlines where there are any. */
 
 const NAV = (): NavItem[] => [
@@ -95,33 +96,33 @@ function BriefPage() {
   const findings: Finding[] = [
     { key: "korean", topic: tr("Korean beauty", "K-뷰티"), big: tr(`${korLead.length} of ${cats.length}`, `${cats.length}개 중 ${korLead.length}개`),
       ours: tr(<>Korean brands lead {korLead.length} of the {cats.length} categories we track{korLead.length ? ` (${list(korLead)})` : ""}{korTop3.length ? `, and are in the top 3 of ${korTop3.length} more (${list(korTop3)})` : ""}. They hold {pct(kProducts, 0)} of the top-100 products; Nykaa&rsquo;s Korean Beauty store lists {storeBrands} brands.</>,
-        <>한국 브랜드는 추적 {cats.length}개 카테고리 중 {korLead.length}곳에서 1위{korLead.length ? `(${korLead.map(catName).join(", ")})` : ""}{korTop3.length ? `, ${korTop3.length}곳에서 3위 안(${korTop3.map(catName).join(", ")})` : ""}. 상위 100위 제품의 {pct(kProducts, 0)}, Nykaa 한국 뷰티 스토어 브랜드 {storeBrands}개.</>),
+        <>K-뷰티 브랜드는 추적 {cats.length}개 카테고리 중 {korLead.length}곳에서 1위{korLead.length ? `(${korLead.map(catName).join(", ")})` : ""}{korTop3.length ? `, ${korTop3.length}곳에서 3위 안(${korTop3.map(catName).join(", ")})` : ""}. 상위 100위 제품의 {pct(kProducts, 0)}, Nykaa K-뷰티 스토어 브랜드 {storeBrands}개.</>),
       nykaa: tr(<>&ldquo;Korean brands grew <b>58%</b> on Nykaa in FY26&rdquo; (Apr 2025–Mar 2026), across 70+ Korean brands, with 27 Korean launches that year including Aestura, Arencia, Anua and Mise en Scène.</>,
-        <>&ldquo;Nykaa의 한국 브랜드는 FY26에 <b>58%</b> 성장&rdquo;(2025년 4월–2026년 3월), 70개 이상 브랜드, 그해 Aestura·Arencia·Anua·Mise en Scène 등 27개 출시.</>),
+        <>&ldquo;Nykaa의 K-뷰티 브랜드 FY26 <b>58%</b> 성장&rdquo;(2025년 4월–2026년 3월). 브랜드 70개 이상, 그해 Aestura·Arencia·Anua·Mise en Scène 등 27개 신규 입점.</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "dotkey", topic: "Dot & Key", big: dkS ? `#${dkS.place}` : "–",
       ours: tr(<>On Nykaa&rsquo;s shelf Dot &amp; Key is {dkS ? <><b>#{dkS.place} in sunscreen</b> ({pct(dkS.share, 0)} of all buying)</> : "not ranked in sunscreen"}{dkM ? `, #${dkM.place} in moisturiser` : ""}{dkW ? ` and #${dkW.place} in face wash` : ""}.</>,
-        <>Nykaa 진열에서 닷앤키는 {dkS ? <><b>선크림 {dkS.place}위</b>(전체 구매의 {pct(dkS.share, 0)})</> : "선크림 순위 없음"}{dkM ? `, 보습 ${dkM.place}위` : ""}{dkW ? `, 클렌저 ${dkW.place}위` : ""}.</>),
-      nykaa: tr(<>&ldquo;Dot &amp; Key is <b>#1 in sunscreen</b>, #2 in moisturiser and #3 in face wash&rdquo; across Nykaa, Amazon, Flipkart and Blinkit (FY26).</>, <>&ldquo;닷앤키는 <b>선크림 1위</b>, 보습 2위, 클렌저 3위&rdquo; (Nykaa·Amazon·Flipkart·Blinkit 합산, FY26).</>),
+        <>Nykaa 진열에서 Dot &amp; Key: {dkS ? <><b>선크림 {dkS.place}위</b>(전체 구매의 {pct(dkS.share, 0)})</> : "선크림 순위 없음"}{dkM ? `, 보습 ${dkM.place}위` : ""}{dkW ? `, 클렌저 ${dkW.place}위` : ""}.</>),
+      nykaa: tr(<>&ldquo;Dot &amp; Key is <b>#1 in sunscreen</b>, #2 in moisturiser and #3 in face wash&rdquo; across Nykaa, Amazon, Flipkart and Blinkit (FY26).</>, <>&ldquo;Dot &amp; Key <b>선크림 1위</b>, 보습 2위, 클렌저 3위&rdquo; (Nykaa·Amazon·Flipkart·Blinkit 합산, FY26).</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "hon", topic: tr("Nykaa's own brands", "Nykaa 자체 브랜드"), big: pct(hon, 0),
       ours: tr(<>Nykaa&rsquo;s own brands take <b>{pct(hon, 0)}</b> of daily buying in the categories we track.{kayF?.place === 1 ? ` Kay Beauty leads foundation (${pct(kayF.share, 0)}).` : ""}{nyL?.place === 1 ? ` Nykaa Cosmetics leads lipstick (${pct(nyL.share, 0)}).` : ""}</>,
-        <>Nykaa 자체 브랜드는 추적 카테고리 일 구매의 <b>{pct(hon, 0)}</b>.{kayF?.place === 1 ? ` 케이 뷰티 파운데이션 1위(${pct(kayF.share, 0)}).` : ""}{nyL?.place === 1 ? ` Nykaa 코스메틱 립스틱 1위(${pct(nyL.share, 0)}).` : ""}</>),
-      nykaa: tr(<>House of Nykaa beauty: <b>₹2,788 cr</b> GMV in FY26, up 64%; Dot &amp; Key grew 13×+ and Kay Beauty 3×+ over FY23–26.</>, <>하우스 오브 나이카 뷰티: FY26 GMV <b>₹2,788억</b>, 64% 성장; FY23–26 닷앤키 13배 이상, 케이 뷰티 3배 이상.</>),
+        <>Nykaa 자체 브랜드 = 추적 카테고리 일 구매의 <b>{pct(hon, 0)}</b>.{kayF?.place === 1 ? ` Kay Beauty 파운데이션 1위(${pct(kayF.share, 0)}).` : ""}{nyL?.place === 1 ? ` Nykaa Cosmetics 립스틱 1위(${pct(nyL.share, 0)}).` : ""}</>),
+      nykaa: tr(<>House of Nykaa beauty: <b>₹2,788 cr</b> GMV in FY26, up 64%; Dot &amp; Key grew 13×+ and Kay Beauty 3×+ over FY23–26.</>, <>House of Nykaa 뷰티: FY26 GMV <b>₹2,788 cr (4,461억원)</b>, 64% 성장. FY23–26 Dot &amp; Key 13배 이상, Kay Beauty 3배 이상.</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "derma", topic: tr("Derma brands", "더마 브랜드"), big: ceW ? `#${ceW.place}` : pct(derma, 0),
       ours: tr(<>{ceW ? <>Cetaphil is <b>#{ceW.place} in face wash</b> ({pct(ceW.share, 0)} of all buying). </> : null}The global derma houses (Cetaphil, CeraVe, Bioderma, La Roche-Posay and others) take {pct(derma, 0)} of daily skincare buying in our categories.</>,
-        <>{ceW ? <>세타필은 <b>클렌저 {ceW.place}위</b>(전체 구매의 {pct(ceW.share, 0)}). </> : null}글로벌 더마 브랜드(세타필, 세라비, 바이오더마, 라로슈포제 등)는 우리 카테고리 일 스킨케어 구매의 {pct(derma, 0)}.</>),
+        <>{ceW ? <>Cetaphil: <b>클렌저 {ceW.place}위</b>(전체 구매의 {pct(ceW.share, 0)}). </> : null}글로벌 더마 브랜드(Cetaphil, CeraVe, Bioderma, La Roche-Posay 등) = 우리 카테고리 일 스킨케어 구매의 {pct(derma, 0)}.</>),
       nykaa: tr(<>&ldquo;Derma brands grew <b>40%</b> in FY26 and are 20% of skincare&rdquo; (Nykaa&rsquo;s own grouping, which also counts Indian derma brands).</>, <>&ldquo;더마 브랜드 FY26 <b>40%</b> 성장, 스킨케어의 20%&rdquo; (Nykaa 자체 분류, 인도 더마 브랜드 포함).</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "brands", topic: tr("Brands on Nykaa", "Nykaa 입점 브랜드"), big: allBrands.toLocaleString("en-IN"),
-      ours: tr(<><b>{allBrands}</b> brands sell in the {listCount} categories we track (Nykaa&rsquo;s own brand filter for each), {koreanInLists} of them Korean.</>, <>추적 {listCount}개 카테고리에서 <b>{allBrands}</b>개 브랜드 판매(카테고리별 Nykaa 브랜드 필터), 그중 한국 브랜드 {koreanInLists}개.</>),
+      ours: tr(<><b>{allBrands}</b> brands sell in the {listCount} categories we track (Nykaa&rsquo;s own brand filter for each), {koreanInLists} of them Korean.</>, <>추적 {listCount}개 카테고리에서 <b>{allBrands}</b>개 브랜드 판매(카테고리별 Nykaa 브랜드 필터), 그중 K-뷰티 브랜드 {koreanInLists}개.</>),
       nykaa: tr(<>Nykaa sells <b>6,000+ brands</b>, and launched 1,280 new brands in FY26.</>, <>Nykaa 입점 브랜드 <b>6,000개 이상</b>, FY26 신규 브랜드 1,280개.</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
-    { key: "sales", topic: tr("Sales", "세일"), big: salesNow.length ? String(salesNow.length) : "–",
+    { key: "sales", topic: tr("Sales", "세일"), big: "",
       ours: tr(<>{homeDay0 ? <>Nykaa&rsquo;s homepage on {dayMonth(homeDay0)}: {salesNow.length ? <b>{salesNow.slice(0, 3).join(", ")}</b> : "no sale running"}.</> : "Homepage read nightly from 17 Oct."} The sale calendar is on Offers &amp; events.</>,
-        <>{homeDay0 ? <>{dayMonth(homeDay0)} Nykaa 홈페이지: {salesNow.length ? <b>{salesNow.slice(0, 3).join(", ")}</b> : "진행 중인 세일 없음"}.</> : "홈페이지는 10월 17일부터 매일 수집."} 세일 일정은 Offers &amp; events 탭에.</>),
-      nykaa: tr(<>The Pink Summer Sale (May 2026) and the Birthday Sale drove Apr–Jun 2026; Pink Summer Sale GMV was about <b>40%</b> higher than a year earlier.</>, <>핑크 서머 세일(2026년 5월)과 생일 세일이 2026년 4–6월 실적을 견인, 핑크 서머 세일 GMV 약 <b>40%</b> 증가.</>),
+        <>{homeDay0 ? <>{dayMonth(homeDay0)} Nykaa 홈페이지: {salesNow.length ? <b>{salesNow.slice(0, 3).join(", ")}</b> : "진행 중인 세일 없음"}.</> : "홈페이지는 10월 17일부터 매일 수집."} 세일 일정은 Offers &amp; events 탭에서.</>),
+      nykaa: tr(<>The Pink Summer Sale (May 2026) and the Birthday Sale drove Apr–Jun 2026; Pink Summer Sale GMV was about <b>40%</b> higher than a year earlier.</>, <>핑크 서머 세일(2026년 5월)·생일 세일이 2026년 4–6월 실적 견인. 핑크 서머 세일 GMV 약 <b>40%</b> 증가 (전년 대비).</>),
       doc: tr("Investor presentation Q1 FY27", "투자자 자료 FY27 1분기"), url: DOC.q1fy27 },
   ];
 
@@ -157,9 +158,9 @@ function BriefPage() {
   const kClimb = singles.filter((x) => m.originOf(x.brand) === "kbeauty" && norm(x.brand) !== norm(anchor) && x.gain >= 5).sort((a, b) => score(b) - score(a))[0];
   const kItems: Item[] = [];
   if (kUp || kDown) kItems.push({ key: "k1", text: tr(<>{kUp ? <><b>{kUp.b}</b> gained the most products in the top 100 among Korean brands (+{kUp.d}, now {nowIn(kUp.b)})</> : null}{kUp && kDown ? "; " : ""}{kDown ? <><b>{kDown.b}</b> lost the most ({kDown.d}, now {nowIn(kDown.b)})</> : null}.</>,
-    <>{kUp ? <>한국 브랜드 중 <b>{kUp.b}</b>가 상위 100위 제품을 가장 많이 늘림(+{kUp.d}, 현재 {nowIn(kUp.b)})</> : null}{kUp && kDown ? "; " : ""}{kDown ? <><b>{kDown.b}</b> 가장 많이 감소({kDown.d}, 현재 {nowIn(kDown.b)})</> : null}.</>), detail: <BrandQuick brand={(kUp ?? kDown)!.b} />, news: (kUp ?? kDown)!.b });
+    <>{kUp ? <>K-뷰티 브랜드 중 <b>{kUp.b}</b>: 상위 100위 제품 최다 증가(+{kUp.d}, 현재 {nowIn(kUp.b)})</> : null}{kUp && kDown ? "; " : ""}{kDown ? <><b>{kDown.b}</b> 최다 감소({kDown.d}, 현재 {nowIn(kDown.b)})</> : null}.</>), detail: <BrandQuick brand={(kUp ?? kDown)!.b} />, news: (kUp ?? kDown)!.b });
   if (kClimb) kItems.push({ key: "k2", text: moveLine(kClimb), detail: <ProductQuick pid={kClimb.product_id} cat={kClimb.subcategory} />, news: kClimb.brand });
-  if (kItems.length) groups.push({ title: tr("Korean brands", "한국 브랜드"), items: kItems });
+  if (kItems.length) groups.push({ title: tr("Korean brands", "K-뷰티 브랜드"), items: kItems });
   // 3. the market
   const climber = singles.filter((x) => x.gain >= 5).sort((a, b) => score(b) - score(a))[0];
   const faller = singles.filter((x) => x.gain <= -5).sort((a, b) => score(b) - score(a))[0];
@@ -177,12 +178,12 @@ function BriefPage() {
   return (
     <Shell active="Overview" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Brief · start here", "브리핑 · 여기서 시작")} title={tr("What you need to know", "알아야 할 것")}
-        sub={tr("Nykaa's own figures, what Nykaa says held against its shelf, how far to trust our data, then what changed: Innisfree first, then Korean brands, then the market.", "Nykaa 공식 수치, Nykaa 발표와 진열 데이터 비교, 우리 데이터의 신뢰도, 그리고 달라진 점: 이니스프리, 한국 브랜드, 시장 순서.")}
+        sub={tr("Nykaa's official figures, what Nykaa's shelf shows backed by Nykaa's own statements, then what changed: Innisfree first, then K-beauty brands, then the whole market.", "Nykaa 공식 실적, 진열 데이터와 이를 뒷받침하는 Nykaa 발표, 그리고 달라진 점(Innisfree → K-뷰티 브랜드 → 시장 전체).")}
         right={<PeriodBar shelf={win} freeze={m.freeze} />} />
       <SectionNav items={NAV()} />
 
       <ActionSection id="results" kicker={tr("Nykaa's beauty business", "Nykaa 뷰티 실적")} title={tr(`Beauty GMV ₹${fyN.gmv.toLocaleString("en-IN")} cr (${eok(fyN.gmv)}) in FY26, growing ${pct(threeYear, 0)} a year since FY23; ${signed(lastQ.value)} in ${lastQ.label}`, `FY26 뷰티 GMV ₹${fyN.gmv.toLocaleString("en-IN")} cr (${eok(fyN.gmv)}), FY23 이후 연 ${pct(threeYear, 0)} 성장; ${lastQ.label} ${signed(lastQ.value)}`)}
-        note={<>{tr("From FSN E-Commerce Ventures' investor documents; each row links to its PDF. ", "FSN E-Commerce Ventures 투자자 자료 기준, 각 행은 원본 PDF로 연결됩니다. ")}<PdfLink href={IR_PAGE}>{tr("All documents", "전체 자료")}</PdfLink>{tr(` Won at the planning rate ₹1 = ₩${KRW_PER_INR} (market rate on ${dayMonth(ECB_KRW_PER_INR.date)}: ₩${ECB_KRW_PER_INR.rate}, ECB). Fixed figures: the period picker doesn't change them.`, ` 원화는 기획 환율 ₹1 = ₩${KRW_PER_INR} 적용 (${dayMonth(ECB_KRW_PER_INR.date)} 시장 환율 ₩${ECB_KRW_PER_INR.rate}, ECB). 고정 수치이며 기간 선택과 무관합니다.`)}</>}>
+        note={<>{tr("From FSN E-Commerce Ventures' investor documents; each row links to its PDF. ", "FSN E-Commerce Ventures 투자자 자료 기준, 행마다 원본 PDF 링크. ")}<PdfLink href={IR_PAGE}>{tr("All documents", "전체 자료")}</PdfLink>{tr(` Won at the planning rate ₹1 = ₩${KRW_PER_INR} (market rate on ${dayMonth(ECB_KRW_PER_INR.date)}: ₩${ECB_KRW_PER_INR.rate}, ECB). Fixed figures: the period picker doesn't change them.`, ` 원화는 기획 환율 ₹1 = ₩${KRW_PER_INR} 적용 (${dayMonth(ECB_KRW_PER_INR.date)} 시장 환율 ₩${ECB_KRW_PER_INR.rate}, ECB). 고정 수치라 기간 선택과 무관.`)}</>}>
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="overflow-x-auto">
             <table className="w-full min-w-[460px] text-[13px]">
@@ -220,15 +221,15 @@ function BriefPage() {
         </div>
       </ActionSection>
 
-      <ActionSection id="findings" kicker={tr("What the shelf shows, and what Nykaa says", "진열 데이터와 Nykaa의 발표")} title={tr(`Korean brands lead ${korLead.length} of ${cats.length} categories on Nykaa; Nykaa reports Korean brands grew 58% last year`, `한국 브랜드는 Nykaa ${cats.length}개 카테고리 중 ${korLead.length}곳 1위; Nykaa는 한국 브랜드가 지난해 58% 성장했다고 발표`)}
+      <ActionSection id="findings" kicker={tr("What the shelf shows, and what Nykaa says", "진열 데이터와 Nykaa의 발표")} title={tr(`Korean brands lead ${korLead.length} of ${cats.length} categories on Nykaa; Nykaa reports Korean brands grew 58% last year`, `K-뷰티 브랜드는 Nykaa ${cats.length}개 카테고리 중 ${korLead.length}곳에서 1위; Nykaa 발표 K-뷰티 브랜드 지난해 58% 성장`)}
         note={tr(<>Each card: what our data shows on Nykaa&rsquo;s shelf (<Def k="ratingFlow">share of buying</Def>, {dayMonth(span.start)}–{dayMonth(span.end)}), and what Nykaa itself reports in its investor documents, with the link.</>,
-          <>각 카드: Nykaa 진열에서 우리 데이터가 보여주는 것(<Def k="ratingFlow">구매 점유율</Def>, {dayMonth(span.start)}–{dayMonth(span.end)})과 Nykaa 투자자 자료의 발표(링크 포함).</>)}>
+          <>각 카드: Nykaa 진열에서 우리 데이터가 보여주는 것(<Def k="ratingFlow">구매 점유율</Def>, {dayMonth(span.start)}–{dayMonth(span.end)}) + 이를 뒷받침하는 Nykaa 투자자 자료(링크 포함).</>)}>
         <div className="grid gap-3 md:grid-cols-2">
           {findings.map((f) => (
             <Card key={f.key} className="flex flex-col px-5 py-4">
               <div className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-accent-strong">{f.topic}</div>
               <div className="mt-1 flex items-start gap-4">
-                <div className="shrink-0 font-display text-[30px] font-semibold leading-none tabular">{f.big}</div>
+                {f.big && <div className="shrink-0 font-display text-[30px] font-semibold leading-none tabular">{f.big}</div>}
                 <p className="text-[13.5px] leading-relaxed text-ink">{f.ours}</p>
               </div>
               <div className="mt-3 rounded-xl bg-sunken px-4 py-3 text-[13px] leading-relaxed text-ink-2">
@@ -240,8 +241,8 @@ function BriefPage() {
         </div>
       </ActionSection>
 
-      <ActionSection id="changed" kicker={tr(`What changed · ${spanLabel(m.period.days)}`, `달라진 점 · ${spanLabel(m.period.days)}`)} title={tr(`${anchor} first, then Korean brands, then the whole market`, `${anchor}, 한국 브랜드, 시장 전체 순서로`)}
-        note={tr(`Daily top 100s, ${dayMonth(win.start)}–${dayMonth(win.end)}. Products in the top 100 count only the ${both.size} categories tracked for the whole period. Moves use the middle of the first and last three days. Lines marked External are headlines about the brand in India from the same weeks, read nightly: context, not proof; none is shown when nothing related was found.`, `일별 상위 100위, ${dayMonth(win.start)}–${dayMonth(win.end)}. 상위 100위 제품 수는 기간 내내 추적한 ${both.size}개 카테고리 기준. 변화는 처음·마지막 3일 중앙값. "외부" 표시는 같은 시기 인도 관련 헤드라인으로 참고일 뿐 증거가 아니며, 관련 소식이 없으면 표시하지 않습니다.`)}>
+      <ActionSection id="changed" kicker={tr(`What changed · ${spanLabel(m.period.days)}`, `달라진 점 · ${spanLabel(m.period.days)}`)} title={tr(`${anchor} first, then Korean brands, then the whole market`, `${anchor} → K-뷰티 브랜드 → 시장 전체`)}
+        note={tr(`Daily top 100s, ${dayMonth(win.start)}–${dayMonth(win.end)}. Products in the top 100 count only the ${both.size} categories tracked for the whole period. Moves use the middle of the first and last three days. Lines marked External are headlines about the brand in India from the same weeks, read nightly: context, not proof; none is shown when nothing related was found.`, `일별 상위 100위, ${dayMonth(win.start)}–${dayMonth(win.end)}. 상위 100위 제품 수는 기간 내내 추적한 ${both.size}개 카테고리 기준. 변화 = 처음·마지막 3일 중앙값. "외부" = 같은 시기 인도 관련 헤드라인. 참고일 뿐 증거 아님, 관련 소식이 없으면 표시 안 함.`)}>
         <div className="grid gap-5">
           {groups.map((g, gi) => (
             <div key={g.title}>
@@ -266,17 +267,17 @@ function BriefPage() {
 
       <MethodNotes parts={{
         sources: [
-          tr(<>Nykaa&rsquo;s figures: FSN E-Commerce Ventures&rsquo; investor presentations, call transcripts and quarterly updates, linked on each row. Nothing from news is used for Nykaa&rsquo;s own figures.</>, <>Nykaa 수치: FSN E-Commerce Ventures 투자자 자료, 컨퍼런스콜 녹취록, 분기 업데이트(각 행에 링크). Nykaa 자체 수치에는 뉴스를 쓰지 않습니다.</>),
+          tr(<>Nykaa&rsquo;s figures: FSN E-Commerce Ventures&rsquo; investor presentations, call transcripts and quarterly updates, linked on each row. Nothing from news is used for Nykaa&rsquo;s own figures.</>, <>Nykaa 수치: FSN E-Commerce Ventures 투자자 자료, 컨퍼런스콜 녹취록, 분기 업데이트(행마다 링크). Nykaa 자체 수치에 뉴스는 쓰지 않음.</>),
           tr(`Our data: Nykaa's top 100 in ${listCount} lists every night, Nykaa's brand filter for each list, Nykaa's homepage and brand offers (from 17 Oct).`, `우리 데이터: 매일 밤 Nykaa ${listCount}개 목록 상위 100위, 목록별 Nykaa 브랜드 필터, Nykaa 홈페이지와 브랜드 프로모션(10월 17일부터).`),
-          tr("External headlines: Google News' search feed, read nightly for the main brands and the day's movers; a headline is shown only when it names the brand, is about India (India, an Indian city or Nykaa) and dates from two weeks before the period to its end.", "외부 헤드라인: Google News 검색 피드, 주요 브랜드와 당일 급변 브랜드를 매일 밤 수집. 브랜드 이름이 있고, 인도 관련(인도·인도 도시·Nykaa)이며, 기간 2주 전부터 기간 끝까지의 헤드라인만 표시."),
+          tr("External headlines: Google News' search feed, read nightly for the main brands and the day's movers; a headline is shown only when it names the brand, is about India (India, an Indian city or Nykaa) and dates from two weeks before the period to its end.", "외부 헤드라인: Google News 검색 피드, 주요 브랜드와 당일 급변 브랜드를 매일 밤 수집. 브랜드 이름이 들어가고 인도 관련(인도·인도 도시·Nykaa)이며, 기간 2주 전부터 기간 끝까지의 헤드라인만 표시."),
         ],
         calc: [
           tr(`Won: ₹ crore × ${KRW_PER_INR} ÷ 10 = 억원 (planning rate ₹1 = ₩${KRW_PER_INR}). 3-year growth rate: (FY26 ÷ FY23)^(1/3) − 1. Latest 12 months: the last four reported quarters added.`, `원화: ₹ crore × ${KRW_PER_INR} ÷ 10 = 억원 (기획 환율 ₹1 = ₩${KRW_PER_INR}). 3년 연평균 성장률: (FY26 ÷ FY23)^(1/3) − 1. 최근 12개월: 최근 발표 4개 분기 합.`),
           ...BUYING_METHOD().calc,
-          tr("Across categories (e.g. Nykaa's own brands' share): each category's buying is divided by its number of rating days, then added.", "카테고리 합계(예: Nykaa 자체 브랜드 비중): 카테고리별 구매를 평가 일수로 나눈 뒤 더합니다."),
+          tr("Across categories (e.g. Nykaa's own brands' share): each category's buying is divided by its number of rating days, then added.", "카테고리 합계(예: Nykaa 자체 브랜드 비중): 카테고리별 구매를 평가 일수로 나눈 뒤 합산."),
         ],
-        assume: [...BUYING_METHOD().assume, tr("Nykaa's claims are taken as stated; where Nykaa doesn't define a group (derma brands), we use our own list and say so.", "Nykaa의 주장은 발표대로 받아들이고, Nykaa가 정의하지 않은 집단(더마 브랜드)은 우리 목록을 쓰고 그렇게 밝힙니다.")],
-        limits: [...BUYING_METHOD().limits, tr(`Our ${listCount} lists are about 1 in 8 of Nykaa's brands, so Nykaa-wide shares (derma, Nykaa's own brands) can differ from ours for that reason alone.`, `우리 ${listCount}개 목록은 Nykaa 브랜드의 약 8분의 1이므로, Nykaa 전체 비중(더마, 자체 브랜드)은 그 이유만으로도 다를 수 있습니다.`)],
+        assume: [...BUYING_METHOD().assume, tr("Nykaa's claims are taken as stated; where Nykaa doesn't define a group (derma brands), we use our own list and say so.", "Nykaa 발표는 그대로 인용. Nykaa가 정의하지 않은 그룹(더마 브랜드)은 자체 목록을 쓰고 그렇게 명시.")],
+        limits: [...BUYING_METHOD().limits, tr(`Our ${listCount} lists are about 1 in 8 of Nykaa's brands, so Nykaa-wide shares (derma, Nykaa's own brands) can differ from ours for that reason alone.`, `우리 ${listCount}개 목록은 Nykaa 브랜드의 약 8분의 1 → Nykaa 전체 비중(더마, 자체 브랜드)과는 이 이유만으로도 다를 수 있음.`)],
       }} />
     </Shell>
   );

@@ -12,7 +12,7 @@ import { labels } from "./i18n";
 export type TierGroup = "korean" | "indian" | "global";
 export interface TierRow { brand: string; tier: "pinned" | "focus"; grp: TierGroup; sort: number; note: string | null }
 
-export const GROUP_LABEL: Record<TierGroup, string> = labels({ korean: ["Korean", "한국"], indian: ["Indian", "인도"], global: ["Global", "글로벌"] });
+export const GROUP_LABEL: Record<TierGroup, string> = labels({ korean: ["Korean", "K-뷰티"], indian: ["Indian", "인도"], global: ["Global", "글로벌"] });
 
 /** Used until the table answers (and if it cannot): the list the owner approved on 12 Oct 2026. */
 const FALLBACK: TierRow[] = [

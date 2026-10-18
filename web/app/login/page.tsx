@@ -34,7 +34,7 @@ export default function Login() {
     if (mode === "forgot") {
       const { error } = await auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login/` });
       setBusy(false);
-      setMsg(error ? { kind: "err", text: error.message } : { kind: "ok", text: tr("If that email has an account, a reset link is on its way. Open it on this device.", "가입된 이메일이라면 재설정 링크가 발송됩니다. 이 기기에서 링크를 열어 주세요.") });
+      setMsg(error ? { kind: "err", text: error.message } : { kind: "ok", text: tr("If that email has an account, a reset link is on its way. Open it on this device.", "가입된 이메일이면 재설정 링크 발송. 이 기기에서 링크 열기.") });
       return;
     }
     if (mode === "reset") {
@@ -47,10 +47,10 @@ export default function Login() {
     setBusy(false);
     if (res.error) {
       const m = res.error.message;
-      setMsg({ kind: "err", text: /Invalid login/i.test(m) ? tr("Invalid email or password.", "이메일 또는 비밀번호가 올바르지 않습니다.") : /not confirmed/i.test(m) ? tr("Confirm your email first: open the link we sent you.", "먼저 이메일 인증을 완료해 주세요. 보내 드린 링크를 열면 됩니다.")
-        : /banned/i.test(m) ? tr("This account has been blocked. Contact the admin.", "차단된 계정입니다. 관리자에게 문의해 주세요.") : m });
+      setMsg({ kind: "err", text: /Invalid login/i.test(m) ? tr("Invalid email or password.", "이메일 또는 비밀번호 오류.") : /not confirmed/i.test(m) ? tr("Confirm your email first: open the link we sent you.", "이메일 인증 먼저 완료 필요. 받은 링크를 열면 됨.")
+        : /banned/i.test(m) ? tr("This account has been blocked. Contact the admin.", "차단된 계정. 관리자에게 문의.") : m });
     } else if (res.data.session) window.location.replace("/overview/");
-    else setMsg({ kind: "ok", text: tr("Account created. Check your inbox for the confirmation link, then sign in.", "계정이 만들어졌습니다. 받은편지함의 인증 링크를 연 다음 로그인해 주세요.") });
+    else setMsg({ kind: "ok", text: tr("Account created. Check your inbox for the confirmation link, then sign in.", "계정 생성 완료. 받은편지함의 인증 링크를 연 뒤 로그인.") });
   }
 
   return (
@@ -81,10 +81,10 @@ export default function Login() {
         {mode !== "reset" && (
           <div className="mt-6 flex justify-between text-sm text-ink-2">
             <button onClick={() => { setMode(mode === "in" ? "up" : "in"); setMsg(null); }} className="underline-offset-4 hover:underline">
-              {mode === "in" ? tr("No account? Create one", "계정이 없으신가요? 만들기") : tr("Back to sign in", "로그인으로 돌아가기")}
+              {mode === "in" ? tr("No account? Create one", "계정이 없다면? 만들기") : tr("Back to sign in", "로그인으로 돌아가기")}
             </button>
             {mode === "in" && (
-              <button onClick={() => { setMode("forgot"); setMsg(null); }} className="underline-offset-4 hover:underline">{tr("Forgot password?", "비밀번호를 잊으셨나요?")}</button>
+              <button onClick={() => { setMode("forgot"); setMsg(null); }} className="underline-offset-4 hover:underline">{tr("Forgot password?", "비밀번호를 잊었다면?")}</button>
             )}
           </div>
         )}
