@@ -38,11 +38,19 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
   const singles = rows.filter((r) => r.value > 0).sort((a, b) => b.value - a.value);
   const topSeller = singles[0];
   const kShare = rows.filter((r) => r.origin === "kbeauty").length / (rows.length || 1);
-  const risers = moves.filter((x) => x.gain >= 5 && !x.entered && x.from !== null).sort((a, b) => b.gain - a.gain).slice(0, 6);
-  const fallers = moves.filter((x) => x.gain <= -5 && !x.left && x.to !== null).sort((a, b) => a.gain - b.gain).slice(0, 6);
+  // a listing in a sponsored or pinned spot on most days moved because the spot moved, not because of sales (audit 19 Oct:
+  // all six "climbed most" in masks were sponsored every day), so it stays out of the lists and is counted below them
+  const boughtMoves = moves.filter((x) => x.bought && Math.abs(x.gain) >= 5 && !x.entered && !x.left);
+  const risers = moves.filter((x) => x.gain >= 5 && !x.entered && !x.bought && x.from !== null).sort((a, b) => b.gain - a.gain).slice(0, 6);
+  const fallers = moves.filter((x) => x.gain <= -5 && !x.left && !x.bought && x.to !== null).sort((a, b) => a.gain - b.gain).slice(0, 6);
   const entrants = moves.filter((x) => x.entered).sort((a, b) => (a.to ?? 999) - (b.to ?? 999)).slice(0, 6);
 
   if (!m.ready || !win) return <div className="skeleton mt-6 h-40 rounded-[16px]" />;
+  // a list tracked from after the period start is measured from its own first day (lib/profile listingMove), so the
+  // headings say that day, not the period start (audit 19 Oct: lip tint said "19 Sept" but starts 27 Sept)
+  const cs = ix.catStart.get(cat); const from = cs && cs > win.start ? ix.days.find((d) => d >= cs) ?? win.start : win.start;
+  const fresh = ix.days.filter((d) => d >= from && d <= win.end).length < 4;
+  const tooNew = tr(`Tracked since ${dayMonth(from)}: moves show once there are a few days to compare.`, `${dayMonth(from)}부터 추적: 비교할 날이 쌓이면 변동 표시.`);
   const spark = (pid: string) => {
     const s = (ix.series.get(`${cat}|${pid}`) ?? []).filter((x) => x.scrape_date >= win.start);
     if (s.length < 2) return null;
@@ -86,11 +94,12 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
         </Card>
       </div>}
       {part !== "facts" && <><div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <MoveList title={tr(`Climbed most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 오른 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={risers} spark={spark} empty={tr("Nothing climbed 5+ places.", "5계단 이상 오른 제품 없음.")} />
-        <MoveList title={tr(`Fell most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 내린 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={fallers} spark={spark} empty={tr("Nothing fell 5+ places.", "5계단 이상 내린 제품 없음.")} />
-        <MoveList title={tr("New in the top 100 this period", "이번 기간 상위 100위 신규 진입")} items={entrants} spark={spark} empty={tr("No new entries in this period.", "이 기간 신규 진입 없음.")} />
+        <MoveList title={fresh ? tr("Climbed most", "가장 많이 오른 제품") : tr(`Climbed most, ${dayMonth(from)} → ${dayMonth(win.end)}`, `가장 많이 오른 제품, ${dayMonth(from)} → ${dayMonth(win.end)}`)} items={risers} spark={spark} empty={fresh ? tooNew : tr("Nothing climbed 5+ places.", "5계단 이상 오른 제품 없음.")} />
+        <MoveList title={fresh ? tr("Fell most", "가장 많이 내린 제품") : tr(`Fell most, ${dayMonth(from)} → ${dayMonth(win.end)}`, `가장 많이 내린 제품, ${dayMonth(from)} → ${dayMonth(win.end)}`)} items={fallers} spark={spark} empty={fresh ? tooNew : tr("Nothing fell 5+ places.", "5계단 이상 내린 제품 없음.")} />
+        <MoveList title={tr("New in the top 100 this period", "이번 기간 상위 100위 신규 진입")} items={entrants} spark={spark} empty={fresh ? tooNew : tr("No new entries in this period.", "이 기간 신규 진입 없음.")} />
       </div>
-      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유 = 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁), 증거는 아님.")}</p></>}
+      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof. Days in a sponsored or pinned spot are left out of the three-day middles.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유 = 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁), 증거는 아님. 광고·고정 자리였던 날은 중앙값에서 제외.")}
+        {boughtMoves.length ? tr(` Left out: ${boughtMoves.length} product${boughtMoves.length === 1 ? "" : "s"} in a sponsored or pinned spot on most days, whose rank was bought (${boughtMoves.slice(0, 3).map((x) => x.brand).join(", ")}${boughtMoves.length > 3 ? "…" : ""}).`, ` 제외: 대부분의 날 광고·고정 자리였던 제품 ${boughtMoves.length}개 (순위를 구매, ${boughtMoves.slice(0, 3).map((x) => x.brand).join(", ")}${boughtMoves.length > 3 ? "…" : ""}).`) : ""}</p></>}
     </section>
   );
 }

@@ -45,8 +45,12 @@ export const CATEGORY_URL: Record<string, string> = {
 
 /** Drop a leading brand name from a product title. */
 export function shortName(name: string, brand: string) {
-  const esc = brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const n = name.replace(new RegExp(`^\\s*${esc}[\\s:\\-–·,]*`, "i"), "").trim();
+  const cut = (b: string) => name.replace(new RegExp(`^\\s*${b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s:\\-–·,]*`, "i"), "").trim();
+  let n = cut(brand);
+  // "Maybelline New York" sells "Maybelline Color Sensational…", "Nykaa Skin" sells "Nykaa Green Tea…": shown after the
+  // brand, the name repeated it (audit 19 Oct). Drop the brand's first word too when that is all the name repeats.
+  const first = brand.trim().split(/\s+/)[0] ?? "";
+  if (n === name.trim() && brand.trim().includes(" ") && first.length >= 4 && new RegExp(`^${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s`, "i").test(name.trim())) n = cut(first);
   return n || name;
 }
 
