@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCatalog, useDemand, useReviewMonths, useShelf, useShelfDaily, useShelfProducts } from "./data";
+import { useCatalog, useDemand, usePinned, useReviewMonths, useShelf, useShelfDaily, useShelfProducts } from "./data";
 import { indexDaily, poolProducts, productDims, ratingFlow, ratingFreeze, type FlowRow } from "./market";
 import { shelfWindow, usePeriod, type ShelfWindow } from "./period";
 import { norm } from "./brands";
@@ -19,7 +19,13 @@ export function useMarket() {
   const error = shelf.error || catalog.error || months.error || demand.error || daily.error || products.error;
 
   const dims = useMemo(() => productDims(products.data ?? [], shelf.data ?? []), [products.data, shelf.data]);
-  const ix = useMemo(() => indexDaily(daily.data ?? []), [daily.data]);
+  const pins = usePinned();
+  const ix = useMemo(() => {
+    const base = indexDaily(daily.data ?? []);
+    const pinned = new Set((pins.data ?? []).map((r) => `${r.scrape_date}|${r.subcategory}|${r.product_id}`));
+    for (const r of shelf.data ?? []) if (r.is_pinned) pinned.add(`${r.scrape_date}|${r.subcategory}|${r.product_id}`);
+    return { ...base, pinned };
+  }, [daily.data, shelf.data, pins.data]);
   /** Today's shelf. Lists added on 18 Oct (BB & CC cream, blush, lip gloss) are kept out of the live site's views
    *  until round 4 goes live (migration 027), so their rows are rebuilt here from the daily data. */
   const today = useMemo(() => {

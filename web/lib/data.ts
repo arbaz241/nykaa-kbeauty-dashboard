@@ -205,3 +205,20 @@ export function useHomepage() { return useSWR("homepage", () => fetchAll<Homepag
 export function useBrandOffers() { return useSWR("brand_offers", () => fetchAll<BrandOffer>("web_brand_offers"), opts); }
 /** Outside headlines about the main brands and the day's movers (scraper/news.py, nightly since 18 Oct). */
 export function useExternalNews() { return useSWR("external_news", () => fetchAll<ExternalNews>("web_external_news"), opts); }
+
+/** Every day a product was pinned by Nykaa to the top of a list (about 2,600 rows since 13 Sep). The daily shelf view has
+ *  no pin flag, so moves read a pin starting or ending as a climb or fall with no cause (audit 19 Oct: the Brief's
+ *  "biggest climb" was a pinned product). Read from the product history view, pinned rows only. */
+export function usePinned() {
+  return useSWR("pinned", async () => {
+    const out: { scrape_date: string; subcategory: string; product_id: string }[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase().from("web_product_history").select("scrape_date,subcategory,product_id").eq("is_pinned", true)
+        .order("scrape_date").order("subcategory").order("product_id").range(from, from + 999);
+      if (error) throw new Error(error.message);
+      out.push(...((data ?? []) as typeof out));
+      if (!data || data.length < 1000) break;
+    }
+    return out;
+  }, opts);
+}

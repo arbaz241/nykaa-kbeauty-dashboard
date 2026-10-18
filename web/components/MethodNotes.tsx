@@ -1,6 +1,6 @@
 "use client";
 
-import { tr } from "@/lib/i18n";
+import { dayMonth, tr } from "@/lib/i18n";
 
 /** "How this page works", at the bottom of every tab, always open (plan v4, owner 18 Oct 2026: "show what the
  *  assumptions are, how we have calculated and reached a particular answer"). One layout everywhere: where the
@@ -31,7 +31,7 @@ export default function MethodNotes({ parts, id = "method" }: { parts: MethodPar
 }
 
 /** The parts every tab built on share of buying repeats. */
-export const BUYING_METHOD = () => ({
+export const BUYING_METHOD = (span?: { start: string; end: string } | null) => ({
   calc: [
     tr(<><b>Share of buying</b> = a product&rsquo;s new ratings over the period × its price, out of all products in the same category (all brands = 100%). <b>Units</b> = new ratings alone.</>,
       <><b>구매 점유율</b> = 기간 중 제품 신규 평가 수 × 가격, 같은 카테고리 전체 제품(모든 브랜드 = 100%) 대비 비중. <b>수량</b> = 신규 평가 수만.</>),
@@ -40,7 +40,8 @@ export const BUYING_METHOD = () => ({
     tr(<><b>Shared ratings counted once:</b> when Nykaa shows one rating count for several of a brand&rsquo;s products (e.g. 20 Nykaa sheet masks share 7.6 million ratings), it counts once, at the median price of those products.</>,
       <><b>공유 평가는 한 번만:</b> Nykaa가 한 브랜드의 여러 제품에 하나의 평가 수를 보여주면(예: Nykaa 시트 마스크 20종이 760만 건 공유) 그 제품들의 중간 가격으로 한 번만 집계.</>),
     tr("Combos and kits are left out: Nykaa shows them with their contents' ratings.", "세트·키트 제외: Nykaa가 구성품 평가를 합쳐 보여주기 때문."),
-    tr("Share of buying uses the last 30 days with live rating counts (19 Sep – 9 Oct while Nykaa's counts are frozen); the \"moves over\" switch changes rank moves only.", "구매 점유율은 평가 수가 살아 있는 최근 30일 기준 (Nykaa 평가 수 정지 중엔 9월 19일–10월 9일). \"변동 기간\" 선택은 순위 변동에만 적용."),
+    tr(`Share of buying uses up to the last 30 collected days that end on Nykaa's last day of live rating counts${span ? ` (${dayMonth(span.start)} – ${dayMonth(span.end)}; Nykaa has not updated counts since 10 Oct and our collection began 13 Sep)` : ""}; the "moves over" switch changes rank moves only.`,
+      `구매 점유율: Nykaa 평가 수가 마지막으로 갱신된 날까지의 수집일 최대 30일${span ? ` (${dayMonth(span.start)}–${dayMonth(span.end)}; Nykaa 평가 수는 10월 10일부터 정지, 수집은 9월 13일 시작)` : ""}. "변동 기간" 선택은 순위 변동에만 적용.`),
     tr("Growth (same rule on every page): written reviews in the last 3 complete months against the same months a year earlier, only products that already had reviews then; launches since are counted apart.", "성장률 (모든 페이지 동일 기준): 최근 완결된 3개월 작성 리뷰를 전년 같은 달과 비교, 그때도 리뷰가 있던 제품만. 이후 출시 제품은 따로 집계."),
   ],
   assume: [

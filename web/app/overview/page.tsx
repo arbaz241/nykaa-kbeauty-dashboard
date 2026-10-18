@@ -128,14 +128,14 @@ function BriefPage() {
   type Finding = { key: string; topic: string; big: string; ours: React.ReactNode; nykaa: React.ReactNode; doc: string; url: string };
   const findings: Finding[] = [
     { key: "korean", topic: tr("Korean beauty", "K-뷰티"), big: tr(`${korLead.length} of ${cats.length}`, `${cats.length}개 중 ${korLead.length}개`),
-      ours: tr(<>Korean brands lead {korLead.length} of the {cats.length} categories we track{korLead.length ? ` (${list(korLead)})` : ""}{korTop3.length ? `, and are in the top 3 of ${korTop3.length} more (${list(korTop3)})` : ""}. They hold {pct(kProducts, 0)} of the top-100 products; Nykaa&rsquo;s Korean Beauty store lists {storeBrands} brands.</>,
-        <>K-뷰티 브랜드는 추적 {cats.length}개 카테고리 중 {korLead.length}곳에서 1위{korLead.length ? `(${korLead.map(catName).join(", ")})` : ""}{korTop3.length ? `, ${korTop3.length}곳에서 3위 안(${korTop3.map(catName).join(", ")})` : ""}. 상위 100위 제품의 {pct(kProducts, 0)}, Nykaa K-뷰티 스토어 브랜드 {storeBrands}개.</>),
+      ours: tr(<>Korean brands lead {korLead.length} of the {cats.length} categories with buying data{korLead.length ? ` (${list(korLead)})` : ""}{korTop3.length ? `, and are in the top 3 of ${korTop3.length} more (${list(korTop3)})` : ""}.{cats.length < listCount ? ` The other ${listCount - cats.length} categories, added on 18 Oct, have no buying data yet: Nykaa froze rating counts on 10 Oct.` : ""} They hold {pct(kProducts, 0)} of the top-100 products; Nykaa&rsquo;s Korean Beauty store lists {storeBrands} brands.</>,
+        <>K-뷰티 브랜드는 구매 데이터가 있는 {cats.length}개 카테고리 중 {korLead.length}곳에서 1위{korLead.length ? `(${korLead.map(catName).join(", ")})` : ""}{korTop3.length ? `, ${korTop3.length}곳에서 3위 안(${korTop3.map(catName).join(", ")})` : ""}.{cats.length < listCount ? ` 10월 18일 추가한 나머지 ${listCount - cats.length}개 카테고리는 아직 구매 데이터 없음(Nykaa 평가 수 10월 10일부터 정지).` : ""} 상위 100위 제품의 {pct(kProducts, 0)}, Nykaa K-뷰티 스토어 브랜드 {storeBrands}개.</>),
       nykaa: tr(<>&ldquo;Korean brands grew <b>58%</b> on Nykaa in FY26&rdquo; (Apr 2025–Mar 2026), across 70+ Korean brands, with 27 Korean launches that year including Aestura, Arencia, Anua and Mise en Scène.</>,
         <>&ldquo;Nykaa의 K-뷰티 브랜드 FY26 <b>58%</b> 성장&rdquo;(2025년 4월–2026년 3월). 브랜드 70개 이상, 그해 Aestura·Arencia·Anua·Mise en Scène 등 27개 신규 입점.</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "dotkey", topic: "Dot & Key", big: dkS ? `#${dkS.place}` : "–",
-      ours: tr(<>On Nykaa&rsquo;s shelf Dot &amp; Key is {dkS ? <><b>#{dkS.place} in sunscreen</b> ({pct(dkS.share, 0)} of all buying)</> : "not ranked in sunscreen"}{dkM ? `, #${dkM.place} in moisturiser` : ""}{dkW ? ` and #${dkW.place} in face wash` : ""}.</>,
-        <>Nykaa 진열에서 Dot &amp; Key: {dkS ? <><b>선크림 {dkS.place}위</b>(전체 구매의 {pct(dkS.share, 0)})</> : "선크림 순위 없음"}{dkM ? `, 보습 ${dkM.place}위` : ""}{dkW ? `, 클렌저 ${dkW.place}위` : ""}.</>),
+      ours: tr(<>On Nykaa&rsquo;s shelf Dot &amp; Key is {dkS ? <><b>#{dkS.place} in sunscreen</b> ({pct(dkS.share, 0)} of sunscreen buying)</> : "not ranked in sunscreen"}{dkM ? `, #${dkM.place} in moisturiser` : ""}{dkW ? ` and #${dkW.place} in face wash` : ""}.</>,
+        <>Nykaa 진열에서 Dot &amp; Key: {dkS ? <><b>선크림 {dkS.place}위</b>(선크림 구매의 {pct(dkS.share, 0)})</> : "선크림 순위 없음"}{dkM ? `, 보습 ${dkM.place}위` : ""}{dkW ? `, 클렌저 ${dkW.place}위` : ""}.</>),
       nykaa: tr(<>&ldquo;Dot &amp; Key is <b>#1 in sunscreen</b>, #2 in moisturiser and #3 in face wash&rdquo; across Nykaa, Amazon, Flipkart and Blinkit (FY26).</>, <>&ldquo;Dot &amp; Key <b>선크림 1위</b>, 보습 2위, 클렌저 3위&rdquo; (Nykaa·Amazon·Flipkart·Blinkit 합산, FY26).</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "hon", topic: tr("Nykaa's own brands", "Nykaa 자체 브랜드"), big: pct(hon, 0),
@@ -144,8 +144,8 @@ function BriefPage() {
       nykaa: tr(<>House of Nykaa beauty: <b>₹2,788 cr</b> GMV in FY26, up 64%; Dot &amp; Key grew 13×+ and Kay Beauty 3×+ over FY23–26.</>, <>House of Nykaa 뷰티: FY26 GMV <b>₹2,788 cr (4,461억원)</b>, 64% 성장. FY23–26 Dot &amp; Key 13배 이상, Kay Beauty 3배 이상.</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "derma", topic: tr("Derma brands", "더마 브랜드"), big: ceW ? `#${ceW.place}` : pct(derma, 0),
-      ours: tr(<>{ceW ? <>Cetaphil is <b>#{ceW.place} in face wash</b> ({pct(ceW.share, 0)} of all buying). </> : null}The global derma houses (Cetaphil, CeraVe, Bioderma, La Roche-Posay and others) take {pct(derma, 0)} of daily skincare buying in our categories.</>,
-        <>{ceW ? <>Cetaphil: <b>클렌저 {ceW.place}위</b>(전체 구매의 {pct(ceW.share, 0)}). </> : null}글로벌 더마 브랜드(Cetaphil, CeraVe, Bioderma, La Roche-Posay 등) = 우리 카테고리 일 스킨케어 구매의 {pct(derma, 0)}.</>),
+      ours: tr(<>{ceW ? <>Cetaphil is <b>#{ceW.place} in face wash</b> ({pct(ceW.share, 0)} of face-wash buying). </> : null}The global derma houses (Cetaphil, CeraVe, Bioderma, La Roche-Posay and others) take {pct(derma, 0)} of daily skincare buying in our categories.</>,
+        <>{ceW ? <>Cetaphil: <b>클렌저 {ceW.place}위</b>(클렌저 구매의 {pct(ceW.share, 0)}). </> : null}글로벌 더마 브랜드(Cetaphil, CeraVe, Bioderma, La Roche-Posay 등) = 우리 카테고리 일 스킨케어 구매의 {pct(derma, 0)}.</>),
       nykaa: tr(<>&ldquo;Derma brands grew <b>40%</b> in FY26 and are 20% of skincare&rdquo; (Nykaa&rsquo;s own grouping, which also counts Indian derma brands).</>, <>&ldquo;더마 브랜드 FY26 <b>40%</b> 성장, 스킨케어의 20%&rdquo; (Nykaa 자체 분류, 인도 더마 브랜드 포함).</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "brands", topic: tr("Brands on Nykaa", "Nykaa 입점 브랜드"), big: allBrands.toLocaleString("en-IN"),
@@ -163,12 +163,15 @@ function BriefPage() {
   const c0 = catsOn(m.ix, win.start); const c1 = catsOn(m.ix, win.end); const both = new Set([...c1].filter((c) => c0.has(c)));
   const p0 = placesOn(m.ix, m.dims, win.start, both); const p1 = placesOn(m.ix, m.dims, win.end, both);
   const placeMove = (b: string) => { const k1 = [...p1.keys()].find((x) => norm(x) === norm(b)); const k0 = [...p0.keys()].find((x) => norm(x) === norm(b)); return (k1 ? p1.get(k1)! : 0) - (k0 ? p0.get(k0)! : 0); };
-  const nowIn = (b: string) => m.shelf.filter((r) => norm(r.brand) === norm(b)).length;
+  // today's count on the same basis as the change: the categories tracked on both days (audit 19 Oct: "8 today, as
+  // many as on 19 Sep" compared all 15 lists today with 7 lists then)
+  const nowIn = (b: string) => { const k = [...p1.keys()].find((x) => norm(x) === norm(b)); return k ? p1.get(k)! : 0; };
+  const paidMove = (x: ListingMove) => x.why.some((r) => r.kind === "paid");
   const score = (x: ListingMove) => Math.abs(x.gain) / Math.sqrt(Math.max(1, Math.min(x.from ?? 100, x.to ?? 100)));
   const singles = moves.filter((x) => !isCombo(x.name) && x.from !== null && x.to !== null && !x.entered && !x.left);
   const anchor = tiers.pinned ?? "Innisfree";
   const seller = (b: string) => m.flow.filter((r) => norm(r.brand) === norm(b) && r.value > 0).sort((a, c) => c.value - a.value)[0] ?? null;
-  const why = (x: ListingMove) => (x.why[0] ? tr(`, around the time ${x.why[0].text}`, `, 같은 시기: ${x.why[0].text}`) : tr("; nothing we track changed at the same time", "; 같은 시기 추적 항목 변화 없음"));
+  const why = (x: ListingMove) => (x.why[0] ? tr(`; at the same time: ${x.why[0].text}`, `; 같은 시기: ${x.why[0].text}`) : tr("; nothing we track changed at the same time", "; 같은 시기 추적 항목 변화 없음"));
   const moveLine = (x: ListingMove) => tr(<><b>{x.brand}</b> {shortName(x.name, x.brand)} {x.gain > 0 ? "climbed" : "fell"} from #{x.from} to #{x.to} among {catName(x.subcategory).toLowerCase()}{why(x)}.</>,
     <><b>{x.brand}</b> {shortName(x.name, x.brand)}, {catName(x.subcategory)} #{x.from} → #{x.to} {x.gain > 0 ? "상승" : "하락"}{why(x)}.</>);
 
@@ -179,8 +182,8 @@ function BriefPage() {
   // 1. Innisfree
   const aSeller = seller(anchor); const aShare = aSeller ? brandRank(aSeller.subcategory, anchor) : null;
   const aMove = singles.filter((x) => norm(x.brand) === norm(anchor) && Math.abs(x.gain) >= 5).sort((a, b) => score(b) - score(a))[0];
-  const aItems: Item[] = [{ key: "a1", text: tr(<><b>{anchor}</b> has {nowIn(anchor)} products in the top 100 today ({placeMove(anchor) === 0 ? "as many as" : `${Math.abs(placeMove(anchor))} ${placeMove(anchor) > 0 ? "more than" : "fewer than"}`} on {dayMonth(win.start)}).{aSeller && aShare ? <> Its best seller, {shortName(aSeller.name, anchor)}, gives it <b>{pct(aShare.share, 1)}</b> of all {catName(aSeller.subcategory).toLowerCase()} buying (#{aShare.place}).</> : null}</>,
-    <><b>{anchor}</b> 오늘 상위 100위 제품 {nowIn(anchor)}개 ({dayMonth(win.start)} 대비 {placeMove(anchor) === 0 ? "변화 없음" : `${placeMove(anchor) > 0 ? "+" : ""}${placeMove(anchor)}`}).{aSeller && aShare ? <> 베스트셀러 {shortName(aSeller.name, anchor)}로 {catName(aSeller.subcategory)} 구매 전체의 <b>{pct(aShare.share, 1)}</b>({aShare.place}위).</> : null}</>),
+  const aItems: Item[] = [{ key: "a1", text: tr(<><b>{anchor}</b> has {m.shelf.filter((r) => norm(r.brand) === norm(anchor)).length} products in today&rsquo;s top 100s across all {listCount} categories. In the {both.size} categories tracked since {dayMonth(win.start)}: {nowIn(anchor)}, {placeMove(anchor) === 0 ? "as many as" : `${Math.abs(placeMove(anchor))} ${placeMove(anchor) > 0 ? "more than" : "fewer than"}`} then.{aSeller && aShare ? <> Its best seller, {shortName(aSeller.name, anchor)}, gives it <b>{pct(aShare.share, 1)}</b> of all {catName(aSeller.subcategory).toLowerCase()} buying (#{aShare.place} brand there).</> : null}</>,
+    <><b>{anchor}</b>: 오늘 전체 {listCount}개 카테고리 상위 100위 제품 {m.shelf.filter((r) => norm(r.brand) === norm(anchor)).length}개. {dayMonth(win.start)}부터 추적한 카테고리 {both.size}개 기준 {nowIn(anchor)}개 ({dayMonth(win.start)} 대비 {placeMove(anchor) === 0 ? "변화 없음" : `${placeMove(anchor) > 0 ? "+" : ""}${placeMove(anchor)}`}).{aSeller && aShare ? <> 베스트셀러 {shortName(aSeller.name, anchor)}로 {catName(aSeller.subcategory)} 구매 전체의 <b>{pct(aShare.share, 1)}</b>(브랜드 {aShare.place}위).</> : null}</>),
     detail: <BrandQuick brand={anchor} />, news: anchor, go: { href: "/analysis/", label: tr("K-beauty tab", "K-뷰티 탭") } }];
   if (aMove) aItems.push({ key: "a2", text: moveLine(aMove), detail: <ProductQuick pid={aMove.product_id} cat={aMove.subcategory} /> });
   groups.push({ title: anchor, items: aItems });
@@ -188,20 +191,23 @@ function BriefPage() {
   const korean = [...new Set(m.shelf.filter((r) => r.origin === "kbeauty").map((r) => r.brand))].filter((b) => norm(b) !== norm(anchor));
   const kMoves = korean.map((b) => ({ b, d: placeMove(b) })).sort((a, b) => b.d - a.d);
   const kUp = kMoves[0]?.d > 0 ? kMoves[0] : null; const kDown = kMoves[kMoves.length - 1]?.d < 0 ? kMoves[kMoves.length - 1] : null;
-  const kClimb = singles.filter((x) => m.originOf(x.brand) === "kbeauty" && norm(x.brand) !== norm(anchor) && x.gain >= 5).sort((a, b) => score(b) - score(a))[0];
+  const kClimb = singles.filter((x) => m.originOf(x.brand) === "kbeauty" && norm(x.brand) !== norm(anchor) && x.gain >= 5 && !paidMove(x)).sort((a, b) => score(b) - score(a))[0];
   const kItems: Item[] = [];
-  if (kUp || kDown) kItems.push({ key: "k1", text: tr(<>{kUp ? <><b>{kUp.b}</b> gained the most products in the top 100 among Korean brands (+{kUp.d}, now {nowIn(kUp.b)})</> : null}{kUp && kDown ? "; " : ""}{kDown ? <><b>{kDown.b}</b> lost the most ({kDown.d}, now {nowIn(kDown.b)})</> : null}.</>,
+  if (kUp || kDown) kItems.push({ key: "k1", text: tr(<>{kUp ? <><b>{kUp.b}</b> gained the most products in those top 100s among Korean brands (+{kUp.d}, now {nowIn(kUp.b)})</> : null}{kUp && kDown ? "; " : ""}{kDown ? <><b>{kDown.b}</b> lost the most ({kDown.d}, now {nowIn(kDown.b)})</> : null}.</>,
     <>{kUp ? <>K-뷰티 브랜드 중 <b>{kUp.b}</b>: 상위 100위 제품 최다 증가(+{kUp.d}, 현재 {nowIn(kUp.b)})</> : null}{kUp && kDown ? "; " : ""}{kDown ? <><b>{kDown.b}</b> 최다 감소({kDown.d}, 현재 {nowIn(kDown.b)})</> : null}.</>), detail: <BrandQuick brand={(kUp ?? kDown)!.b} />, news: (kUp ?? kDown)!.b });
   if (kClimb) kItems.push({ key: "k2", text: moveLine(kClimb), detail: <ProductQuick pid={kClimb.product_id} cat={kClimb.subcategory} />, news: kClimb.brand });
   if (kItems.length) groups.push({ title: tr("Korean brands", "K-뷰티 브랜드"), items: kItems });
   // 3. the market
-  const climber = singles.filter((x) => x.gain >= 5).sort((a, b) => score(b) - score(a))[0];
-  const faller = singles.filter((x) => x.gain <= -5).sort((a, b) => score(b) - score(a))[0];
+  // the market's biggest climb and fall leave out bought placements (a sponsored spot, a Nykaa pin): audit 19 Oct found
+  // the "biggest climb" was a product Nykaa had pinned at #1
+  const shown = new Set([aMove?.key, kClimb?.key].filter(Boolean));
+  const climber = singles.filter((x) => x.gain >= 5 && !paidMove(x) && !shown.has(x.key)).sort((a, b) => score(b) - score(a))[0];
+  const faller = singles.filter((x) => x.gain <= -5 && !paidMove(x) && !shown.has(x.key)).sort((a, b) => score(b) - score(a))[0];
   const homeDay = (home.data ?? []).reduce((a, x) => (x.scrape_date > a ? x.scrape_date : a), "");
-  const liveSales = runs.filter((r) => r.end === homeDay && (r.kind === "sale" || r.kind === "campaign"));
+  const liveSales = runs.filter((r) => r.end === homeDay && (r.kind === "sale" || r.kind === "campaign")).sort((a, b) => (a.kind === "sale" ? 0 : 1) - (b.kind === "sale" ? 0 : 1));
   const mItems: Item[] = [];
-  if (climber) mItems.push({ key: "m1", text: <>{tr("Biggest climb: ", "최대 상승: ")}{moveLine(climber)}</>, detail: <ProductQuick pid={climber.product_id} cat={climber.subcategory} />, news: climber.brand });
-  if (faller) mItems.push({ key: "m2", text: <>{tr("Biggest fall: ", "최대 하락: ")}{moveLine(faller)}</>, detail: <ProductQuick pid={faller.product_id} cat={faller.subcategory} />, news: faller.brand });
+  if (climber) mItems.push({ key: "m1", text: <>{tr("Biggest climb not bought with a sponsored spot or a pin: ", "광고·고정 배치 제외 최대 상승: ")}{moveLine(climber)}</>, detail: <ProductQuick pid={climber.product_id} cat={climber.subcategory} />, news: climber.brand });
+  if (faller) mItems.push({ key: "m2", text: <>{tr("Biggest fall not caused by a sponsored spot ending: ", "광고 종료 제외 최대 하락: ")}{moveLine(faller)}</>, detail: <ProductQuick pid={faller.product_id} cat={faller.subcategory} />, news: faller.brand });
   if (homeDay) mItems.push({ key: "m3", text: tr(<>Nykaa&rsquo;s homepage on {dayMonth(homeDay)}: {liveSales.length ? <b>{liveSales.map((r) => r.label).slice(0, 3).join(", ")}</b> : "no sale banner"}.</>, <>{dayMonth(homeDay)} Nykaa 홈페이지: {liveSales.length ? <b>{liveSales.map((r) => r.label).slice(0, 3).join(", ")}</b> : "세일 배너 없음"}.</>),
     detail: null, go: { href: "/offers/", label: tr("Offers & events", "프로모션·이벤트") } });
   if (mItems.length) groups.push({ title: tr("The whole market", "시장 전체"), items: mItems });
@@ -216,7 +222,7 @@ function BriefPage() {
 
       <ActionSection id="scope" kicker={tr("What we track", "추적 범위")}
         title={scope ? tr(`Inside ${scope.lists} Nykaa categories: ${scope.selling.brands.toLocaleString("en-IN")} brands sell, ${scope.top100.brands} reach a top 100 today, ${scope.followed.brands} are followed month by month`, `Nykaa 카테고리 ${scope.lists}개 안: 판매 브랜드 ${scope.selling.brands.toLocaleString("en-IN")}개, 오늘 상위 100위 안 ${scope.top100.brands}개, 월별 추적 ${scope.followed.brands}개`) : tr("What we track", "추적 범위")}
-        note={tr(<>We count two things, brands and products, in three groups. Every number on every tab comes from one of these depths, and each tab says which at the top. Read nightly since 13 Sep 2026{scope?.day ? `; latest ${dayMonth(scope.day)}` : ""}.</>,
+        note={tr(<>We count two things, brands and products, in three groups. Every number on every tab comes from one of these groups, and each tab says which at the top. Read nightly since 13 Sep 2026{scope?.day ? `; latest ${dayMonth(scope.day)}` : ""}.</>,
           <>브랜드와 제품 두 가지를 세 그룹으로 집계. 모든 탭의 숫자는 이 중 한 단계에서 나오고, 각 탭 상단에 어느 단계인지 표시. 2026년 9월 13일부터 매일 밤 수집{scope?.day ? `, 최근 ${dayMonth(scope.day)}` : ""}.</>)}>
         <ScopePanel />
       </ActionSection>
@@ -375,11 +381,11 @@ function BriefPage() {
         calc: [
           tr(`Won: ₹ crore × ${KRW_PER_INR} ÷ 10 = 억원 (planning rate ₹1 = ₩${KRW_PER_INR}). 3-year growth rate: (FY26 ÷ FY23)^(1/3) − 1. Latest 12 months: the last four reported quarters added.`, `원화: ₹ crore × ${KRW_PER_INR} ÷ 10 = 억원 (기획 환율 ₹1 = ₩${KRW_PER_INR}). 3년 연평균 성장률: (FY26 ÷ FY23)^(1/3) − 1. 최근 12개월: 최근 발표 4개 분기 합.`),
           tr("Our growth (the same rule on product, brand and Nykaa level): written reviews in a quarter against the same quarter a year earlier, only products that already had reviews a year earlier. Products launched since are left out, because the products we track are picked from today's lists. Nykaa-level estimate: K-beauty, Indian and global growth, each weighted by that origin's share of daily buying in today's top 100s (unclassified brands carry no weight; an origin with fewer than 10 products is left out).", "우리 성장률 (제품·브랜드·Nykaa 전체 동일 기준): 분기 작성 리뷰를 전년 같은 분기와 비교, 1년 전에도 리뷰가 있던 제품만. 이후 출시 제품은 제외 (추적 제품이 오늘 목록에서 뽑혔기 때문). Nykaa 전체 추정: K-뷰티·인도·글로벌 성장률을 오늘 상위 100위의 출신별 일 구매 점유율로 가중 (미분류 브랜드는 가중치 없음, 제품 10개 미만 출신은 제외)."),
-          ...BUYING_METHOD().calc,
+          ...BUYING_METHOD(m.flowSpan).calc,
           tr("Across categories (e.g. Nykaa's own brands' share): each category's buying is divided by its number of rating days, then added.", "카테고리 합계(예: Nykaa 자체 브랜드 비중): 카테고리별 구매를 평가 일수로 나눈 뒤 합산."),
         ],
-        assume: [...BUYING_METHOD().assume, tr("Nykaa's claims are taken as stated; where Nykaa doesn't define a group (derma brands), we use our own list and say so.", "Nykaa 발표는 그대로 인용. Nykaa가 정의하지 않은 그룹(더마 브랜드)은 자체 목록을 쓰고 그렇게 명시.")],
-        limits: [...BUYING_METHOD().limits, tr(`Our ${listCount} lists are about 1 in 8 of Nykaa's brands, so Nykaa-wide shares (derma, Nykaa's own brands) can differ from ours for that reason alone.`, `우리 ${listCount}개 목록은 Nykaa 브랜드의 약 8분의 1 → Nykaa 전체 비중(더마, 자체 브랜드)과는 이 이유만으로도 다를 수 있음.`)],
+        assume: [...BUYING_METHOD(m.flowSpan).assume, tr("Nykaa's claims are taken as stated; where Nykaa doesn't define a group (derma brands), we use our own list and say so.", "Nykaa 발표는 그대로 인용. Nykaa가 정의하지 않은 그룹(더마 브랜드)은 자체 목록을 쓰고 그렇게 명시.")],
+        limits: [...BUYING_METHOD(m.flowSpan).limits, tr(`Our ${listCount} lists are about 1 in 8 of Nykaa's brands, so Nykaa-wide shares (derma, Nykaa's own brands) can differ from ours for that reason alone.`, `우리 ${listCount}개 목록은 Nykaa 브랜드의 약 8분의 1 → Nykaa 전체 비중(더마, 자체 브랜드)과는 이 이유만으로도 다를 수 있음.`)],
       }} />
     </Shell>
   );

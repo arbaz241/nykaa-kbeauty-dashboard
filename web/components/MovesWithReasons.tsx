@@ -29,7 +29,8 @@ export default function MovesWithReasons() {
     // moves from the median of the first three days to the median of the last three (single days are noisy)
     const withMove = flow.filter((r) => r.rankStart !== null && r.rankEnd !== null && inScope(r)).flatMap((r) => {
       const mv = smoothedMove(ix, `${r.subcategory}|${r.product_id}`, win.start, win.end);
-      return mv ? [{ r: { ...r, rankStart: mv.from, rankEnd: mv.to }, d: mv.from - mv.to }] : [];
+      // a product in a sponsored or pinned spot nearly every day has no rank of its own to move (audit 19 Oct)
+      return mv && !mv.bought ? [{ r: { ...r, rankStart: mv.from, rankEnd: mv.to }, d: mv.from - mv.to }] : [];
     });
     const explain = (r: FlowRow, up: boolean): Reason[] => explainMove({ key: `${r.subcategory}|${r.product_id}`, productId: r.product_id, brand: r.brand, start: win.start, end: win.end, ix,
       events: events.data ?? [], runs, offers: offers.data ?? [], dims, firstReview: dims.get(r.product_id)?.first_review_date ?? null, up });

@@ -72,9 +72,9 @@ function MarketPage() {
       <MethodNotes parts={{
         sources: [tr(`Nykaa's top 100 of each of the ${CATEGORIES.length} lists, read every night (lists added later start on their own first day); Nykaa's brand filter for each list (every brand selling in it, from 17 Oct); each product's Nykaa category label.`, `${CATEGORIES.length}개 목록 각각의 Nykaa 상위 100위(매일 밤, 나중에 추가된 목록은 그날부터), 목록별 Nykaa 브랜드 필터(판매 브랜드 전체, 10월 17일부터), 제품별 Nykaa 카테고리 라벨.`),
           tr("“Cleansing balm” is still collected but not shown: Nykaa's page is mostly makeup removers and wipes (owner, 18 Oct).", "“클렌징 밤”은 수집만 하고 표시 안 함: Nykaa 페이지가 대부분 메이크업 리무버·티슈 (10월 18일 결정).")],
-        calc: [...BUYING_METHOD().calc, tr("Brands selling: Nykaa's own brand filter for the list; a brand selling in several lists counts once in the total. Moves: middle of the first three days to the middle of the last three.", "판매 브랜드: 목록별 Nykaa 브랜드 필터, 여러 목록 판매 브랜드는 합계에서 한 번만. 변화: 처음 3일 중앙값 → 마지막 3일 중앙값.")],
-        assume: BUYING_METHOD().assume,
-        limits: BUYING_METHOD().limits,
+        calc: [...BUYING_METHOD(m.flowSpan).calc, tr("Brands selling: Nykaa's own brand filter for the list; a brand selling in several lists counts once in the total. Moves: middle of the first three days to the middle of the last three.", "판매 브랜드: 목록별 Nykaa 브랜드 필터, 여러 목록 판매 브랜드는 합계에서 한 번만. 변화: 처음 3일 중앙값 → 마지막 3일 중앙값.")],
+        assume: BUYING_METHOD(m.flowSpan).assume,
+        limits: BUYING_METHOD(m.flowSpan).limits,
       }} />
     </Shell>
   );

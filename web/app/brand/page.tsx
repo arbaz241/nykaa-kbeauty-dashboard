@@ -198,9 +198,9 @@ function Brand() {
       <MethodNotes parts={{
         sources: [tr("Nykaa's top 100 of each tracked category, read nightly since 13 Sep (later for lists added since); the brand's product pages for offers; Nykaa's homepage; Nykaa search results; written reviews on the brand's tracked products.", "추적 카테고리별 Nykaa 상위 100위(9월 13일부터 매일, 나중에 추가된 목록은 그날부터), 브랜드 상품 페이지 프로모션, Nykaa 홈페이지, Nykaa 검색 결과, 브랜드 추적 제품의 작성 리뷰."),
           tr("Outside Nykaa: headlines from Google News' search feed, read nightly for the main brands and the day's movers.", "Nykaa 밖: Google News 검색 피드 헤드라인. 주요 브랜드와 당일 급변 브랜드를 매일 밤 수집.")],
-        calc: [...BUYING_METHOD().calc, tr("Best seller: the brand's product with the most buying in the period. Moves: middle of the first three days to the middle of the last three.", "베스트셀러: 기간 중 구매가 가장 많은 브랜드 제품. 변화: 처음 3일 중앙값 → 마지막 3일 중앙값.")],
-        assume: BUYING_METHOD().assume,
-        limits: [...BUYING_METHOD().limits, tr("Headlines are matched by the brand's name; one may be about something else, and none proves why a product moved.", "헤드라인은 브랜드 이름으로 찾기 때문에 다른 내용일 수 있고, 순위 변화의 원인을 증명하지 않음.")],
+        calc: [...BUYING_METHOD(m.flowSpan).calc, tr("Best seller: the brand's product with the most buying in the period. Moves: middle of the first three days to the middle of the last three.", "베스트셀러: 기간 중 구매가 가장 많은 브랜드 제품. 변화: 처음 3일 중앙값 → 마지막 3일 중앙값.")],
+        assume: BUYING_METHOD(m.flowSpan).assume,
+        limits: [...BUYING_METHOD(m.flowSpan).limits, tr("Headlines are matched by the brand's name; one may be about something else, and none proves why a product moved.", "헤드라인은 브랜드 이름으로 찾기 때문에 다른 내용일 수 있고, 순위 변화의 원인을 증명하지 않음.")],
       }} />
     </Shell>
   );

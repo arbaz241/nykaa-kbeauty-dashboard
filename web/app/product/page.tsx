@@ -267,9 +267,9 @@ function Product() {
       </ActionSection>
       <MethodNotes parts={{
         sources: [tr("Nykaa's top 100 of each tracked category (nightly), the product's Nykaa page (details, buyers' review highlights), Nykaa's homepage and search results, its written reviews by month.", "추적 카테고리별 Nykaa 상위 100위(매일), 제품의 Nykaa 페이지(상세, 리뷰 요약), Nykaa 홈페이지와 검색 결과, 월별 작성 리뷰.")],
-        calc: [...BUYING_METHOD().calc, tr("Rank: place among the category's own products; Nykaa's page position shown next to it when different. Move: middle of the first three days to the middle of the last three; reasons are what changed on the same dates.", "순위: 카테고리 자체 제품 중 위치(다르면 Nykaa 페이지 순위를 함께 표시). 변화: 처음 3일 중앙값 → 마지막 3일 중앙값, 이유는 같은 날 달라진 것.")],
-        assume: BUYING_METHOD().assume,
-        limits: [...BUYING_METHOD().limits, tr("Reasons for a move are what changed at the same time, not proof.", "변화 이유 = 같은 시기에 달라진 것일 뿐, 증거 아님.")],
+        calc: [...BUYING_METHOD(m.flowSpan).calc, tr("Rank: place among the category's own products; Nykaa's page position shown next to it when different. Move: middle of the first three days to the middle of the last three; reasons are what changed on the same dates.", "순위: 카테고리 자체 제품 중 위치(다르면 Nykaa 페이지 순위를 함께 표시). 변화: 처음 3일 중앙값 → 마지막 3일 중앙값, 이유는 같은 날 달라진 것.")],
+        assume: BUYING_METHOD(m.flowSpan).assume,
+        limits: [...BUYING_METHOD(m.flowSpan).limits, tr("Reasons for a move are what changed at the same time, not proof.", "변화 이유 = 같은 시기에 달라진 것일 뿐, 증거 아님.")],
       }} />
     </Shell>
   );

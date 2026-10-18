@@ -235,6 +235,9 @@ export interface DailyIndex {
   catStart: Map<string, string>;
   /** "cat|pid" -> rows, oldest first */
   series: Map<string, ShelfDay[]>;
+  /** "day|cat|pid" pinned by Nykaa to the top of its list that day. The daily view has no pin flag (audit 19 Oct:
+   *  Nykaa pins 77-104 products a day, so a pin starting or ending read as a move with no cause). */
+  pinned?: Set<string>;
 }
 export function indexDaily(all: ShelfDay[]): DailyIndex {
   const byDay = new Map<string, Map<string, ShelfDay>>(); const catStart = new Map<string, string>(); const series = new Map<string, ShelfDay[]>();
@@ -504,12 +507,19 @@ export function explainMove(args: {
 
 /** A listing's move over a period, from the median rank of its first three collected days to that of its last
  *  three: Nykaa's daily order jumps around (a product can sit at #74 one day and #6 the next), so single days mislead. */
-export function smoothedMove(ix: DailyIndex, key: string, start: string, end: string): { from: number; to: number; days: number } | null {
-  const s = (ix.series.get(key) ?? []).filter((r) => r.scrape_date >= start && r.scrape_date <= end);
+export function smoothedMove(ix: DailyIndex, key: string, start: string, end: string): { from: number; to: number; days: number; bought: boolean } | null {
+  const all = (ix.series.get(key) ?? []).filter((r) => r.scrape_date >= start && r.scrape_date <= end);
+  // days the product sat in a bought spot (a sponsored tile, or pinned to the top by Nykaa) are placements, not its
+  // own rank: Nykaa switches pins on and off from day to day (audit 19 Oct: Plum's toner at #1-3 when pinned,
+  // #37-46 when not), so they are left out of the medians. A product in a bought spot nearly every day keeps those
+  // ranks and is flagged.
+  const open = all.filter((r) => !r.is_ad && !ix.pinned?.has(`${r.scrape_date}|${key}`));
+  const bought = open.length < 4 && open.length < all.length;
+  const s = bought ? all : open;
   if (s.length < 4) return null;
   const med = (xs: number[]) => { const a = [...xs].sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
   const n = Math.min(3, Math.floor(s.length / 2));
-  return { from: med(s.slice(0, n).map((r) => r.rank)), to: med(s.slice(-n).map((r) => r.rank)), days: s.length };
+  return { from: med(s.slice(0, n).map((r) => r.rank)), to: med(s.slice(-n).map((r) => r.rank)), days: s.length, bought };
 }
 
 export const REASON_COLOR: Record<Reason["kind"], string> = {

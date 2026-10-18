@@ -1,6 +1,7 @@
 import { norm } from "./brands";
 import { explainMove, homepageRuns, smoothedMove, type DailyIndex, type Dim, type FlowRow, type PoolProduct, type Reason, type Run } from "./market";
 import { addDays, monthWindow } from "./period";
+import { tr } from "./i18n";
 import type { BrandOffer, HomepageFeature, MarketEvent, ShelfDay } from "./types";
 
 /** Shared reads for the brand page, the product page and the Brief (plan v2, 17 Oct 2026): one place computes what
@@ -40,7 +41,8 @@ export function listingMove(c: Context, cat: string, pid: string): ListingMove |
   const to = left ? null : sm ? sm.to : onEnd ? series[series.length - 1].rank : null;
   const gain = from !== null && to !== null ? from - to : entered && to !== null ? 101 - to : left && from !== null ? from - 101 : 0;
   const why = Math.abs(gain) >= 5 && !entered && !left
-    ? explainMove({ key, productId: pid, brand, start, end: c.end, ix: c.ix, events: c.events, runs: c.runs, offers: c.offers, dims: c.dims, firstReview: dim?.first_review_date ?? null, up: gain > 0 })
+    ? [...(sm?.bought ? [{ kind: "paid" as const, strength: 5, text: tr("it sat in a sponsored or pinned spot on most days (a bought placement, not sales)", "대부분의 날 광고·고정 자리 (판매가 아닌 구매한 배치)") }] : []),
+       ...explainMove({ key, productId: pid, brand, start, end: c.end, ix: c.ix, events: c.events, runs: c.runs, offers: c.offers, dims: c.dims, firstReview: dim?.first_review_date ?? null, up: gain > 0 })]
     : [];
   return { key, product_id: pid, subcategory: cat, brand, name: dim?.name ?? pid, from, to, gain, entered, left, why, series };
 }
