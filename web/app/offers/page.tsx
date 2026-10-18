@@ -1,5 +1,6 @@
 "use client";
 
+import MethodNotes from "@/components/MethodNotes";
 import { useMemo } from "react";
 import AuthGate from "@/components/AuthGate";
 import Shell from "@/components/Shell";
@@ -22,7 +23,7 @@ import type { BrandOffer } from "@/lib/types";
 const NAV = (): NavItem[] => [
   { id: "summary", label: tr("In one line", "요약") }, { id: "discounts", label: tr("Who discounts most", "할인 깊이") }, { id: "cuts", label: tr("Price cuts in the period", "기간 중 가격 인하") },
   { id: "calendar", label: tr("Sales calendar", "세일 캘린더") }, { id: "offers", label: tr("Brand offers", "브랜드 프로모션") },
-  { id: "tags", label: tr("Offers on the shelf", "진열 프로모션") }, { id: "effect", label: tr("Do offers move rank?", "프로모션 효과") }, { id: "events", label: tr("Event log", "이벤트 기록") },
+  { id: "tags", label: tr("Offers on the shelf", "진열 프로모션") }, { id: "effect", label: tr("Do offers move rank?", "프로모션 효과") }, { id: "events", label: tr("Event log", "이벤트 기록") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
 const KIND_CHIP: Record<OfferKind, string> = { percent: "bg-[#e9eff5] text-[#3d5670]", bogo: "bg-[#e4f0eb] text-[#1f5646]", gift: "bg-[#faefe2] text-[#8a5a22]", members: "bg-sunken text-muted", other: "bg-sunken text-muted" };
 
@@ -245,6 +246,14 @@ function OffersPage() {
       )}
 
       <EventLog />
+      <MethodNotes parts={{
+        sources: [tr("Price and printed price (MRP) of every product in the top 100s, every night; offer tags on the lists; the offers on each tracked brand's product page (from 17 Oct); the banners on Nykaa's homepage (from 17 Oct); the event log (owner's entries, homepage sales, estimates marked as such).", "상위 100위 모든 제품의 판매가와 정가(MRP), 매일 밤; 목록의 프로모션 표시; 추적 브랜드 상품 페이지의 프로모션(10월 17일부터); Nykaa 홈페이지 배너(10월 17일부터); 이벤트 기록(직접 입력, 홈페이지 세일, 추정은 표시).")],
+        calc: [tr("Discount = 1 − price ÷ printed price. Median per brand and per origin, over today's top-100 products.", "할인율 = 1 − 판매가 ÷ 정가. 오늘 상위 100위 제품 기준 브랜드별·국적별 중앙값."),
+          tr("A price cut counts only when the printed price stayed the same at both ends of the period (otherwise it's a new pack, not a discount).", "가격 인하는 기간 처음과 끝의 정가가 같을 때만 셉니다(정가가 바뀌면 할인이 아니라 새 포장)."),
+          tr("Do offers move rank: products that gained an offer tag in the period against those that didn't, share that rose 5+ places.", "프로모션 효과: 기간 중 프로모션 표시가 생긴 제품과 아닌 제품의 5계단 이상 상승 비율 비교.")],
+        assume: [tr("The price shown in Nykaa's app is what shoppers pay before coupons and bank offers.", "Nykaa 앱의 표시 가격을 쿠폰·카드 할인 전 실제 가격으로 봅니다.")],
+        limits: [tr("Brand offers and homepage banners have been read only since 17 Oct, so their trends need a few weeks. Sale dates before then are estimates and are marked so.", "브랜드 프로모션과 홈페이지 배너는 10월 17일부터 수집해 추세를 보려면 몇 주가 필요합니다. 그 이전 세일 날짜는 추정이며 그렇게 표시합니다.")],
+      }} />
     </Shell>
   );
 }

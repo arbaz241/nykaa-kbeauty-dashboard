@@ -3,15 +3,23 @@
 import useSWR from "swr";
 import { fetchAll, supabase } from "./supabase";
 import { aspectSummary } from "./metrics";
+import { countsIn } from "./market";
 import type { ReviewLite } from "./reviewThemes";
-import type { BrandOffer, CategoryBrand, CategoryStat, HomepageFeature, ShelfDay, ShelfProduct } from "./types";
+import type { BrandOffer, CategoryBrand, CategoryStat, ExternalNews, HomepageFeature, ShelfDay, ShelfProduct } from "./types";
 import type { Availability, BrandShare, CategoryCoverage, Thumbnail, Movement, MarketEvent, ProductDemand, AssortmentRow, BrandDaily, CatalogRow, ProductHistory, ReviewAspect, ReviewMonth, ReviewText, SearchRow, ShareDaily, ShelfRow, Suggestion } from "./types";
 
 const opts = { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 };
 
-/** Tracked category shelves only (Nykaa's Korean Beauty store is a separate storefront, not a category). */
+/** Tracked category shelves only (Nykaa's Korean Beauty store is a separate storefront, not a category).
+ *  Plan v4: only products Nykaa files under the category count, ranked among themselves; Nykaa's own position is
+ *  kept as nykaa_rank (lib/market countsIn). */
 export function useShelf() {
-  return useSWR("shelf", async () => (await fetchAll<ShelfRow>("web_latest_shelf")).filter((r) => r.subcategory !== "kbeauty_store").map(numeric), opts);
+  return useSWR("shelf", async () => ownCategory((await fetchAll<ShelfRow>("web_latest_shelf")).filter((r) => r.subcategory !== "kbeauty_store").map(numeric)), opts);
+}
+export function ownCategory(rows: ShelfRow[]): ShelfRow[] {
+  const by = new Map<string, ShelfRow[]>();
+  for (const r of rows) if (countsIn(r.subcategory, r.nykaa_l3)) { const g = by.get(r.subcategory) ?? []; g.push(r); by.set(r.subcategory, g); }
+  return [...by.values()].flatMap((g) => g.sort((a, b) => a.rank - b.rank).map((r, i) => ({ ...r, rank: i + 1, nykaa_rank: r.rank })));
 }
 export function useKoreanStore() {
   return useSWR("kstore", async () => (await fetchAll<ShelfRow>("web_latest_shelf")).filter((r) => r.subcategory === "kbeauty_store").map(numeric), opts);
@@ -195,3 +203,5 @@ export function useCategoryBrands() {
 }
 export function useHomepage() { return useSWR("homepage", () => fetchAll<HomepageFeature>("web_homepage_features"), opts); }
 export function useBrandOffers() { return useSWR("brand_offers", () => fetchAll<BrandOffer>("web_brand_offers"), opts); }
+/** Outside headlines about the main brands and the day's movers (scraper/news.py, nightly since 18 Oct). */
+export function useExternalNews() { return useSWR("external_news", () => fetchAll<ExternalNews>("web_external_news"), opts); }

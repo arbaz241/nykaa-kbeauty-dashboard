@@ -1,5 +1,6 @@
 "use client";
 
+import MethodNotes from "@/components/MethodNotes";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import AuthGate from "@/components/AuthGate";
@@ -39,8 +40,8 @@ const signed = (v: number | null | undefined) => (v === null || v === undefined 
 const same = (a: string, b: string) => norm(a) === norm(b);
 
 const NAV = (): NavItem[] => [
-  { id: "summary", label: tr("Summary", "요약") }, { id: "demand", label: tr("Demand", "수요") }, { id: "sos", label: tr("Search vs demand", "검색 vs 수요") },
-  { id: "search", label: tr("Search", "검색") }, { id: "ads", label: tr("Ads", "광고") }, { id: "suggest", label: tr("What shoppers type", "소비자 검색어") },
+  { id: "summary", label: tr("Summary", "요약") }, { id: "demand", label: tr("Written reviews", "작성 리뷰") }, { id: "sos", label: tr("Search vs reviews", "검색 vs 리뷰") },
+  { id: "search", label: tr("Search", "검색") }, { id: "ads", label: tr("Ads", "광고") }, { id: "suggest", label: tr("What shoppers type", "소비자 검색어") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
 
 /** Unpaid order from one sample per (day, query); ads counted across samples. */
@@ -227,7 +228,7 @@ function DemandPage() {
 
   /* ---- verdict */
   const gap = anchorSos ? anchorSos.excess : null;
-  const verdict = anchorD ? tr(`${A}'s demand is ${anchorD.growth === null ? "too thinly tracked to read" : `${anchorD.growth >= (mkt ?? 0) ? "growing faster than" : "lagging"} all tracked products (${signed(anchorD.growth)} vs ${signed(mkt)})`}, #${anchorRank} of ${setRanked.length} focus brands by reviews; ${gap === null ? "" : gap < -0.005 ? `but shoppers who search find it less than buyers choose it (${pct(anchorSos!.search)} of search vs ${pct(anchorSos!.demand)} of demand)` : gap > 0.005 ? `and shoppers find it more often than buyers choose it (${pct(anchorSos!.search)} of search vs ${pct(anchorSos!.demand)} of demand), a lead indicator of growth` : `and its search share matches its demand (${pct(anchorSos!.search)})`}.`,
+  const verdict = anchorD ? tr(`${A}'s written reviews are ${anchorD.growth === null ? "too thinly tracked to read" : `${anchorD.growth >= (mkt ?? 0) ? "growing faster than" : "lagging"} all tracked products (${signed(anchorD.growth)} vs ${signed(mkt)})`}, #${anchorRank} of ${setRanked.length} main brands by reviews; ${gap === null ? "" : gap < -0.005 ? `but shoppers who search find it less than buyers choose it (${pct(anchorSos!.search)} of search vs ${pct(anchorSos!.demand)} of written reviews)` : gap > 0.005 ? `and shoppers find it more often than buyers choose it (${pct(anchorSos!.search)} of search vs ${pct(anchorSos!.demand)} of written reviews), a lead indicator of growth` : `and its search share matches its share of written reviews (${pct(anchorSos!.search)})`}.`,
       `${A}의 수요는 ${anchorD.growth === null ? "추적 데이터가 부족해 판단하기 어렵고" : `추적 전체보다 ${anchorD.growth >= (mkt ?? 0) ? "빠르게 성장하고 있으며" : "뒤처지고 있으며"}(${signed(anchorD.growth)}, 시장 ${signed(mkt)})`}, 리뷰 기준 주요 브랜드 ${setRanked.length}개 중 ${anchorRank}위입니다. ${gap === null ? "" : gap < -0.005 ? `다만 구매자가 선택하는 만큼 검색에서는 잘 보이지 않습니다(검색 ${pct(anchorSos!.search)}, 수요 ${pct(anchorSos!.demand)}).` : gap > 0.005 ? `구매자가 선택하는 것보다 검색에서 더 자주 보이며(검색 ${pct(anchorSos!.search)}, 수요 ${pct(anchorSos!.demand)}), 이는 성장의 선행 신호입니다.` : `검색 점유율이 수요 점유율과 비슷합니다(${pct(anchorSos!.search)}).`}`) : "";
   const soWhat = !anchorD ? null : gap !== null && gap < -0.005 ? tr(`Search is the gap: ${A} is outside the unpaid top 10 on ${absent} of ${keywords.length} keywords. Winning those searches is the cheapest demand to add.`, `검색이 약점입니다: ${josa(A, "은/는")} 키워드 ${keywords.length}개 중 ${absent}개에서 비광고 상위 10위 밖입니다. 이 검색어를 가져오는 것이 가장 적은 비용으로 수요를 늘리는 길입니다.`)
     : anchorD.growth !== null && mkt !== null && anchorD.growth < mkt ? tr(`Demand is losing momentum against all tracked products; check its top products' prices and stock first.`, `추적 전체 대비 수요 모멘텀이 약해지고 있습니다. 대표 제품의 가격과 재고부터 확인하세요.`)
@@ -235,7 +236,7 @@ function DemandPage() {
 
   return (
     <Shell active="Demand" asOf={latest ? day(latest) : undefined}>
-      <PageHead eyebrow={tr("Demand & search · step 6", "수요·검색 · 6단계")} title={tr("Demand & search", "수요·검색")} sub={tr(<>Who is selling more (monthly reviews as the sales signal), and who shoppers find when they search on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type. {A} against the {tiers.focus.length} focus brands.</>, <>누가 더 많이 팔고 있는지(월별 리뷰를 판매 신호로 사용), 그리고 Nykaa에서 검색할 때 소비자가 누구를 만나는지: 비광고 결과, 광고, 입력 중 Nykaa 추천 검색어. 주요 브랜드 {tiers.focus.length}곳과 비교한 {A}.</>)} />
+      <PageHead eyebrow={tr("Demand & search", "수요·검색")} title={tr("Demand & search", "수요·검색")} sub={tr(<>Who is gaining written reviews fastest (a 12-month trend, since ratings froze on 10 Oct), and who shoppers find when they search on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type. {A} against the {tiers.focus.length} main brands.</>, <>작성 리뷰가 가장 빠르게 느는 브랜드(12개월 추세), 그리고 Nykaa에서 검색할 때 소비자가 누구를 만나는지: 비광고 결과, 광고, 입력 중 Nykaa 추천 검색어. 주요 브랜드 {tiers.focus.length}곳과 비교한 {A}.</>)} />
       {(!months.data || !hist.data || !demandView.data) ? <Loading what={tr("demand and search data", "수요·검색 데이터")} /> : (
         <>
           <SectionNav items={NAV()} />
@@ -243,9 +244,9 @@ function DemandPage() {
           <section id="summary" className="mt-6 scroll-mt-32">
             {verdict && <Verdict eyebrow={tr(<>Verdict for {A}</>, <>{A} 종합 판단</>)} points={(tr([
               <><b className="text-on-brand">Demand:</b> {compact(anchorD?.last3 ?? 0)} reviews in {dw.recent} ({pct((anchorD?.last3 ?? 0) / Math.max(1, demTot))} of all tracked reviews). Top {A} product: {topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A) : "none tracked"}.</>,
-              up && dn ? <><b className="text-on-brand">Focus rivals:</b> {up.brand} rose fastest ({signed(up.growth)}, {compact(up.prev3)} → {compact(up.last3)} reviews); {dn.brand} fell hardest ({signed(dn.growth)}, {compact(dn.prev3)} → {compact(dn.last3)}).</> : null,
+              up && dn ? <><b className="text-on-brand">Main brands:</b> {up.brand} rose fastest ({signed(up.growth)}, {compact(up.prev3)} → {compact(up.last3)} reviews); {dn.brand} fell hardest ({signed(dn.growth)}, {compact(dn.prev3)} → {compact(dn.last3)}).</> : null,
               <><b className="text-on-brand">Search:</b> outside the unpaid top 10 on {absent} of {keywords.length} keywords; {anchorS?.top5 ?? 0} unpaid top-5 places today.</>,
-              <><b className="text-on-brand">Ads:</b> {anchorS?.ads ?? 0} of {totalAds} ad slots today; the focus brands hold {pct(focusAds / Math.max(1, totalAds), 0)}, led by {topAdv?.brand ?? "none"} ({topAdv?.ads ?? 0}).</>,
+              <><b className="text-on-brand">Ads:</b> {anchorS?.ads ?? 0} of {totalAds} ad slots today; the main brands hold {pct(focusAds / Math.max(1, totalAds), 0)}, led by {topAdv?.brand ?? "none"} ({topAdv?.ads ?? 0}).</>,
             ], [
               <><b className="text-on-brand">수요:</b> {dw.recent} 리뷰 {compact(anchorD?.last3 ?? 0)}건 (추적 전체 리뷰의 {pct((anchorD?.last3 ?? 0) / Math.max(1, demTot))}). {A} 대표 제품: {topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A) : "추적 제품 없음"}.</>,
               up && dn ? <><b className="text-on-brand">주요 경쟁사:</b> 가장 빠른 상승은 {up.brand}({signed(up.growth)}, 리뷰 {compact(up.prev3)} → {compact(up.last3)}건), 가장 큰 하락은 {dn.brand}({signed(dn.growth)}, {compact(dn.prev3)} → {compact(dn.last3)}건).</> : null,
@@ -255,18 +256,18 @@ function DemandPage() {
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <Kpi href="#demand" label={tr(`${A} reviews, last 3 months`, `${A} 최근 3개월 리뷰`)} value={anchorD?.last3 != null ? compact(anchorD.last3) : <Missing>{tr("not tracked", "추적 안 됨")}</Missing>}
                 sub={anchorD ? <>{tr("Growth", "성장률")} <b className={anchorD.growth !== null && mkt !== null && anchorD.growth >= mkt ? "text-good" : "text-bad"}>{signed(anchorD.growth)}</b> {tr(`vs all tracked ${signed(mkt)}`, `(추적 전체 ${signed(mkt)})`)}</> : undefined} basis={period} />
-              <Kpi href="#demand" label={tr("Fastest-rising focus brand", "가장 빠르게 상승한 주요 브랜드")} value={up?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="good" sub={up ? tr(<>{signed(up.growth)}: {compact(up.prev3)} → {compact(up.last3)} reviews</>, <>{signed(up.growth)}: 리뷰 {compact(up.prev3)} → {compact(up.last3)}건</>) : undefined} basis={period} />
-              <Kpi href="#demand" label={tr("Sharpest decline, focus brands", "가장 크게 하락한 주요 브랜드")} value={dn?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="bad" sub={dn ? tr(<>{signed(dn.growth)}: {compact(dn.prev3)} → {compact(dn.last3)} reviews</>, <>{signed(dn.growth)}: 리뷰 {compact(dn.prev3)} → {compact(dn.last3)}건</>) : undefined} basis={period} />
-              <Kpi href="#demand" label={tr("Top focus product by demand", "수요 1위 주요 브랜드 제품")} value={topFocusProduct?.brand ?? <Missing>{tr("none tracked", "추적 제품 없음")}</Missing>} sub={topFocusProduct ? tr(`${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · ${compact(topFocusProduct.last3)} reviews`, `${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · 리뷰 ${compact(topFocusProduct.last3)}건`) : undefined} basis={tr("reviews, last 3 complete months", "최근 완결된 3개월 리뷰")} />
+              <Kpi href="#demand" label={tr("Fastest-rising main brand, written reviews", "작성 리뷰가 가장 빠르게 는 주요 브랜드")} value={up?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="good" sub={up ? tr(<>{signed(up.growth)}: {compact(up.prev3)} → {compact(up.last3)} reviews</>, <>{signed(up.growth)}: 리뷰 {compact(up.prev3)} → {compact(up.last3)}건</>) : undefined} basis={period} />
+              <Kpi href="#demand" label={tr("Sharpest decline, main brands", "가장 크게 하락한 주요 브랜드")} value={dn?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="bad" sub={dn ? tr(<>{signed(dn.growth)}: {compact(dn.prev3)} → {compact(dn.last3)} reviews</>, <>{signed(dn.growth)}: 리뷰 {compact(dn.prev3)} → {compact(dn.last3)}건</>) : undefined} basis={period} />
+              <Kpi href="#demand" label={tr("Top main-brand product by written reviews", "작성 리뷰 1위 주요 브랜드 제품")} value={topFocusProduct?.brand ?? <Missing>{tr("none tracked", "추적 제품 없음")}</Missing>} sub={topFocusProduct ? tr(`${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · ${compact(topFocusProduct.last3)} reviews`, `${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · 리뷰 ${compact(topFocusProduct.last3)}건`) : undefined} basis={tr("reviews, last 3 complete months", "최근 완결된 3개월 리뷰")} />
               <Kpi href="#sos" label={tr(`${A}: search vs demand`, `${A}: 검색 vs 수요`)} value={anchorSos ? `${pct(anchorSos.search)} vs ${pct(anchorSos.demand)}` : <Missing>{tr("not tracked", "추적 안 됨")}</Missing>} sub={anchorSos ? (anchorSos.excess >= 0 ? tr("search ahead of demand", "검색이 수요보다 앞섬") : tr("search behind demand", "검색이 수요보다 뒤처짐")) : undefined} basis={tr("unpaid top 10 today vs reviews, 3 months", "오늘 비광고 상위 10 vs 3개월 리뷰")} />
-              <Kpi href="#ads" label={tr(`${A} ad slots today`, `${A} 오늘 광고 자리`)} value={tr(`${anchorS?.ads ?? 0} of ${totalAds}`, `${totalAds}개 중 ${anchorS?.ads ?? 0}개`)} sub={tr(`focus brands hold ${pct(focusAds / Math.max(1, totalAds), 0)}`, `주요 브랜드 비중 ${pct(focusAds / Math.max(1, totalAds), 0)}`)} basis={tr(`first 20 results of ${keywords.length} keywords`, `키워드 ${keywords.length}개의 첫 20개 결과`)} />
+              <Kpi href="#ads" label={tr(`${A} ad slots today`, `${A} 오늘 광고 자리`)} value={tr(`${anchorS?.ads ?? 0} of ${totalAds}`, `${totalAds}개 중 ${anchorS?.ads ?? 0}개`)} sub={tr(`main brands hold ${pct(focusAds / Math.max(1, totalAds), 0)}`, `주요 브랜드 비중 ${pct(focusAds / Math.max(1, totalAds), 0)}`)} basis={tr(`first 20 results of ${keywords.length} keywords`, `키워드 ${keywords.length}개의 첫 20개 결과`)} />
             </div>
-            {outliers.length > 0 && <p className="mt-2 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the focus set:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.last3)}건`)})</span>)}.</p>}
+            {outliers.length > 0 && <p className="mt-2 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the main brands:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.last3)}건`)})</span>)}.</p>}
           </section>
 
           <p className="mt-6 text-[13px] text-muted">{tr(<>Rank moves and their reasons now sit with the products: in <Link href="/categories/" className="underline underline-offset-2">Categories</Link> for each category, and on every brand and product page.</>, <>순위 변화와 이유는 이제 제품과 함께 있습니다: <Link href="/categories/" className="underline underline-offset-2">카테고리</Link>별, 그리고 각 브랜드·제품 페이지.</>)}</p>
 
-          <ActionSection id="demand" kicker={tr("Demand · who is selling more", "수요 · 누가 더 팔고 있나")} title={tr(`${up ? `Among the focus brands, ${up.brand} is rising fastest (${signed(up.growth)}) and ${dn?.brand} falling hardest (${signed(dn?.growth)})` : "Demand by brand"}; ${A} is ${anchorD?.growth != null ? `${signed(anchorD.growth)} against a market ${signed(mkt)}` : "not tracked"}.`,
+          <ActionSection id="demand" kicker={tr("Written reviews · who is gaining fastest", "작성 리뷰 · 누가 가장 빨리 느는가")} title={tr(`${up ? `Among the main brands, ${up.brand} is rising fastest (${signed(up.growth)}) and ${dn?.brand} falling hardest (${signed(dn?.growth)})` : "Written reviews by brand"}; ${A} is ${anchorD?.growth != null ? `${signed(anchorD.growth)} against all tracked products' ${signed(mkt)}` : "not tracked"}.`,
               `${up ? `주요 브랜드 중 ${josa(up.brand, "이/가")} 가장 빠르게 상승(${signed(up.growth)})하고 ${josa(dn?.brand ?? "", "이/가")} 가장 크게 하락(${signed(dn?.growth)})했습니다` : "브랜드별 수요"}. ${A}: ${anchorD?.growth != null ? `${signed(anchorD.growth)} (추적 전체 ${signed(mkt)})` : "추적 안 됨"}.`)}
             note={tr(<>Monthly reviews track sales. <Def k="growth">Growth</Def> = reviews in {period}, counting only products whose history reaches back to {dw.prior} (the same months a year earlier). Shaded bands and markers explain the spikes; red markers flag a jump with no logged cause. <Opens detail={{ kicker: "Method", title: "How demand is measured", body: <Points items={["Nykaa does not publish sales; buyers write reviews at a steady rate, so monthly review volume tracks sales momentum.", "Dates are the reviews' own dates on Nykaa, read from each product's history, so the comparison is not limited by how long we have been collecting.", "Nykaa serves about 1,000 reviews per product, so for big bestsellers only recent months are complete; earlier months are left blank rather than counted as zero.", "Products are those on today's shelves and catalogues, so growth reads slightly high across the board; compare a brand with the all-tracked line, not with zero.", `July holds Nykaa's Hot Pink sale; May a smaller probable sale. Index view compares every brand with its own ${monthYY(win[6])}–${monthYY(win[8])} average.`]} /> }}>Method</Opens></>,
               <>월별 리뷰는 판매를 따라갑니다. <Def k="growth">성장률</Def> = {period} 리뷰, {dw.prior}(전년 동기)까지 이력이 있는 제품만 셉니다. 음영과 표시선이 급등락의 이유를 보여 주며, 빨간 표시선은 기록된 원인이 없는 급등입니다. <Opens detail={{ kicker: "방법", title: "수요 측정 방법", body: <Points items={["Nykaa는 판매량을 공개하지 않습니다. 구매자는 일정한 비율로 리뷰를 쓰므로, 월별 리뷰 수가 판매 흐름을 따라갑니다.", "날짜는 각 제품 이력에서 읽은 Nykaa 리뷰 작성일이므로, 수집 기간이 짧아도 과거와 비교할 수 있습니다.", "Nykaa는 제품당 리뷰를 약 1,000건까지만 보여 주므로, 대형 베스트셀러는 최근 몇 달만 완전합니다. 그 이전 달은 0으로 세지 않고 비워 둡니다.", "대상 제품은 오늘의 진열 목록과 카탈로그에 있는 제품이라 성장률이 전반적으로 약간 높게 나옵니다. 0이 아니라 시장선과 비교하세요.", `7월에는 Nykaa Hot Pink sale이, 5월에는 그보다 작은 세일(추정)이 있었습니다. 지수 보기는 브랜드마다 자신의 ${monthYY(win[6])}–${monthYY(win[8])} 평균과 비교합니다.`]} /> }}>방법</Opens></>)}
@@ -286,7 +287,7 @@ function DemandPage() {
 
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
               <div className="min-w-0">
-                <div className="mb-2 text-[14px] font-semibold">{tr("Review growth by brand", "브랜드별 리뷰 성장률")} <span className="text-[12px] font-normal text-muted">· {tr(`${A} and the focus brands; search for any other · click a brand for its products`, `${A}와 주요 브랜드. 다른 브랜드는 검색 · 브랜드를 누르면 제품이 나옵니다`)}</span></div>
+                <div className="mb-2 text-[14px] font-semibold">{tr("Review growth by brand", "브랜드별 리뷰 성장률")} <span className="text-[12px] font-normal text-muted">· {tr(`${A} and the main brands; search for any other · click a brand for its products`, `${A}와 주요 브랜드. 다른 브랜드는 검색 · 브랜드를 누르면 제품이 나옵니다`)}</span></div>
                 <Card className="overflow-x-auto"><div className="min-w-[600px]">
                   <div className="grid grid-cols-[minmax(170px,1.4fr)_110px_1fr_80px_100px] border-b border-line px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted">
                     <span>{tr("Brand", "브랜드")}</span><span>{tr("12 months", "12개월")}</span><span>{tr("Reviews, last 3 mo", "최근 3개월 리뷰")}</span><span className="text-right">{dw.prior}</span><span className="pl-3">{tr("Change", "변화")}</span>
@@ -313,7 +314,7 @@ function DemandPage() {
                             <span className="text-right text-[12.5px]"><b className="tabular">{p.last3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(p.last3)}</b><span className="block"><Change g={p.growth} vol={p.last3} market={mkt} /></span></span>
                           </button>); })}</div>
                       </>) })} className={`grid w-full grid-cols-[minmax(170px,1.4fr)_110px_1fr_80px_100px] items-center border-b border-line px-4 py-2 text-left transition hover:bg-sunken/50 ${isA(b.brand) ? "bg-accent-soft/50" : ""}`}>
-                        <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: colors[b.brand] ?? "#d9d7cf" }} /><span className={`text-[13.5px] ${isA(b.brand) ? "font-semibold" : "font-medium"}`}>{b.brand} <span className="text-muted">›</span></span><span className="text-[11px] text-muted">{tiers.inSet(b.brand) ? ORIGIN_LABEL[origin.get(b.brand) ?? "unknown"] : tr("not in focus set", "주요 브랜드 외")}</span></span>
+                        <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: colors[b.brand] ?? "#d9d7cf" }} /><span className={`text-[13.5px] ${isA(b.brand) ? "font-semibold" : "font-medium"}`}>{b.brand} <span className="text-muted">›</span></span><span className="text-[11px] text-muted">{tiers.inSet(b.brand) ? ORIGIN_LABEL[origin.get(b.brand) ?? "unknown"] : tr("not a main brand", "주요 브랜드 외")}</span></span>
                         <Sparkline values={b.spark} color={c} width={96} height={24} />
                         <span className="flex items-center gap-2 pr-4"><b className="w-12 text-[13.5px] tabular">{b.last3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(b.last3)}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full" style={{ width: `${Math.min(100, ((b.last3 ?? 0) / maxL) * 100)}%`, background: c }} /></span></span>
                         <span className="text-right text-[12.5px] text-ink-2 tabular">{b.prev3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(b.prev3)}</span>
@@ -325,10 +326,10 @@ function DemandPage() {
                 <Basis className="mt-1.5">{tr(`Change = reviews ${period}. Green = growing faster than all tracked products (${signed(mkt)}), red = slower. “Small base” = under 30 reviews in 3 months.`, `변화 = ${period} 리뷰. 초록 = 시장(${signed(mkt)})보다 빠른 성장, 빨강 = 느린 성장. “표본 적음” = 3개월 리뷰 30건 미만.`)}</Basis>
               </div>
               <div className="min-w-0">
-                <div className="mb-2 text-[14px] font-semibold">{tr("Top products by demand", "수요 상위 제품")} <span className="text-[12px] font-normal text-muted">· {tr("focus brands; search for others", "주요 브랜드. 다른 브랜드는 검색")}</span></div>
+                <div className="mb-2 text-[14px] font-semibold">{tr("Top products by written reviews", "작성 리뷰 상위 제품")} <span className="text-[12px] font-normal text-muted">· {tr("main brands; search for others", "주요 브랜드. 다른 브랜드는 검색")}</span></div>
                 <Card className="overflow-hidden">
                   <div className="grid grid-cols-[20px_36px_1fr_auto] gap-2.5 border-b border-line px-4 py-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted"><span>#</span><span /><span>{tr("Product", "제품")}</span><span className="text-right">{tr(`Reviews · vs ${dw.prior}`, `리뷰 · ${dw.prior} 대비`)}</span></div>
-                  <TieredList rows={topProducts} brandOf={(p) => p.brand} tiers={tiers} top={10} noun={tr("products", "제품")} setNoun={tr("focus-brand products", "주요 브랜드 제품")} render={(p, i) => (
+                  <TieredList rows={topProducts} brandOf={(p) => p.brand} tiers={tiers} top={10} noun={tr("products", "제품")} setNoun={tr("main-brand products", "주요 브랜드 제품")} render={(p, i) => (
                     <button key={p.key} onClick={() => openProduct(p.key, p.label, p.brand, p.url)} className={`grid w-full grid-cols-[20px_36px_1fr_auto] items-center gap-2.5 border-b border-line px-4 py-1.5 text-left hover:bg-sunken/50 ${isA(p.brand) ? "bg-accent-soft/50" : ""}`}>
                       <span className="text-[11.5px] text-muted tabular">{i + 1}</span>
                       <Thumb src={imgFor(p.key)} />
@@ -342,7 +343,7 @@ function DemandPage() {
             </div>
           </ActionSection>
 
-          <ActionSection id="sos" kicker={tr("Search vs demand · a leading signal", "검색 vs 수요 · 선행 신호")} title={tr(`${ahead.length ? `${ahead.map((x) => x.brand).join(", ")} take more of search than of demand, a sign they are set to grow` : "No focus brand's search share clearly runs ahead of its demand"}${anchorSos ? `; ${A} is ${anchorSos.excess > 0.005 ? "ahead" : anchorSos.excess < -0.005 ? "behind" : "level"} (${pct(anchorSos.search)} of search vs ${pct(anchorSos.demand)} of demand)` : ""}.`,
+          <ActionSection id="sos" kicker={tr("Search vs written reviews · a leading signal", "검색 vs 작성 리뷰 · 선행 신호")} title={tr(`${ahead.length ? `${ahead.map((x) => x.brand).join(", ")} take more of search than of written reviews, a sign they are set to grow` : "No main brand's search share clearly runs ahead of its share of written reviews"}${anchorSos ? `; ${A} is ${anchorSos.excess > 0.005 ? "ahead" : anchorSos.excess < -0.005 ? "behind" : "level"} (${pct(anchorSos.search)} of search vs ${pct(anchorSos.demand)} of written reviews)` : ""}.`,
               `${ahead.length ? `${ahead.map((x) => x.brand).join(", ")}는 수요보다 검색에서 더 큰 비중을 차지합니다. 성장이 이어질 신호입니다` : "검색 점유율이 수요를 뚜렷이 앞서는 주요 브랜드는 없습니다"}${anchorSos ? `. ${A}: ${anchorSos.excess > 0.005 ? "검색이 앞섬" : anchorSos.excess < -0.005 ? "검색이 뒤처짐" : "비슷함"} (검색 ${pct(anchorSos.search)}, 수요 ${pct(anchorSos.demand)})` : ""}.`)}
             note={tr(<>Research on share of search (Les Binet) found that a brand whose share of search runs ahead of its share of sales tends to grow next; one behind tends to lose ground. Here, demand = reviews.</>, <>검색 점유율 연구(Les Binet)에 따르면, 검색 점유율이 판매 점유율보다 앞서는 브랜드는 이후 성장하는 경향이 있고, 뒤처지는 브랜드는 점유율을 잃는 경향이 있습니다. 여기서 수요 = 리뷰.</>)}>
             <div className="mb-3 grid gap-2 md:grid-cols-3">
@@ -361,7 +362,7 @@ function DemandPage() {
                   const l = (v: number) => `${Math.min(100, (v / mx) * 100)}%`; const lo = Math.min(x.search, x.demand); const hi = Math.max(x.search, x.demand);
                   return (
                     <div key={x.brand} className={`grid grid-cols-[minmax(160px,1fr)_minmax(260px,2fr)_110px] items-center border-b border-line px-4 py-2 text-[12.5px] ${isA(x.brand) ? "bg-accent-soft/50 font-semibold" : ""}`}>
-                      <span>{x.brand} <span className="text-[11px] font-normal text-muted">{!tiers.inSet(x.brand) ? tr("not in focus set", "주요 브랜드 외") : !x.tracked ? tr("demand not tracked", "수요 추적 안 됨") : launchOf(x.brand) ? tr(`launched ${launchOf(x.brand)}: demand is the launch push`, `${launchOf(x.brand)} 출시: 수요는 출시 효과`) : ""}</span></span>
+                      <span>{x.brand} <span className="text-[11px] font-normal text-muted">{!tiers.inSet(x.brand) ? tr("not a main brand", "주요 브랜드 외") : !x.tracked ? tr("reviews not tracked", "수요 추적 안 됨") : launchOf(x.brand) ? tr(`launched ${launchOf(x.brand)}: demand is the launch push`, `${launchOf(x.brand)} 출시: 수요는 출시 효과`) : ""}</span></span>
                       <span className="relative mr-4 h-5">
                         <span className="absolute inset-x-0 top-1/2 h-px bg-line" />
                         <span className={`absolute top-1/2 h-1 -translate-y-1/2 rounded ${x.excess >= 0 ? "bg-good/40" : "bg-bad/40"}`} style={{ left: l(lo), width: `calc(${l(hi)} - ${l(lo)})` }} />
@@ -373,7 +374,7 @@ function DemandPage() {
                   );
                 }} />
               </div>
-              <Basis className="border-t border-line px-4 py-2.5">{tr(`Search: unpaid top 10 of ${keywords.length} keywords on ${latest ? day(latest) : "the latest day"}. Demand: reviews in the last 3 complete months. Indicative: one day of search against three months of reviews.${behind.length ? ` Furthest behind among the focus brands: ${behind.map((b) => b.brand).join(", ")}.` : ""}`,
+              <Basis className="border-t border-line px-4 py-2.5">{tr(`Search: unpaid top 10 of ${keywords.length} keywords on ${latest ? day(latest) : "the latest day"}. Written reviews: the last 3 complete months. Indicative: one day of search against three months of reviews.${behind.length ? ` Furthest behind among the main brands: ${behind.map((b) => b.brand).join(", ")}.` : ""}`,
                 `검색: ${latest ? day(latest) : "최근일"} 키워드 ${keywords.length}개의 비광고 상위 10개. 수요: 최근 완결된 3개월 리뷰. 하루치 검색과 3개월 리뷰를 비교한 참고 지표입니다.${behind.length ? ` 주요 브랜드 중 가장 뒤처진 곳: ${behind.map((b) => b.brand).join(", ")}.` : ""}`)}</Basis>
             </Card>
           </ActionSection>
@@ -415,7 +416,7 @@ function DemandPage() {
                 const mx = Math.max(1, ...sov.map((x) => x.top5));
                 return (
                   <div key={s.brand} className={`grid grid-cols-[minmax(180px,1.5fr)_1fr_1fr] items-center border-b border-line px-5 py-2 text-[13px] ${isA(s.brand) ? "bg-accent-soft/50 font-semibold" : ""}`}>
-                    <span className="flex items-center gap-2"><span>{s.brand}</span><span className="text-[11px] font-normal text-muted">{tiers.inSet(s.brand) ? ORIGIN_LABEL[s.origin] : tr("not in focus set", "주요 브랜드 외")}</span></span>
+                    <span className="flex items-center gap-2"><span>{s.brand}</span><span className="text-[11px] font-normal text-muted">{tiers.inSet(s.brand) ? ORIGIN_LABEL[s.origin] : tr("not a main brand", "주요 브랜드 외")}</span></span>
                     <span className="flex items-center gap-2 pr-6 tabular"><b className="w-6">{s.top5}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-brand" style={{ width: `${(s.top5 / mx) * 100}%` }} /></span></span>
                     <span className="tabular">{s.top10} <span className="text-[11px] text-muted">{tr(`of ${keywords.length * 10}`, `/ ${keywords.length * 10}`)}</span></span>
                   </div>
@@ -424,7 +425,7 @@ function DemandPage() {
             </Card>
           </ActionSection>
 
-          <ActionSection id="ads" kicker={tr("Ads · who is paying for attention", "광고 · 누가 노출에 돈을 쓰나")} title={tr(`${topAdv?.brand ?? "No focus brand"} buys the most ad slots among the focus brands (${topAdv?.ads ?? 0} today, ${topAdv?.adDays ?? 0} keyword-days this week); ${A} holds ${anchorS?.ads ?? 0} today and ${anchorS?.adDays ?? 0} keyword-days.`,
+          <ActionSection id="ads" kicker={tr("Ads · who is paying for attention", "광고 · 누가 노출에 돈을 쓰나")} title={tr(`${topAdv?.brand ?? "No main brand"} buys the most ad slots among the main brands (${topAdv?.ads ?? 0} today, ${topAdv?.adDays ?? 0} keyword-days this week); ${A} holds ${anchorS?.ads ?? 0} today and ${anchorS?.adDays ?? 0} keyword-days.`,
               `주요 브랜드 중 광고 자리를 가장 많이 산 곳은 ${topAdv?.brand ?? "없음"}입니다(오늘 ${topAdv?.ads ?? 0}개, 이번 주 키워드-일 ${topAdv?.adDays ?? 0}). ${A}: 오늘 ${anchorS?.ads ?? 0}개, 키워드-일 ${anchorS?.adDays ?? 0}.`)}
             note={tr(<>A daily sample of the paid tiles Nykaa shows, not every shopper&rsquo;s view. <Opens detail={{ kicker: "Method", title: "How ads are sampled", body: <Points items={["Ads are what Nykaa showed our collector at about 07:00 IST from a data centre outside India.", "A 22 Sep test found identical ads across fresh sessions minutes apart, but different ads by location.", "Treat ad counts as a daily sample, comparable day to day, not as every shopper's view."]} /> }}>Method</Opens></>,
               <>Nykaa가 보여 주는 광고를 하루 한 번 표본으로 수집한 것이며, 모든 소비자의 화면은 아닙니다. <Opens detail={{ kicker: "방법", title: "광고 표본 수집 방법", body: <Points items={["광고는 인도 시간 오전 7시경, 인도 밖 데이터센터에서 접속한 수집기에 Nykaa가 보여 준 것입니다.", "9월 22일 테스트에서 몇 분 간격의 새 세션은 같은 광고를 받았지만, 위치가 다르면 광고도 달랐습니다.", "광고 수는 날짜끼리 비교할 수 있는 일일 표본으로 보세요. 모든 소비자의 화면은 아닙니다."]} /> }}>방법</Opens></>)}>
@@ -433,13 +434,13 @@ function DemandPage() {
             </div>
             <Card className="overflow-x-auto p-5">
               <div className="mb-1 text-[14px] font-semibold">{tr("Ad placements over time", "광고 노출 추이")} · &ldquo;{active}&rdquo;</div>
-              <div className="mb-3 text-[12px] text-muted">{tr("AD tiles each brand held per day, focus brands first. Last row: the #1 unpaid result, for comparison.", "브랜드별 일일 광고 자리 수 (주요 브랜드 먼저). 마지막 줄은 비교용 비광고 1위 결과입니다.")}</div>
+              <div className="mb-3 text-[12px] text-muted">{tr("AD tiles each brand held per day, main brands first. Last row: the #1 unpaid result, for comparison.", "브랜드별 일일 광고 자리 수 (주요 브랜드 먼저). 마지막 줄은 비교용 비광고 1위 결과입니다.")}</div>
               <table className="w-full min-w-[620px] text-[12.5px] tabular">
                 <thead><tr><th className="pb-2 pr-3 text-left font-medium text-muted">{tr("Brand", "브랜드")}</th>{adGrid.ds.map((d) => <th key={d} className="pb-2 text-center font-medium text-muted">{day(d)}</th>)}</tr></thead>
                 <tbody>
                   {adGrid.brands.map(([b, m]) => (
                     <tr key={b} className={`border-t border-line ${isA(b) ? "bg-accent-soft/50" : ""}`}>
-                      <td className="py-1.5 pr-3 font-medium">{b}{!tiers.inSet(b) && <span className="ml-1.5 text-[10.5px] font-normal text-muted">{tr("not in focus set", "주요 브랜드 외")}</span>}</td>
+                      <td className="py-1.5 pr-3 font-medium">{b}{!tiers.inSet(b) && <span className="ml-1.5 text-[10.5px] font-normal text-muted">{tr("not a main brand", "주요 브랜드 외")}</span>}</td>
                       {adGrid.ds.map((d) => { const n = m.get(d) ?? 0; return <td key={d} className="py-1.5 text-center">{n ? <span className="inline-grid h-6 w-6 place-items-center rounded-md text-[11.5px] font-semibold text-white" style={{ background: `rgba(217,154,30,${0.5 + Math.min(n, 3) * 0.16})` }}>{n}</span> : <span className="text-line-2">·</span>}</td>; })}
                     </tr>
                   ))}
@@ -454,7 +455,7 @@ function DemandPage() {
                 const mx = Math.max(1, ...sov.map((x) => x.adDays));
                 return (
                   <div key={s.brand} className={`grid grid-cols-[minmax(180px,1.5fr)_1fr_1fr_1fr] items-center border-b border-line px-5 py-2 text-[13px] ${isA(s.brand) ? "bg-accent-soft/50 font-semibold" : ""}`}>
-                    <span className="flex items-center gap-2"><span>{s.brand}</span>{!tiers.inSet(s.brand) && <span className="text-[11px] font-normal text-muted">{tr("not in focus set", "주요 브랜드 외")}</span>}</span>
+                    <span className="flex items-center gap-2"><span>{s.brand}</span>{!tiers.inSet(s.brand) && <span className="text-[11px] font-normal text-muted">{tr("not a main brand", "주요 브랜드 외")}</span>}</span>
                     <span className="tabular">{s.ads || <span className="text-muted">0</span>}</span>
                     <span className="flex items-center gap-2 pr-6 tabular"><b className="w-6">{s.adDays}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-[#d99a1e]" style={{ width: `${(s.adDays / mx) * 100}%` }} /></span></span>
                     <span className="tabular text-ink-2">{s.top10}</span>
@@ -495,7 +496,7 @@ function DemandPage() {
                   <Basis className="mb-2">{tr("Suggested searches seen in the last 7 days but not in the 7 days before", "최근 7일에는 나왔지만 그 전 7일에는 없던 추천 검색어")}</Basis>
                   {typed.fresh.length ? <div className="flex flex-wrap gap-1.5">{typed.fresh.slice(0, 24).map((f) => <span key={f.s + f.seed} title={tr(`after "${f.seed || "popular"}"`, `"${f.seed || "인기"}" 입력 후`)} className={`rounded-full px-2.5 py-1 text-[12px] ${typed.mentionsFocus(f.s) ? "bg-accent-soft text-accent-strong" : "bg-sunken text-ink-2"}`}>{f.s}</span>)}</div>
                     : <Missing>{suggHist.data ? tr("No new terms this week", "이번 주 신규 검색어 없음") : tr("Loading history…", "이력 불러오는 중…")}</Missing>}
-                  <Basis className="mt-2">{tr("Blue = names a focus brand.", "파랑 = 주요 브랜드 이름 포함.")}</Basis>
+                  <Basis className="mt-2">{tr("Blue = names a main brand.", "파랑 = 주요 브랜드 이름 포함.")}</Basis>
                 </Card>
               </div>
             )}
@@ -510,6 +511,15 @@ function DemandPage() {
           </ActionSection>
         </>
       )}
+      <MethodNotes parts={{
+        sources: [tr("Written reviews of the tracked products, by month, up to two years back (the main brands' key products and Nykaa's top products); Nykaa search results for the tracked keywords every day (unpaid results and AD tiles, first 20); Nykaa's autosuggest as shoppers type.", "추적 제품의 월별 작성 리뷰(최대 2년; 주요 브랜드 핵심 제품과 Nykaa 상위 제품), 추적 키워드의 Nykaa 검색 결과(매일, 비광고 결과와 광고, 첫 20개), 입력 중 Nykaa 추천 검색어.")],
+        calc: [tr("Review growth: written reviews in the last 3 complete months against the same months a year earlier, counting only products whose history reaches back that far.", "리뷰 성장률: 최근 완결된 3개월 작성 리뷰를 1년 전 같은 달과 비교, 그때까지 이력이 있는 제품만."),
+          tr("Share of search: a brand's share of the unpaid top-10 results across today's keywords. Search vs written reviews: share of search minus share of written reviews; search ahead of reviews tends to come before growth.", "검색 점유율: 오늘 키워드 전체의 비광고 상위 10개 결과 중 브랜드 비중. 검색 vs 작성 리뷰: 검색 점유율에서 리뷰 점유율을 뺀 값; 검색이 앞서면 성장에 앞서는 경향."),
+          tr("Ads: AD tiles in the first 20 results of each keyword, per day.", "광고: 키워드별 첫 20개 결과의 광고 수, 일별.")],
+        assume: [tr("Written reviews rise and fall with sales over months; one day of search stands for the shopper's view that day.", "작성 리뷰는 몇 달에 걸쳐 판매와 함께 오르내리며, 하루의 검색 결과는 그날 쇼핑객이 보는 화면을 대표한다고 가정합니다.")],
+        limits: [tr("Written reviews are fewer than ratings (about 1 in 11) and the ratio varies by product; this tab shows trends, while the Market tab's share of buying decides who is winning.", "작성 리뷰는 평가보다 적고(약 11분의 1) 제품마다 비율이 다릅니다. 이 탭은 추세를 보여주며, 승자는 Market 탭의 구매 점유율이 가립니다."),
+          tr("Search results vary by time and place; we read them once a day from one location.", "검색 결과는 시간과 장소에 따라 다르며, 하루 한 번 한 곳에서 읽습니다.")],
+      }} />
     </Shell>
   );
 

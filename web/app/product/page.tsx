@@ -24,6 +24,8 @@ import { useMarket } from "@/lib/useMarket";
 import { dayMonth, dayMonthYear, monthYY, tr } from "@/lib/i18n";
 import { tx } from "@/lib/dict";
 import type { ShelfRow } from "@/lib/types";
+import TrailBar, { useTrail } from "@/components/Trail";
+import MethodNotes, { BUYING_METHOD } from "@/components/MethodNotes";
 
 /** The product page (plan v2, owner 17 Oct 2026: "I don't want to find the ads on the ad page, the price on the price
  *  page and the reviews on the review section"). Everything about one product on one page: what to know first, then
@@ -31,14 +33,14 @@ import type { ShelfRow } from "@/lib/types";
 
 const NAV = (): NavItem[] => [
   { id: "know", label: tr("What to know", "핵심") }, { id: "shelf", label: tr("Rank & why", "순위와 이유") }, { id: "price", label: tr("Price & offers", "가격·프로모션") },
-  { id: "demand", label: tr("Demand", "수요") }, { id: "buyers", label: tr("What buyers say", "구매자 반응") }, { id: "message", label: tr("Its message", "메시지") },
-  { id: "search", label: tr("Search", "검색") }, { id: "rivals", label: tr("Rivals", "경쟁 제품") },
+  { id: "demand", label: tr("Written reviews", "작성 리뷰") }, { id: "buyers", label: tr("What buyers say", "구매자 반응") }, { id: "message", label: tr("Its message", "메시지") },
+  { id: "search", label: tr("Search", "검색") }, { id: "rivals", label: tr("Rivals", "경쟁 제품") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
 const CAT_COLORS = ["#0e3b2e", "#eb6834", "#2a78d6", "#eda100"];
 const catName = (c: string) => CATEGORY_LABEL[c] ?? (c === "kbeauty_store" ? tr("Korean store", "K-뷰티 스토어") : c);
 
 export default function ProductPage() {
-  return <AuthGate><Suspense fallback={<Shell active="Top by category"><Loading what={tr("the product", "제품")} /></Shell>}><Product /></Suspense></AuthGate>;
+  return <AuthGate><Suspense fallback={<Shell active="auto"><Loading what={tr("the product", "제품")} /></Shell>}><Product /></Suspense></AuthGate>;
 }
 
 function Product() {
@@ -69,9 +71,10 @@ function Product() {
   const poolMine = useMemo(() => m.pool.filter((p) => p.product_id === id), [m.pool, id]);
   const trend = useMemo(() => (m.latest && poolMine.length ? reviewTrend(poolMine, m.latest) : null), [poolMine, m.latest]);
   const hero = (comps.data ?? []).find((g) => g.anchor_product_id === id || g.products.includes(id));
+  const trail = useTrail(id && name !== id ? shortName(name, brand) : null);
 
-  if (!id) return <Shell active="Top by category"><PageHead title={tr("No product chosen", "선택된 제품 없음")} sub={tr("Open a product from any table, or search for it at the top.", "표에서 제품을 열거나 위 검색창에서 찾으세요.")} /></Shell>;
-  if (!m.ready || !m.win || !ctx) return <Shell active="Top by category"><PageHead eyebrow={tr("Product", "제품")} title={name === id ? tr("Loading product…", "제품 불러오는 중…") : shortName(name, brand)} sub="" /><Loading what={tr("the product", "제품")} /></Shell>;
+  if (!id) return <Shell active="auto"><PageHead title={tr("No product chosen", "선택된 제품 없음")} sub={tr("Open a product from any table, or search for it at the top.", "표에서 제품을 열거나 위 검색창에서 찾으세요.")} /></Shell>;
+  if (!m.ready || !m.win || !ctx) return <Shell active="auto"><div className="mt-6"><TrailBar trail={trail} /></div><PageHead eyebrow={tr("Product", "제품")} title={name === id ? tr("Loading product…", "제품 불러오는 중…") : shortName(name, brand)} sub="" /><Loading what={tr("the product", "제품")} /></Shell>;
 
   const win = m.win; const span = m.flowSpan!;
   const mv = moves.find((x) => x.subcategory === main) ?? null;
@@ -93,7 +96,7 @@ function Product() {
   const nykaa = LATEST_REPORTED();
 
   /* ---------------- what to know: one sentence per question, each with its number */
-  const where = rows.length ? rows.filter((r) => r.subcategory !== "kbeauty_store").map((r) => `#${r.rank} ${tr("in", "")} ${catName(r.subcategory).toLowerCase()}`).join(", ") : null;
+  const where = rows.length ? rows.filter((r) => r.subcategory !== "kbeauty_store").map((r) => `#${r.rank} ${tr("among", "")} ${catName(r.subcategory).toLowerCase()}${r.nykaa_rank && r.nykaa_rank !== r.rank ? tr(` (#${r.nykaa_rank} on Nykaa's page)`, ` (Nykaa 페이지 #${r.nykaa_rank})`) : ""}`).join(", ") : null;
   const lead = !where ? tr(`${shortName(name, brand)} is not in any tracked top 100 today.`, `${shortName(name, brand)}은(는) 오늘 추적 중인 상위 100위에 없습니다.`)
     : !mv || mv.from === null || mv.to === null ? tr(`${shortName(name, brand)} is ${where} today.`, `${shortName(name, brand)}: 오늘 ${where}.`)
     : Math.abs(mv.gain) < 5 ? tr(`${shortName(name, brand)} is ${where} today, steady over the ${spanLabel(m.period.days)} (around #${mv.to}).`, `${shortName(name, brand)}: 오늘 ${where}. ${spanLabel(m.period.days)} 동안 #${mv.to} 안팎에서 안정적.`)
@@ -103,8 +106,8 @@ function Product() {
     ? tr(<>Likely why: {mv.why.slice(0, 2).map((r) => r.text).join("; ")}.</>, <>가능한 이유: {mv.why.slice(0, 2).map((r) => r.text).join("; ")}.</>)
     : tr(<>No clear cause found for the move (price, offers, ads, stock, homepage and sales were checked).</>, <>뚜렷한 원인이 없습니다 (가격·프로모션·광고·재고·홈페이지·세일 확인).</>));
   if (combo) points.push(tr(<>This is a combo: Nykaa shows it with the ratings of the products inside, so it is left out of buying shares.</>, <>콤보 제품입니다. Nykaa가 구성품 평가를 합쳐 보여주므로 구매 점유에서 제외합니다.</>));
-  else if (share && main) points.push(tr(<>It took <b>{pct(share.share, 1)}</b> of {catName(main).toLowerCase()} buying ({dayMonth(span.start)}–{dayMonth(span.end)}), <b>#{share.place}</b> of {share.of} single products{bShare ? <>; {brand} as a brand holds {pct(bShare.share, 1)} (#{bShare.place})</> : null}.</>,
-    <>{catName(main)} 구매의 <b>{pct(share.share, 1)}</b>({dayMonth(span.start)}–{dayMonth(span.end)}), 단일 제품 {share.of}개 중 <b>{share.place}위</b>{bShare ? <>. 브랜드 {brand} 전체는 {pct(bShare.share, 1)} ({bShare.place}위)</> : null}.</>));
+  else if (share && main) points.push(tr(<>It took <b>{pct(share.share, 1)}</b> of all {catName(main).toLowerCase()} buying and {pct(share.units, 1)} of units ({dayMonth(span.start)}–{dayMonth(span.end)}), <b>#{share.place}</b> of {share.of} single products{bShare ? <>; {brand} as a brand holds {pct(bShare.share, 1)} (#{bShare.place})</> : null}.{share.poolSize > 1 ? ` Nykaa shows one rating count for ${share.poolSize} of ${brand}'s products; it is counted once, at their median price.` : ""}</>,
+    <>{catName(main)} 구매 전체의 <b>{pct(share.share, 1)}</b>, 수량의 {pct(share.units, 1)}({dayMonth(span.start)}–{dayMonth(span.end)}), 단일 제품 {share.of}개 중 <b>{share.place}위</b>{bShare ? <>. 브랜드 {brand} 전체는 {pct(bShare.share, 1)} ({bShare.place}위)</> : null}.{share.poolSize > 1 ? ` Nykaa가 ${brand} 제품 ${share.poolSize}개에 하나의 평가 수를 보여주므로 중간 가격으로 한 번만 집계.` : ""}</>));
   if (price !== null) points.push(tr(<>Sells at <b>{inr(price)}</b>{mrp && mrp > price ? <> ({Math.round((1 - price / mrp) * 100)}% off {inr(mrp)})</> : null}{lo !== null && hi !== null && hi > lo ? <>; between {inr(lo)} and {inr(hi)} in the period</> : null}. {offerDays ? `Offer tag on ${offerDays} of ${inWin.length} days` : "No offer tag in the period"}{adDays ? `; in a paid slot on ${adDays} days` : ""}.</>,
     <>판매가 <b>{inr(price)}</b>{mrp && mrp > price ? <> (정가 {inr(mrp)}에서 {Math.round((1 - price / mrp) * 100)}% 할인)</> : null}{lo !== null && hi !== null && hi > lo ? <>. 기간 중 {inr(lo)}–{inr(hi)}</> : null}. {offerDays ? `프로모션 표시 ${inWin.length}일 중 ${offerDays}일` : "기간 중 프로모션 표시 없음"}{adDays ? `, 광고 자리 ${adDays}일` : ""}.</>));
   if (trend && trend.change !== null) points.push(tr(<>Written reviews: <b>{trend.recent}</b> in {trend.recentLabel} vs {trend.base} a year earlier (<b>{signed(trend.change)}</b>). Nykaa&rsquo;s beauty sales grew {signed(nykaa.value)} in {nykaa.label}.</>,
@@ -132,7 +135,8 @@ function Product() {
   const rivalMove = (pid: string) => (main ? listingMove(ctx, main, pid) : null);
 
   return (
-    <Shell active="Top by category" asOf={m.latest ?? undefined}>
+    <Shell active="auto" asOf={m.latest ?? undefined}>
+      <div className="mt-6"><TrailBar trail={trail} /></div>
       <PageHead eyebrow={tr(`Product · ${main ? catName(main) : "not on a tracked shelf"}`, `제품 · ${main ? catName(main) : "추적 진열 밖"}`)} title={shortName(name, brand)}
         sub={<><BrandLink brand={brand} className="font-medium text-ink" /> · {ORIGIN_LABEL[origin] ?? origin}{row?.country_name ? tr(` · made in ${row.country_name}`, ` · ${tx(row.country_name)} 생산`) : ""}{row?.rating ? <> · ★ {row.rating.toFixed(1)} ({compact(row.rating_count)} {tr("ratings", "평가")})</> : null}{row?.url ? <> · <a href={row.url} target="_blank" rel="noreferrer" className="text-accent-strong underline underline-offset-2">{tr("Open on Nykaa ↗", "Nykaa에서 보기 ↗")}</a></> : null}</>}
         right={<div className="flex items-end gap-4">
@@ -194,7 +198,7 @@ function Product() {
         </div>
       </ActionSection>
 
-      <ActionSection id="demand" kicker={tr("Demand", "수요")} title={trend && trend.change !== null ? tr(`Reviews ${signed(trend.change)} vs a year earlier (${trend.recentLabel})`, `리뷰 1년 전 대비 ${signed(trend.change)} (${trend.recentLabel})`) : tr("Written reviews per month", "월별 작성 리뷰")}
+      <ActionSection id="demand" kicker={tr("Written reviews, 12-month trend", "작성 리뷰, 12개월 추세")} title={trend && trend.change !== null ? tr(`Reviews ${signed(trend.change)} vs a year earlier (${trend.recentLabel})`, `리뷰 1년 전 대비 ${signed(trend.change)} (${trend.recentLabel})`) : tr("Written reviews per month", "월별 작성 리뷰")}
         note={tr(`Written reviews dated by Nykaa, last 24 complete months. This is the product's own trend, not a sales figure; for scale, Nykaa's beauty sales grew ${signed(nykaa.value)} in ${nykaa.label}.`, `Nykaa가 날짜를 붙인 작성 리뷰, 최근 완결된 24개월. 제품 자체의 추세이며 매출이 아닙니다. 참고: Nykaa 뷰티 매출 ${nykaa.label} ${signed(nykaa.value)}.`)}>
         <Card className="p-5">
           {trend && trend.values.some((v) => v !== null) ? <LineChart labels={trend.axis.map((a) => monthYY(a))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: trend.values }]} height={220} />
@@ -262,6 +266,12 @@ function Product() {
           </table>
         </Card>
       </ActionSection>
+      <MethodNotes parts={{
+        sources: [tr("Nykaa's top 100 of each tracked category (nightly), the product's Nykaa page (details, buyers' review highlights), Nykaa's homepage and search results, its written reviews by month.", "추적 카테고리별 Nykaa 상위 100위(매일), 제품의 Nykaa 페이지(상세, 리뷰 요약), Nykaa 홈페이지와 검색 결과, 월별 작성 리뷰.")],
+        calc: [...BUYING_METHOD().calc, tr("Rank: place among the category's own products; Nykaa's page position shown next to it when different. Move: middle of the first three days to the middle of the last three; reasons are what changed on the same dates.", "순위: 카테고리 자체 제품 중 위치(다르면 Nykaa 페이지 순위를 함께 표시). 변화: 처음 3일 중앙값 → 마지막 3일 중앙값, 이유는 같은 날 달라진 것.")],
+        assume: BUYING_METHOD().assume,
+        limits: [...BUYING_METHOD().limits, tr("Reasons for a move are what changed at the same time, not proof.", "변화의 이유는 같은 시기에 달라진 것이며 증거가 아닙니다.")],
+      }} />
     </Shell>
   );
 }

@@ -64,18 +64,21 @@ export const runsFrom = (rows: HomepageFeature[]) => homepageRuns(rows);
 /** Share of a category's buying (new ratings × price, combos left out) for each product, and its place among them. */
 export function shareIn(flow: FlowRow[], cat: string) {
   const rows = flow.filter((r) => r.subcategory === cat && r.value > 0).sort((a, b) => b.value - a.value);
-  const total = rows.reduce((a, r) => a + r.value, 0);
-  return { total, rows, of: (pid: string) => { const i = rows.findIndex((r) => r.product_id === pid); return i < 0 || !total ? null : { share: rows[i].value / total, place: i + 1, of: rows.length }; } };
+  const total = rows.reduce((a, r) => a + r.value, 0); const units = rows.reduce((a, r) => a + r.flow, 0);
+  return { total, rows, of: (pid: string) => { const i = rows.findIndex((r) => r.product_id === pid); return i < 0 || !total ? null : { share: rows[i].value / total, units: units ? rows[i].flow / units : 0, place: i + 1, of: rows.length, poolSize: rows[i].poolSize }; } };
 }
 
 /** A brand's share of a category's buying, and its place among the brands there. */
 export function brandShareIn(flow: FlowRow[], cat: string, brand: string) {
-  const by = new Map<string, number>();
-  for (const r of flow) if (r.subcategory === cat && r.value > 0) by.set(norm(r.brand), (by.get(norm(r.brand)) ?? 0) + r.value);
-  const total = [...by.values()].reduce((a, v) => a + v, 0);
+  const by = new Map<string, number>(); const un = new Map<string, number>(); const best = new Map<string, FlowRow>();
+  for (const r of flow) if (r.subcategory === cat && r.value > 0) {
+    const k = norm(r.brand); by.set(k, (by.get(k) ?? 0) + r.value); un.set(k, (un.get(k) ?? 0) + r.flow);
+    if (!best.has(k) || r.value > best.get(k)!.value) best.set(k, r);
+  }
+  const total = [...by.values()].reduce((a, v) => a + v, 0); const units = [...un.values()].reduce((a, v) => a + v, 0);
   const ranked = [...by.entries()].sort((a, b) => b[1] - a[1]);
   const i = ranked.findIndex(([b]) => b === norm(brand));
-  return i < 0 || !total ? null : { share: ranked[i][1] / total, place: i + 1, of: ranked.length };
+  return i < 0 || !total ? null : { share: ranked[i][1] / total, units: units ? (un.get(ranked[i][0]) ?? 0) / units : 0, place: i + 1, of: ranked.length, best: best.get(ranked[i][0]) ?? null };
 }
 
 /** Written reviews per month over the last 24 complete months, for a set of tracked products, with the latest three

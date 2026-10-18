@@ -1,5 +1,6 @@
 "use client";
 
+import MethodNotes from "@/components/MethodNotes";
 import { useEffect, useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import { Summary } from "@/components/compete/Overview";
@@ -146,11 +147,11 @@ function CompetitivePage() {
 
   return (
     <Shell active="Competitive Analysis" asOf={asOf ? dayMonthYear(asOf) : undefined}>
-      <PageHead eyebrow={tr("Competitive · step 5", "경쟁 분석 · 5단계")} title={tr("Competitive Analysis", "경쟁 분석")} sub={tr(<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail. Drop a rival or add any product with the bar under the hero.</>, <>한 카테고리 안에서 Innisfree와 직접 경쟁 제품을 비교합니다. 결론을 먼저, 근거를 뒤에 두었으며 › 표시를 누르면 상세가 나옵니다. 히어로 아래 막대에서 경쟁 제품을 빼거나 아무 제품이나 추가할 수 있습니다.</>)} />
+      <PageHead eyebrow={tr("Competitive", "경쟁 분석")} title={tr("Competitive Analysis", "경쟁 분석")} sub={tr(<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail. Drop a rival or add any product with the bar under the hero.</>, <>한 카테고리 안에서 Innisfree와 직접 경쟁 제품을 비교합니다. 결론을 먼저, 근거를 뒤에 두었으며 › 표시를 누르면 상세가 나옵니다. 히어로 아래 막대에서 경쟁 제품을 빼거나 아무 제품이나 추가할 수 있습니다.</>)} />
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">{tr("Could not load data", "데이터를 불러오지 못했습니다")}: {String(err.message ?? err)}</div>}
       {loading && !err ? <Loading what={tr("the comparison", "비교 데이터")} /> : !err && (
         <>
-          {hero && productIds.some((p) => !tiers.inSet(p.brand)) && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">{tr(<>This hero&rsquo;s rivals were picked for the AI comparison before the focus set existed: {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")} {productIds.filter((p) => !tiers.inSet(p.brand)).length === 1 ? "is" : "are"} outside your focus brands. The comparison stays as analysed; the brand view below uses the focus set when you change brands.</>,
+          {hero && productIds.some((p) => !tiers.inSet(p.brand)) && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">{tr(<>{[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")} {productIds.filter((p) => !tiers.inSet(p.brand)).length === 1 ? "is" : "are"} compared here because the comparison was made before your main brands were chosen; it is not one of them.</>,
             <>이 히어로의 경쟁 제품은 주요 브랜드 목록이 생기기 전에 AI 비교용으로 골랐습니다. {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")}는 주요 브랜드 밖입니다. 비교 결과는 분석된 그대로 두며, 아래 브랜드 보기에서 브랜드를 바꾸면 주요 브랜드 기준으로 보여 줍니다.</>)}</p>}
           <Card className="mt-5 px-4 py-3.5">
             <div className="flex flex-wrap gap-1.5">
@@ -204,6 +205,13 @@ function CompetitivePage() {
           </>)}
         </>
       )}
+      <MethodNotes parts={{
+        sources: [tr("Each product's Nykaa page (price per pack size, offers, claims, ingredients, buyers' review highlights), its written reviews, Nykaa's top 100 and search results. The written comparison of messages was made earlier with AI (paused since October) and is shown as analysed.", "제품별 Nykaa 페이지(용량별 가격, 프로모션, 소구점, 성분, 리뷰 요약), 작성 리뷰, Nykaa 상위 100위와 검색 결과. 메시지 비교 글은 이전에 AI로 작성했으며(10월부터 중단) 분석된 그대로 보여줍니다.")],
+        calc: [tr("Price per 100 ml/g: the closest standard pack (minis, kits and combos left out), so different pack sizes compare fairly.", "100 ml/g당 가격: 가장 가까운 표준 용량(미니·키트·세트 제외)으로 용량이 달라도 공정하게 비교."),
+          tr("Rank: place among the category's own products (Nykaa files them under the category); reviews: last 3 complete months.", "순위: 카테고리 자체 제품 중 위치(Nykaa가 해당 카테고리로 분류); 리뷰: 최근 완결된 3개월.")],
+        assume: [tr("What buyers repeat in reviews reflects what the product is bought for.", "리뷰에서 반복되는 표현이 구매 이유를 반영한다고 봅니다.")],
+        limits: [tr("Message and image comparisons are from the last AI run and do not update until AI spend resumes.", "메시지·이미지 비교는 마지막 AI 실행 결과이며 AI 사용 재개 전까지 갱신되지 않습니다.")],
+      }} />
     </Shell>
   );
 }

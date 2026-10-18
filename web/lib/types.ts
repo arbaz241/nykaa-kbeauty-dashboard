@@ -13,6 +13,8 @@ export interface ShelfRow {
   review_splitup: Record<string, number> | null; detail_review_count: number | null; image_url: string | null;
   description_text: string | null;
   is_bestseller: boolean; is_new_tag: boolean; tags: string | null; nykaa_l3: string | null;
+  /** Position on Nykaa's own page; `rank` is among the category's own products (plan v4). */
+  nykaa_rank?: number;
 }
 
 export interface ReviewMonth { product_id: string; month: string; reviews: number; avg_rating: number | null; brand: string; coverage_start: string; name: string; url: string | null }
@@ -79,9 +81,16 @@ export interface Thumbnail {
 export interface ShelfDay {
   scrape_date: string; subcategory: string; product_id: string; rank: number; price: number | null; mrp: number | null;
   rating_count: number | null; is_ad: boolean; has_offer: boolean; in_stock: boolean | null;
+  /** Nykaa's own category label for the product that day (L3, migration 028). */
+  nykaa_l3?: string | null;
+  /** Position on Nykaa's own page; `rank` is the position among the category's own products (plan v4). */
+  nykaa_rank?: number;
 }
 export interface ShelfProduct { product_id: string; name: string; brand: string; origin: Origin; url: string | null; first_review_date: string | null }
 export interface CategoryStat { scrape_date: string; subcategory: string; brands: number; products: number }
 export interface CategoryBrand { subcategory: string; brand: string; origin: Origin; first_seen: string; last_seen: string; products: number }
 export interface HomepageFeature { scrape_date: string; section: string; position: number; kind: string; target: string; label: string | null; brand: string | null; url: string | null; is_ad: boolean }
 export interface BrandOffer { scrape_date: string; brand: string; offer_id: string; title: string | null; description: string | null }
+
+/** A headline from outside Nykaa (Google News search feed), shown as context, never as a proven cause. */
+export interface ExternalNews { brand: string; published_at: string | null; title: string; source: string | null; url: string; first_seen: string }

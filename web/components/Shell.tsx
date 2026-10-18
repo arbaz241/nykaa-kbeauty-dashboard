@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { clearCached } from "@/lib/persist";
@@ -9,6 +9,7 @@ import { useIsAdmin, useSession } from "./AuthGate";
 import LangToggle from "./LangToggle";
 import FindBox from "./FindBox";
 import { dayMonth, tr } from "@/lib/i18n";
+import { noteSection, parseTrail, startTrail, subscribeTrail, trailText } from "@/lib/trail";
 
 /** `label` is the page's id (pages pass it as `active`); `text` is what the reader sees. */
 const NAV = () => [
@@ -64,8 +65,27 @@ function UserMenu() {
   );
 }
 
-export default function Shell({ active, asOf: rawAsOf, children }: { active: string; asOf?: string; children: React.ReactNode }) {
+/** `active` is the tab's id; brand and product pages pass "auto" and keep the tab the reader came from highlighted
+ *  (plan v4 trail, lib/trail). */
+export default function Shell({ active: asked, asOf: rawAsOf, children }: { active: string; asOf?: string; children: React.ReactNode }) {
   const isAdmin = useIsAdmin();
+  const isTab = asked !== "auto";
+  const trailNow = useSyncExternalStore(subscribeTrail, trailText, () => null);
+  const fromTab = isTab ? null : parseTrail(trailNow)?.tab ?? null;
+  useEffect(() => { if (isTab) { const n = NAV().find((x) => x.label === asked); if (n) startTrail(asked, n.text); } }, [asked, isTab]);
+  useEffect(() => {
+    if (!isTab) return;
+    // a brand or product link clicked on a tab page: remember the section it sat in (its "On this page" name)
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href^="/brand/"], a[href^="/product/"]'); if (!a) return;
+      const sec = a.closest("section[id]") as HTMLElement | null;
+      const navText = sec ? document.querySelector(`nav a[href="#${sec.id}"]`)?.lastChild?.textContent?.trim() : null;
+      noteSection(sec?.id ?? null, navText || sec?.dataset.crumb || null);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [isTab]);
+  const active = isTab ? asked : fromTab ?? "Top by category";
   // pages pass either a formatted date or an ISO day; show ISO days as "12 Oct"
   const asOf = rawAsOf && /^\d{4}-\d{2}-\d{2}$/.test(rawAsOf) ? dayMonth(rawAsOf) : rawAsOf;
   const [menu, setMenu] = useState(false);

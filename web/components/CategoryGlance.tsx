@@ -68,19 +68,19 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
           <Basis className="mt-1">{newBrands.length ? tr(`New this period: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`, `이번 기간 신규: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`) : tr("New brands show here as the nightly list builds up.", "매일 목록이 쌓이면 신규 브랜드가 여기에 표시됩니다.")}</Basis>
         </Card>
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted">{tr("Korean share of top-100 places", "상위 100위 중 한국 비중")}</div>
+          <div className="text-[12.5px] text-muted">{tr("Korean share of top-100 products", "상위 100위 제품 중 한국 비중")}</div>
           <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(kShare)}</div>
-          <Basis>{tr(`${rows.filter((r) => r.origin === "kbeauty").length} of ${rows.length} places today`, `오늘 ${rows.length}자리 중 ${rows.filter((r) => r.origin === "kbeauty").length}`)}</Basis>
+          <Basis>{tr(`${rows.filter((r) => r.origin === "kbeauty").length} of ${rows.length} products today`, `오늘 제품 ${rows.length}개 중 ${rows.filter((r) => r.origin === "kbeauty").length}개`)}</Basis>
         </Card>
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted"><Def k="ratingFlow">{tr("Top seller", "최다 판매")}</Def></div>
+          <div className="text-[12.5px] text-muted"><Def k="ratingFlow">{tr("Best seller's share of all buying", "베스트셀러의 전체 구매 점유율")}</Def></div>
           {topSeller ? <>
             <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(topSeller.value / tot, 1)}</div>
             <Basis><b className="font-medium text-ink">{topSeller.brand}</b> {shortName(topSeller.name, topSeller.brand)}</Basis>
           </> : <div className="mt-1 font-display text-[28px] font-semibold">–</div>}
         </Card>
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted">{tr("Top 5 brands hold", "상위 5개 브랜드 점유")}</div>
+          <div className="text-[12.5px] text-muted">{tr("Top 5 brands' share of all buying", "상위 5개 브랜드의 전체 구매 점유율")}</div>
           <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(top5)}</div>
           <Basis>{brands.slice(0, 5).map((b, i) => <span key={b.key}>{i ? " · " : ""}<b className="font-medium text-ink">{b.key}</b> {pct(b.value / tot)}</span>)}</Basis>
         </Card>

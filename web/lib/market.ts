@@ -3,6 +3,7 @@ import { push } from "./group";
 import { addDays, type MonthWindow } from "./period";
 import type { CatalogRow, HomepageFeature, MarketEvent, ProductDemand, ReviewMonth, ShelfDay, ShelfProduct, ShelfRow, BrandOffer } from "./types";
 import { tr } from "./i18n";
+import { median } from "./format";
 
 /** Round 4 market layer (plan https://claude.ai/artifact/EHrtxEG82NePyf1d9CJPBv, owner decisions 17 Oct 2026).
  *
@@ -14,7 +15,21 @@ import { tr } from "./i18n";
  *    (Nykaa's rating count, stars with or without text, rises about ten times faster than written reviews), × price.
  *  Neither is sales; both move with sales. Every figure carries what it rests on. */
 
-export const MAKEUP = new Set(["lipstick", "foundation", "lip_tint"]);
+export const MAKEUP = new Set(["lipstick", "foundation", "lip_tint", "bb_cream", "blush", "lip_gloss"]);
+
+/** What counts in each list (plan v4, owner 18 Oct 2026: "own category only, and ranks also as per that"). Nykaa's
+ *  page for a category also shows products Nykaa itself files elsewhere (a sheet mask on "Masks & peels" keeps the
+ *  label "Sheet Masks"). A listing counts when Nykaa's label for it that day is one of these; a listing Nykaa gave no
+ *  label counts too (we don't guess). Ranks are renumbered among the products that count; Nykaa's own position is
+ *  kept as nykaa_rank. */
+export const HOME_L3: Record<string, string[]> = {
+  face_moisturizer: ["Face Moisturizer & Day Cream", "Night Cream"], serum: ["Serums & Essence"], sunscreen: ["Face Sunscreen"],
+  face_wash: ["Face Wash", "Cleanser"], masks: ["Masks & Peels", "Face Packs"], sheet_mask: ["Sheet Masks"],
+  toner: ["Toners & Mists", "Facial Mists", "Rose Water"], eye_care: ["Under Eye Cream & Serums", "Dark Circles & Wrinkles", "Dark Circles / Wrinkles", "Eye Masks"],
+  lip_care: ["Lip Balm", "Lip Masks"], lipstick: ["Lipstick", "Lip Crayon"], foundation: ["Foundation"], lip_tint: ["Lip Tint"],
+  bb_cream: ["BB & CC Cream", "Tinted Moisturizer"], blush: ["Blush"], lip_gloss: ["Lip Gloss", "Lip Plumper"],
+};
+export const countsIn = (cat: string, l3: string | null | undefined) => !l3 || !HOME_L3[cat] || HOME_L3[cat].includes(l3);
 export type Vertical = "skin" | "makeup";
 export const verticalOf = (cat: string): Vertical => (MAKEUP.has(cat) ? "makeup" : "skin");
 export const VERTICAL_LABEL = () => ({ skin: tr("Skin", "스킨케어"), makeup: tr("Makeup", "메이크업") });
@@ -176,6 +191,10 @@ export interface FlowRow {
   /** A combo or kit: Nykaa shows it with the ratings of the products inside it, so its flow and value are left at
    *  0 (plan v2: combos were 4% of listings but 31% of rating value). `rawFlow` keeps what it would have been. */
   combo: boolean; rawFlow: number;
+  /** Listings sharing this listing's rating count (1 = its own). The pool is counted once, at its median price. */
+  poolSize: number;
+  /** Position on Nykaa's own page (rankEnd is the position among the category's own products). */
+  nykaaRank: number;
 }
 
 /** Combos, kits and routines: several products sold as one listing. */
@@ -217,8 +236,19 @@ export interface DailyIndex {
   /** "cat|pid" -> rows, oldest first */
   series: Map<string, ShelfDay[]>;
 }
-export function indexDaily(daily: ShelfDay[]): DailyIndex {
+export function indexDaily(all: ShelfDay[]): DailyIndex {
   const byDay = new Map<string, Map<string, ShelfDay>>(); const catStart = new Map<string, string>(); const series = new Map<string, ShelfDay[]>();
+  // own category only, ranks renumbered per day and category (Nykaa's position kept); the Korean store is a store
+  const groups = new Map<string, ShelfDay[]>();
+  for (const r of all) {
+    if (r.subcategory !== STORE && !countsIn(r.subcategory, r.nykaa_l3)) continue;
+    push(groups, `${r.scrape_date}|${r.subcategory}`, r);
+  }
+  const daily: ShelfDay[] = [];
+  for (const g of groups.values()) {
+    g.sort((a, b) => a.rank - b.rank);
+    g.forEach((r, i) => daily.push(r.subcategory === STORE ? { ...r, nykaa_rank: r.rank } : { ...r, rank: i + 1, nykaa_rank: r.rank }));
+  }
   for (const r of daily) {
     let d = byDay.get(r.scrape_date); if (!d) { d = new Map(); byDay.set(r.scrape_date, d); }
     const k = `${r.subcategory}|${r.product_id}`;
@@ -233,37 +263,76 @@ export function indexDaily(daily: ShelfDay[]): DailyIndex {
 /** The tracked day on or after `d` (a category added later starts on its own first day). */
 function onOrAfter(days: string[], d: string) { return days.find((x) => x >= d) ?? null; }
 
-/** New ratings each top-100 listing gained between two days, per category. A set of ratings shared by several
- *  listings of one brand (sizes of one product) counts once in each category. */
+/** New ratings each top-100 listing gained between two days, per category. Nykaa sometimes shows one rating count
+ *  for a whole family of a brand's products (20 Nykaa sheet masks share 7.6M ratings; TONYMOLY's four Wonder toners
+ *  share one count). Plan v4: such a pool counts ONCE across every list, credited to its best-placed listing, at the
+ *  median price of the listings sharing it, and the row says how many share it (poolSize). */
 export function ratingFlow(ix: DailyIndex, dims: Map<string, Dim>, start: string, end: string, includeStore = false, ratingEnd?: string): FlowRow[] {
   const endMap = ix.byDay.get(end); if (!endMap) return [];
   // ratings stop at `ratingEnd` when Nykaa froze its counts; ranks still run to `end`
   const rEnd = ratingEnd && ratingEnd < end && ratingEnd > start ? ix.byDay.get(ratingEnd) : null;
   const noRatings = !!ratingEnd && ratingEnd <= start;
   const out: FlowRow[] = [];
-  const seenPool = new Set<string>();
-  for (const [k, e] of endMap) {
-    const cat = e.subcategory;
-    if (cat === STORE && !includeStore) continue;
+  const entries = [...endMap].filter(([, e]) => includeStore || e.subcategory !== STORE).sort((a, b) => a[1].rank - b[1].rank);
+  const startOf = (k: string, cat: string) => {
     const cs = ix.catStart.get(cat) ?? start;
     const s0 = cs > start ? onOrAfter(ix.days, cs) : start;
-    const s = s0 ? ix.byDay.get(s0)?.get(k) : undefined;
+    return { s: s0 ? ix.byDay.get(s0)?.get(k) : undefined, partial: cs > start };
+  };
+  const poolKey = (k: string, e: ShelfDay) => {
+    const s = startOf(k, e.subcategory).s; const re = rEnd ? rEnd.get(k) : e;
+    if (!s || !re || s.rating_count === null || re.rating_count === null || re.rating_count < 100) return null;
+    return `${norm(dims.get(e.product_id)?.brand ?? "?")}|${s.rating_count}|${re.rating_count}`;
+  };
+  // every listing sharing a pool, on any list (the Korean store too: its prices are real prices)
+  const members = new Map<string, number[]>();
+  for (const [k, e] of endMap) { const p = poolKey(k, e); const price = e.price ?? e.mrp; if (p && price) push(members, p, price); }
+  const seenPool = new Set<string>();
+  for (const [k, e] of entries) {
+    const cat = e.subcategory;
+    const { s, partial } = startOf(k, cat);
     const dim = dims.get(e.product_id);
     const brand = dim?.brand ?? "?";
-    let flow = 0;
+    let flow = 0; let poolSize = 1; let price = e.price ?? e.mrp;
     const combo = isCombo(dim?.name ?? "");
     const re = rEnd ? rEnd.get(k) : e;
     if (!noRatings && s && re && s.rating_count !== null && re.rating_count !== null) {
       flow = Math.max(0, re.rating_count - s.rating_count);
-      const pool = (re.rating_count ?? 0) >= 100 ? `${cat}|${norm(brand)}|${s.rating_count}|${re.rating_count}` : k;
-      if (seenPool.has(pool)) flow = 0; else seenPool.add(pool);
+      const p = poolKey(k, e); const m = p ? members.get(p) ?? [] : [];
+      if (p && m.length > 1) {
+        poolSize = m.length;
+        if (seenPool.has(p)) flow = 0; else { seenPool.add(p); price = median(m) ?? price; }
+      }
     }
-    const price = e.price ?? e.mrp;
     const counted = combo ? 0 : flow;
     out.push({ product_id: e.product_id, subcategory: cat, brand, origin: dim?.origin ?? "unknown", name: dim?.name ?? e.product_id, url: dim?.url ?? null,
-      flow: counted, value: counted * (price ?? 0), rankStart: s?.rank ?? null, rankEnd: e.rank, price: price ?? null, partial: cs > start, combo, rawFlow: flow });
+      flow: counted, value: counted * (price ?? 0), rankStart: s?.rank ?? null, rankEnd: e.rank, price: e.price ?? e.mrp ?? null, partial, combo, rawFlow: flow,
+      poolSize, nykaaRank: e.nykaa_rank ?? e.rank });
   }
   return out;
+}
+
+/** Buying per day in each category. Lists started on different days and the ratings stopped on 9 Oct, so a total
+ *  across categories adds per-day figures, never raw sums (plan v4). */
+export function perDay(ix: DailyIndex, cat: string, start: string, end: string) {
+  const cs = ix.catStart.get(cat) ?? start;
+  const s0 = cs > start ? onOrAfter(ix.days, cs) : start;
+  const i0 = s0 ? ix.days.indexOf(s0) : -1; const i1 = ix.days.indexOf(end);
+  return i0 >= 0 && i1 > i0 ? i1 - i0 : 0;
+}
+
+/** How closely our buying order follows Nykaa's own order in a category (Spearman, -1 to 1): each product's average
+ *  place over the window against its buying. */
+export function rankAgreement(ix: DailyIndex, flow: FlowRow[], cat: string, start: string, end: string) {
+  const rows = flow.filter((r) => r.subcategory === cat && !r.combo);
+  if (rows.length < 10) return null;
+  const avg = rows.map((r) => {
+    const s = (ix.series.get(`${cat}|${r.product_id}`) ?? []).filter((d) => d.scrape_date >= start && d.scrape_date <= end);
+    return s.length ? s.reduce((a, d) => a + d.rank, 0) / s.length : 101;
+  });
+  const rankOf = (xs: number[]) => { const o = xs.map((v, i) => [v, i] as const).sort((a, b) => a[0] - b[0]); const r = new Array(xs.length); o.forEach(([, i], k) => { r[i] = k; }); return r as number[]; };
+  const a = rankOf(avg.map((v) => -v)); const b = rankOf(rows.map((r) => r.value)); const n = rows.length;
+  return 1 - (6 * a.reduce((t, x, i) => t + (x - b[i]) ** 2, 0)) / (n * (n * n - 1));
 }
 
 /** Totals that count a product once even when it sits on two shelves. */
@@ -417,7 +486,7 @@ export function explainMove(args: {
     out.push({ kind: "sale", strength: e.brand ? 2 : 1, text: tr(`during ${e.label}${e.status === "estimated" ? " (dates estimated)" : ""}`, `${e.label} 기간${e.status === "estimated" ? " (날짜 추정)" : ""}`) });
   for (const r of args.runs) if (r.end >= start && r.start <= end && movedDuring(r.start, r.end)) {
     if (r.kind === "sale") out.push({ kind: "sale", strength: 1, text: tr(`during Nykaa's ${r.label} (on its homepage)`, `Nykaa ${r.label} 기간 (홈페이지)`) });
-    if (r.kind === "brand" && r.brand && norm(r.brand) === norm(args.brand) && up) out.push({ kind: "homepage", strength: 2, text: tr(`${r.brand} was on Nykaa's homepage for ${r.days} days`, `${r.brand} Nykaa 홈페이지 ${r.days}일 노출`) });
+    if (r.kind === "brand" && r.brand && norm(r.brand) === norm(args.brand) && up) out.push({ kind: "homepage", strength: 2, text: tr(`${r.brand} was on Nykaa's homepage for ${r.days} day${r.days === 1 ? "" : "s"}`, `${r.brand} Nykaa 홈페이지 ${r.days}일 노출`) });
   }
   const offerNow = args.offers.filter((o) => norm(o.brand) === norm(args.brand) && o.offer_id !== "none" && o.scrape_date >= start && o.scrape_date <= end && classifyOffer(o).brandOwn)
     .sort((x, y) => offerDepth(y) - offerDepth(x));

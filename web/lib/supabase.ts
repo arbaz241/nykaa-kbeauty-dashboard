@@ -2,6 +2,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { mutate } from "swr";
+import { HIDDEN_CATEGORIES } from "./format";
 import { readCached, writeCached } from "./persist";
 
 let client: SupabaseClient | null = null;
@@ -44,10 +45,18 @@ const ORDER: Record<string, string[]> = {
   web_category_brands: ["subcategory", "brand"],
   web_homepage_features: ["scrape_date", "section", "position"],
   web_brand_offers: ["scrape_date", "brand", "offer_id"],
+  // plan v4 (migration 026)
+  web_review_counts: ["scrape_date", "product_id"],
+  web_external_news: ["brand", "published_at", "url"],
   brand_classification: ["brand"],
   // read only when the site is in Korean, so it has no nightly copy and is not prefetched with the tabs
   ko_dictionary: ["en"],
 };
+
+/** Rows of hidden lists (format.ts HIDDEN_CATEGORIES) never reach the pages. */
+function shown<T>(rows: T[]): T[] {
+  return rows.filter((r) => { const c = (r as { subcategory?: unknown; category?: unknown }).subcategory ?? (r as { category?: unknown }).category; return !(typeof c === "string" && HIDDEN_CATEGORIES.has(c)); });
+}
 
 /** Views with a ready-made nightly copy (migration 020, web_<view>_snap); whole-view reads go to the copy. */
 const SNAPSHOT = new Set(Object.keys(ORDER).filter((v) => v.startsWith("web_")));
@@ -62,9 +71,9 @@ export function fetchAll<T>(view: string, columns = "*", pageSize = 1000): Promi
   const key = `${view}|${columns}`;
   if (memory.has(key)) return Promise.resolve(memory.get(key) as T[]);
   if (!inflight.has(key)) {
-    const fresh = () => (SNAPSHOT.has(view) && columns === "*" ? fromBundle<T>(view) : fetchFresh<T>(view, columns, pageSize)).then((rows) => { memory.set(key, rows); writeCached(key, rows); return rows; });
+    const fresh = () => (SNAPSHOT.has(view) && columns === "*" ? fromBundle<T>(view) : fetchFresh<T>(view, columns, pageSize)).then((all) => { const rows = shown(all); memory.set(key, rows); writeCached(key, rows); return rows; });
     inflight.set(key, (async () => {
-      const saved = await readCached<T>(key);
+      const cached = await readCached<T>(key); const saved = cached ? shown(cached) : cached;
       if (!saved) return fresh();
       memory.set(key, saved);
       fresh().then((rows) => {

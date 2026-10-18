@@ -16,8 +16,12 @@ export const CATEGORY_LABEL: Record<string, string> = labels({
   face_moisturizer: ["Moisturiser", "보습 크림"], serum: ["Serum & essence", "세럼·에센스"], sunscreen: ["Sunscreen", "선크림"], face_wash: ["Face wash", "클렌징 폼"],
   toner: ["Toner & mist", "토너·미스트"], sheet_mask: ["Sheet mask", "시트 마스크"], cleansing_balm: ["Cleansing balm", "클렌징 밤"], eye_care: ["Eye care", "아이 케어"],
   masks: ["Masks & peels", "마스크·필링"], lip_tint: ["Lip tint", "립 틴트"], lip_care: ["Lip care", "립 케어"], lipstick: ["Lipstick", "립스틱"], foundation: ["Foundation", "파운데이션"],
+  bb_cream: ["BB & CC cream", "BB·CC 크림"], blush: ["Blush", "블러셔"], lip_gloss: ["Lip gloss", "립글로스"],
 });
-export const CATEGORIES = Object.keys(CATEGORY_LABEL);
+/** Lists still collected but not shown (plan v4, owner 18 Oct 2026): Nykaa's "Cleansing balm & oil" page is mostly
+ *  makeup removers and wipes (4 of 100 are balms or oils). Rows of these lists are dropped as they load (lib/supabase). */
+export const HIDDEN_CATEGORIES = new Set(["cleansing_balm"]);
+export const CATEGORIES = Object.keys(CATEGORY_LABEL).filter((c) => !HIDDEN_CATEGORIES.has(c));
 /** The Nykaa listing each shelf is read from (scraper/config.py CATEGORIES). */
 export const CATEGORY_URL: Record<string, string> = {
   face_moisturizer: "https://www.nykaa.com/skin/moisturizers/face-moisturizer-day-cream/c/8394",
@@ -33,6 +37,9 @@ export const CATEGORY_URL: Record<string, string> = {
   eye_care: "https://www.nykaa.com/skin/eye-care/under-eye-cream-serums/c/8403",
   lip_tint: "https://www.nykaa.com/makeup/lips/lip-stain/c/253",
   lip_care: "https://www.nykaa.com/skin/lip-care/c/8408",
+  bb_cream: "https://www.nykaa.com/makeup/face/bb-cc-cream/c/232",
+  blush: "https://www.nykaa.com/makeup/face/face-blush/c/235",
+  lip_gloss: "https://www.nykaa.com/makeup/lips/lip-gloss/c/250",
 };
 
 /** Drop a leading brand name from a product title. */
