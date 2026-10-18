@@ -4,7 +4,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { mutate } from "swr";
 import { HIDDEN_CATEGORIES } from "./format";
 import { readCached, writeCached } from "./persist";
-import { hasStatic, staticBuilt, staticDoc, warmStatic } from "./staticData";
 
 let client: SupabaseClient | null = null;
 
@@ -17,15 +16,6 @@ export function supabase(): SupabaseClient {
   }
   return client;
 }
-
-/** Resolves once the visitor has a session (AuthGate). Pages no longer wait for the sign-in before they draw (they read
- *  the nightly files), so every database read waits here instead: without a session row-level security refuses it. */
-let markReady: (() => void) | undefined;
-const ready = new Promise<void>((r) => { markReady = r; });
-export const sessionReady = () => ready;
-export const setSessionReady = () => markReady?.();
-/** The client, once there is a session: for reads outside fetchAll (tiers, events, product details). */
-export async function db(): Promise<SupabaseClient> { await ready; return supabase(); }
 
 /** A stable sort per view, so consecutive pages neither overlap nor skip rows (Postgres guarantees no order
  *  without one). Columns are the view's natural key. */
@@ -77,54 +67,26 @@ const memory = new Map<string, unknown[]>();
 const inflight = new Map<string, Promise<unknown[]>>();
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** Every row of a view: from the nightly file next to the site when there is one (lib/staticData), else from the
- *  database. */
+/** Every row of a view. Opens on this browser's saved copy when there is one (lib/persist) and fetches the fresh
+ *  rows behind it; when they differ, the pages re-read them (one revalidation for all views that changed). */
 export function fetchAll<T>(view: string, columns = "*", pageSize = 1000): Promise<T[]> {
   const key = `${view}|${columns}`;
   if (memory.has(key)) return Promise.resolve(memory.get(key) as T[]);
-  if (!inflight.has(key) && columns === "*" && SNAPSHOT.has(view) && hasStatic(view)) {
-    // the nightly file, straight from Cloudflare; the database only if the file is missing
-    inflight.set(key, staticDoc(view).then((doc) => {
-      const rows = shown(rowsOf(doc as Doc)); memory.set(key, rows);
-      setTimeout(warmStatic, 1500); checkNewer();
-      return rows;
-    }, () => fromDatabase<T>(view, columns, pageSize, key)).finally(() => inflight.delete(key)));
+  if (!inflight.has(key)) {
+    const fresh = () => (SNAPSHOT.has(view) && columns === "*" ? fromBundle<T>(view) : fetchFresh<T>(view, columns, pageSize)).then((all) => { const rows = shown(all); memory.set(key, rows); writeCached(key, rows); return rows; });
+    inflight.set(key, (async () => {
+      const cached = await readCached<T>(key); const saved = cached ? shown(cached) : cached;
+      if (!saved) return fresh();
+      memory.set(key, saved);
+      fresh().then((rows) => {
+        if (JSON.stringify(rows) === JSON.stringify(saved)) return;
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => mutate(() => true), 200);
+      }).catch(() => { /* keep showing the saved copy; the next visit tries again */ });
+      return saved;
+    })().finally(() => inflight.delete(key)));
   }
-  if (!inflight.has(key)) inflight.set(key, fromDatabase<T>(view, columns, pageSize, key).finally(() => inflight.delete(key)));
   return inflight.get(key) as Promise<T[]>;
-}
-
-/** The nightly files are as fresh as the database's copies when the night went normally. If the copies were rebuilt
- *  after the files (a late run, a refresh by hand), the newer ones are fetched once and swapped in. One small read. */
-let checked = false;
-function checkNewer() {
-  if (checked) return;
-  checked = true;
-  setTimeout(async () => {
-    await ready;
-    const { data } = await supabase().from("web_blobs").select("view,built_at");
-    const newer = (data ?? []).filter((b: { view: string; built_at: string }) => { const f = staticBuilt(b.view); return !f || Date.parse(b.built_at) > Date.parse(f); }).map((b: { view: string }) => b.view);
-    let changed = false;
-    await Promise.all(newer.filter((v) => memory.has(`${v}|*`)).map(async (v) => {
-      const rows = shown(await fromBundle<unknown>(v)); memory.set(`${v}|*`, rows); changed = true;
-    }));
-    if (changed) mutate(() => true);
-  }, 2000);
-}
-
-/** The database path: opens on this browser's saved copy when there is one (lib/persist) and fetches the fresh rows
- *  behind it; when they differ, the pages re-read them (one revalidation for all views that changed). */
-async function fromDatabase<T>(view: string, columns: string, pageSize: number, key: string): Promise<T[]> {
-  const fresh = () => (SNAPSHOT.has(view) && columns === "*" ? fromBundle<T>(view) : fetchFresh<T>(view, columns, pageSize)).then((all) => { const rows = shown(all); memory.set(key, rows); writeCached(key, rows); return rows; });
-  const cached = await readCached<T>(key); const saved = cached ? shown(cached) : cached;
-  if (!saved) return fresh();
-  memory.set(key, saved);
-  fresh().then((rows) => {
-    if (JSON.stringify(rows) === JSON.stringify(saved)) return;
-    clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => mutate(() => true), 200);
-  }).catch(() => { /* keep showing the saved copy; the next visit tries again */ });
-  return saved;
 }
 
 /** Whole-view reads that start together (one page's hooks) go out as ONE request: web_bundle returns each view's
@@ -139,7 +101,6 @@ function fromBundle<T>(view: string): Promise<T[]> {
   });
 }
 async function flush() {
-  await ready;
   const batch = queue; queue = []; flushTimer = undefined;
   const { data, error } = await supabase().rpc("web_bundle", { names: [...new Set(batch.map((b) => b.view))] });
   setTimeout(prefetchRest, 1500);
@@ -176,7 +137,6 @@ function rowsOf(doc: Doc): unknown[] {
  *  count, so the remaining pages are requested together rather than one after another (review months was 15
  *  back-to-back pages, ~6.5 s). */
 async function fetchFresh<T>(view: string, columns: string, pageSize: number): Promise<T[]> {
-  await ready;
   let source = SNAPSHOT.has(view) ? `${view}_snap` : view;
   const page = async (from: number, count = false) => {
     let q = supabase().from(source).select(columns, count ? { count: "exact" } : undefined);

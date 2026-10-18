@@ -310,7 +310,7 @@ function DemandPage() {
                     );
                   }} />
                 </div></Card>
-                <Basis className="mt-1.5">{tr(`Change = reviews ${period}. Green = growing faster than all tracked products (${signed(mkt)}), red = slower. “Small base” = under 30 reviews in 3 months.`, `변화 = ${period} 리뷰. 초록 = 시장(${signed(mkt)})보다 빠른 성장, 빨강 = 느린 성장. “표본 적음” = 3개월 리뷰 30건 미만.`)}</Basis>
+                <Basis className="mt-1.5">{tr(`Change = reviews ${period}. Green = growing faster than all tracked products (${signed(mkt)}), red = slower. “Small base” = under 30 reviews in 3 months.`, `변화 = ${period} 리뷰. 초록 = 추적 전체(${signed(mkt)})보다 빠른 성장, 빨강 = 느린 성장. “표본 적음” = 3개월 리뷰 30건 미만.`)}</Basis>
               </div>
               <div className="min-w-0">
                 <div className="mb-2 text-[14px] font-semibold">{tr("Top products by written reviews", "작성 리뷰 상위 제품")} <span className="text-[12px] font-normal text-muted">· {tr("main brands; search for others", "주요 브랜드. 다른 브랜드는 검색")}</span></div>

@@ -3,8 +3,7 @@
 import { useMemo } from "react";
 import useSWR from "swr";
 import { norm } from "./brands";
-import { db } from "./supabase";
-import { staticThenLive } from "./staticData";
+import { supabase } from "./supabase";
 import { labels } from "./i18n";
 
 /** One brand tiering for every tab (owner decision D1/D5, 12 Oct 2026), kept in Supabase `brand_tiers` and edited
@@ -25,11 +24,11 @@ const FALLBACK: TierRow[] = [
 ].map(([brand, tier, grp], i) => ({ brand, tier, grp, sort: i, note: null }) as TierRow);
 
 export function useTierRows() {
-  return useSWR("brand_tiers", () => staticThenLive("brand_tiers", "brand_tiers", async () => {
-    const { data, error } = await (await db()).from("brand_tiers").select("brand,tier,grp,sort,note").order("sort");
+  return useSWR("brand_tiers", async () => {
+    const { data, error } = await supabase().from("brand_tiers").select("brand,tier,grp,sort,note").order("sort");
     if (error) throw new Error(error.message);
     return (data ?? []) as TierRow[];
-  }), { revalidateOnFocus: false });
+  }, { revalidateOnFocus: false });
 }
 
 export interface Tiers {

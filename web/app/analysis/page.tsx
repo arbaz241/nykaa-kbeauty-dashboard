@@ -436,7 +436,7 @@ function Scoreboard({ rows, setRows, anchor, tiers, board, win }: { rows: ScoreR
           <span><Def k="shelf">{tr("Share of top-100 products", "상위 100위 제품 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr("products today · change in 14 days", "오늘 제품 수 · 14일 변화")}</span></span>
           <span><Def k="search">{tr("Share of top-10 search", "상위 10위 검색 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr("unpaid results today · change in 7 days", "오늘 비광고 결과 · 7일 변화")}</span></span>
           <span><Def k="demand">{tr("Share of reviews", "리뷰 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{win}</span></span>
-          <span><Def k="growth">{tr("Written-review growth", "작성 리뷰 성장률")}</Def><span className="block font-normal normal-case tracking-normal">{tr(`vs all tracked ${signed(board.market.growth)}`, `시장 ${signed(board.market.growth)}`)}</span></span>
+          <span><Def k="growth">{tr("Written-review growth", "작성 리뷰 성장률")}</Def><span className="block font-normal normal-case tracking-normal">{tr(`vs all tracked ${signed(board.market.growth)}`, `추적 전체 ${signed(board.market.growth)}`)}</span></span>
         </div>
         <TieredList rows={sorted} brandOf={(r) => r.brand} tiers={tiers} top={9} render={(r) => {
           const hl = same(r.brand, anchor); const out = !tiers.inSet(r.brand);

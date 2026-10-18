@@ -15,14 +15,12 @@ import { norm } from "@/lib/brands";
 import { useCategoryBrands, useHomepage } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, pct, shortName, signed } from "@/lib/format";
 import { catsOn, isCombo, MAKEUP, perDay, placesOn } from "@/lib/market";
-import { listingMoves, runsFrom, sameProductGrowth, type ListingMove } from "@/lib/profile";
+import { listingMoves, runsFrom, type ListingMove } from "@/lib/profile";
 import { cagr, DERMA_BRANDS, DOC, ECB_KRW_PER_INR, eok, HON_BRANDS, IR_PAGE, KRW_PER_INR, NYKAA_QUARTERS, NYKAA_YEARS } from "@/lib/reference";
 import { spanLabel } from "@/lib/period";
 import { useTiers } from "@/lib/tiers";
 import { useMarket } from "@/lib/useMarket";
 import { useScope } from "@/lib/scope";
-import { ORIGIN_COLOR, ORIGIN_LABEL } from "@/lib/brands";
-import type { Origin } from "@/lib/types";
 import { dayMonth, tr } from "@/lib/i18n";
 
 /** The Brief (plan v4, owner 18 Oct 2026: "this can be the tab that shows the accuracy and soundness of our data with
@@ -32,7 +30,7 @@ import { dayMonth, tr } from "@/lib/i18n";
  *  brands, then the whole market, each with outside headlines where there are any. */
 
 const NAV = (): NavItem[] => [
-  { id: "scope", label: tr("What we track", "추적 범위") }, { id: "growth", label: tr("How Nykaa is growing", "Nykaa 성장") },
+  { id: "scope", label: tr("What we track", "추적 범위") }, 
   { id: "results", label: tr("Nykaa's official figures", "Nykaa 공식 실적") }, { id: "findings", label: tr("What the shelf shows", "진열 데이터") },
   { id: "changed", label: tr("What changed", "달라진 점") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
@@ -59,13 +57,6 @@ function BriefPage() {
   const threeYear = cagr(fy0.gmv, fyN.gmv, years.length - 1);
   const last4 = quarters.filter((q) => q.gmv !== null).slice(-4);
   const ttm = last4.reduce((a, q) => a + (q.gmv ?? 0), 0);
-  /* ---------------- our own growth, the standard rule (owner 19 Oct 2026: show what our crawled data says next to
-     Nykaa's figure): written reviews on every tracked product, same products only, a quarter against the same
-     quarter a year earlier. Shown for the two latest complete quarters; further back, the products we track (picked
-     from today's lists) stand for the market less and less, so the comparison isn't shown. */
-  const monthAdd = (iso: string, n: number) => { const d = new Date(`${iso}T00:00:00Z`); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1)).toISOString().slice(0, 10); };
-  const thisMonth = m.latest ? `${m.latest.slice(0, 7)}-01` : "9999";
-  const complete = quarters.filter((q) => monthAdd(q.start, 3) <= thisMonth).slice(-2);
 
   /* ---------------- buying, per category and per day (lists started on different days) */
   const flow = m.flow.filter((r) => r.value > 0);
@@ -95,26 +86,6 @@ function BriefPage() {
   const koreanInLists = new Set(listBrands.filter((b) => b.origin === "kbeauty").map((b) => norm(b.brand))).size;
   const listCount = CATEGORIES.filter((c) => m.ix.catStart.has(c)).length;
 
-  /* ---------------- our growth, weighted by origin (owner 19 Oct 2026: "how is Nykaa growing on our figures", big,
-     before Nykaa's own). The products we follow month by month are the main brands and their rivals, about two in
-     three Korean, so their plain total would mostly be K-beauty's growth. Each origin's growth (same products, a
-     quarter against the same quarter a year earlier) is weighted by that origin's share of daily buying in today's
-     top 100s; unclassified brands carry no weight. */
-  const ORIGINS: Origin[] = ["kbeauty", "local", "global"];
-  const weight = new Map(ORIGINS.map((o) => [o, daily((r) => r.origin === o)] as const));
-  const wTot = ORIGINS.reduce((a, o) => a + (weight.get(o) ?? 0), 0) || 1;
-  const ours = new Map(complete.map((q) => {
-    const rec = [0, 1, 2].map((i) => monthAdd(q.start, i)); const base = rec.map((x) => monthAdd(x, -12));
-    const all = sameProductGrowth(m.pool, rec, base);
-    const byOrigin = ORIGINS.map((o) => ({ o, w: (weight.get(o) ?? 0) / wTot, g: sameProductGrowth(m.pool.filter((p) => m.originOf(p.brand) === o), rec, base) }));
-    const used = byOrigin.filter((x) => x.g.change !== null && x.g.products >= 10);
-    const uw = used.reduce((a, x) => a + x.w, 0);
-    const estimate = uw > 0 ? used.reduce((a, x) => a + x.w * x.g.change!, 0) / uw : null;
-    return [q.fy, { q, all, byOrigin, estimate }] as const;
-  }));
-  const growthRows = complete.map((q) => ours.get(q.fy)!);
-  const lastG = growthRows[growthRows.length - 1] ?? null;
-  const nykaaSays = (q: (typeof quarters)[number]) => (q.value !== null ? signed(q.value) : tr("\"late twenties\"", "\"20% 후반\""));
 
   /* ---------------- what our data shows, each backed by Nykaa's own documents (owner 18 Oct: "the important
      information people would be curious about, with supporting figures around it"; no verdicts on the page) */
@@ -217,7 +188,7 @@ function BriefPage() {
   return (
     <Shell active="Overview" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Brief · start here", "브리핑 · 여기서 시작")} title={tr("What you need to know", "알아야 할 것")}
-        sub={tr("What we track, how Nykaa beauty is growing on our figures and on Nykaa's, what the shelf shows backed by Nykaa's own statements, then what changed: Innisfree first, then K-beauty brands, then the whole market.", "추적 범위, 우리 데이터와 Nykaa 발표로 본 Nykaa 뷰티 성장, 진열 데이터와 이를 뒷받침하는 Nykaa 발표, 그리고 달라진 점(Innisfree → K-뷰티 브랜드 → 시장 전체).")} />
+        sub={tr("What we track, Nykaa's own results, what the shelf shows backed by Nykaa's own statements, then what changed: Innisfree first, then K-beauty brands, then the whole market.", "추적 범위, Nykaa 공식 실적, 진열 데이터와 이를 뒷받침하는 Nykaa 발표, 그리고 달라진 점(Innisfree → K-뷰티 브랜드 → 시장 전체).")} />
       <SectionNav items={NAV()} />
 
       <ActionSection id="scope" kicker={tr("What we track", "추적 범위")}
@@ -226,67 +197,6 @@ function BriefPage() {
           <>브랜드와 제품 두 가지를 세 그룹으로 집계. 모든 탭의 숫자는 이 중 한 단계에서 나오고, 각 탭 상단에 어느 단계인지 표시. 2026년 9월 13일부터 매일 밤 수집{scope?.day ? `, 최근 ${dayMonth(scope.day)}` : ""}.</>)}>
         <ScopePanel />
       </ActionSection>
-
-      {lastG && <ActionSection id="growth" kicker={tr("How Nykaa beauty is growing", "Nykaa 뷰티 성장")}
-        title={tr(`On our figures, Nykaa beauty grew about ${signed(lastG.estimate)} in ${lastG.q.label} against a year earlier; Nykaa reports ${nykaaSays(lastG.q)}`, `우리 데이터 기준 Nykaa 뷰티 ${lastG.q.label} 전년 대비 약 ${signed(lastG.estimate)} 성장; Nykaa 발표 ${nykaaSays(lastG.q)}`)}
-        note={tr(<>Our estimate first, then Nykaa&rsquo;s own figure for the same quarter. Growth here follows the one rule used on every page: written reviews, same products, a quarter against the same quarter a year earlier.</>, <>우리 추정치 먼저, 그다음 같은 분기 Nykaa 공식 수치. 성장률은 모든 페이지와 같은 기준: 작성 리뷰, 동일 제품, 전년 같은 분기 대비.</>)}>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {[...growthRows].reverse().map((g) => {
-            const scale = (v: number | null) => `${Math.max(2, Math.min(100, ((v ?? 0) / 0.6) * 100))}%`;
-            return (
-              <Card key={g.q.fy} className="px-5 py-5">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{g.q.label} <span className="font-normal normal-case tracking-normal">{tr("vs the same months a year earlier", "전년 같은 달 대비")}</span></div>
-                <div className="mt-3 grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-[12.5px] font-semibold text-accent-strong">{tr("Our estimate", "우리 추정")}</div>
-                    <div className="font-display text-[46px] font-semibold leading-none tracking-tight tabular">{signed(g.estimate)}</div>
-                    <div className="mt-1 text-[12px] text-ink-2">{tr(`${g.all.products} of the ${scope?.followed.products ?? "–"} products we follow, those that sold a year earlier`, `월별 추적 제품 ${scope?.followed.products ?? "–"}개 중 1년 전에도 팔린 ${g.all.products}개`)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[12.5px] font-semibold text-ink-2">{tr("Nykaa reports", "Nykaa 발표")}</div>
-                    <div className="font-display text-[46px] font-semibold leading-none tracking-tight tabular text-ink-2">{g.q.value !== null ? signed(g.q.value) : <span className="text-[26px]">{tr("late 20s", "20% 후반")}</span>}</div>
-                    <div className="mt-1 text-[12px] text-ink-2">{tr("Beauty GMV", "뷰티 GMV")}{g.q.value === null ? tr(" (provisional)", " (잠정)") : ""} · <PdfLink href={g.q.url}>{g.q.fy}</PdfLink></div>
-                  </div>
-                </div>
-                <div className="mt-4 border-t border-line pt-3">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("By brand origin, our figures", "브랜드 출신별, 우리 데이터")}</div>
-                  <div className="grid gap-1.5">
-                    {g.byOrigin.map((x) => (
-                      <div key={x.o} className="grid grid-cols-[92px_1fr_64px] items-center gap-3 text-[12.5px]">
-                        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: ORIGIN_COLOR[x.o].fill }} />{ORIGIN_LABEL[x.o]}</span>
-                        <span className="h-2 rounded-full bg-sunken"><span className="block h-2 rounded-full" style={{ width: scale(x.g.change), background: ORIGIN_COLOR[x.o].fill }} /></span>
-                        <b className="text-right tabular">{x.g.change !== null ? signed(x.g.change) : "–"}</b>
-                        <span className="col-start-2 col-end-4 -mt-1 text-[11px] text-muted">{tr(`${x.g.products} products · weight ${pct(x.w, 0)} (its share of buying)`, `제품 ${x.g.products}개 · 가중치 ${pct(x.w, 0)} (구매 점유율)`)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-        <div className="mt-4 rounded-[16px] bg-sunken px-5 py-4">
-          <div className="text-[13px] font-semibold">{tr("Why we calculate it this way", "이렇게 계산하는 이유")}</div>
-          <ol className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {(tr([
-              ["Nykaa doesn't publish sales", "by product or brand. Written reviews are the closest public record of purchases, and Nykaa dates each one, so we can look back a year even though we started collecting on 13 Sep."],
-              ["Same products only", `a quarter against the same quarter a year earlier, counting only products that already had reviews then. ${lastG.all.launches} products launched since are left out: we pick products from today's lists, so launches would add growth the market didn't have.`],
-              ["Weighted by origin", `the ${scope?.followed.products ?? "–"} products we follow lean K-beauty (we started from Innisfree's rivals; every category's top 30 is being added from 19 Oct), so each origin's growth counts by its share of buying on Nykaa's shelf, not by how many products we follow.`],
-              ["Checked against Nykaa", "Nykaa's reported beauty growth for the same quarter sits beside ours. Ours stays a stand-in: reviews per purchase can drift, and we follow some brands more closely than others."],
-            ], [
-              ["Nykaa는 판매량 비공개", "(제품·브랜드별). 작성 리뷰가 구매에 가장 가까운 공개 기록이고 Nykaa가 작성일을 남겨, 9월 13일에 수집을 시작했어도 1년 전까지 확인 가능."],
-              ["동일 제품만", `분기를 전년 같은 분기와 비교, 그때도 리뷰가 있던 제품만. 이후 출시 제품 ${lastG.all.launches}개는 제외: 오늘 목록에서 제품을 뽑기 때문에 신제품을 넣으면 시장에 없던 성장이 잡힘.`],
-              ["출신별 가중", `월별 추적 제품 ${scope?.followed.products ?? "–"}개는 K-뷰티 비중이 큼(Innisfree 경쟁 제품에서 출발, 10월 19일부터 카테고리별 상위 30위 추가 중) → 출신별 성장률을 추적 제품 수가 아니라 Nykaa 진열의 구매 점유율로 가중.`],
-              ["Nykaa 수치와 대조", "같은 분기 Nykaa 뷰티 성장률을 나란히 표시. 우리 수치는 대용치: 구매당 리뷰 비율이 변할 수 있고, 브랜드마다 추적 깊이가 다름."],
-            ]) as string[][]).map(([h, d], i) => (
-              <li key={h} className="flex gap-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-[12px] font-semibold text-on-brand">{i + 1}</span><span className="text-[12.5px] leading-snug text-ink-2"><b className="block text-[13px] text-ink">{h}</b>{d}</span></li>
-            ))}
-          </ol>
-          <div className="mt-3 border-t border-line pt-3 text-[12.5px] leading-relaxed text-ink-2">
-            <b className="text-ink">{tr("Nykaa on K-beauty: ", "Nykaa의 K-뷰티 발표: ")}</b>{tr(<>&ldquo;Korean brands grew 58% on Nykaa in FY26&rdquo; (Apr 2025–Mar 2026). </>, <>&ldquo;Nykaa의 K-뷰티 브랜드 FY26 58% 성장&rdquo;(2025년 4월–2026년 3월). </>)}<PdfLink href={DOC.q4fy26}>{tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기")}</PdfLink>
-          </div>
-        </div>
-      </ActionSection>}
 
       <ActionSection id="results" kicker={tr("Nykaa's official figures", "Nykaa 공식 실적")} title={tr(`Beauty GMV ₹${fyN.gmv.toLocaleString("en-IN")} cr (${eok(fyN.gmv)}) in FY26, growing ${pct(threeYear, 0)} a year since FY23; ${signed(lastQ.value)} in ${lastQ.label}`, `FY26 뷰티 GMV ₹${fyN.gmv.toLocaleString("en-IN")} cr (${eok(fyN.gmv)}), FY23 이후 연 ${pct(threeYear, 0)} 성장; ${lastQ.label} ${signed(lastQ.value)}`)}
         note={<>{tr("From FSN E-Commerce Ventures' investor documents; each row links to its PDF. ", "FSN E-Commerce Ventures 투자자 자료 기준, 행마다 원본 PDF 링크. ")}<PdfLink href={IR_PAGE}>{tr("All documents", "전체 자료")}</PdfLink>{tr(` Won at the planning rate ₹1 = ₩${KRW_PER_INR} (market rate on ${dayMonth(ECB_KRW_PER_INR.date)}: ₩${ECB_KRW_PER_INR.rate}, ECB).`, ` 원화는 기획 환율 ₹1 = ₩${KRW_PER_INR} 적용 (${dayMonth(ECB_KRW_PER_INR.date)} 시장 환율 ₩${ECB_KRW_PER_INR.rate}, ECB).`)}</>}>
@@ -310,7 +220,7 @@ function BriefPage() {
           </Card>
           <Card className="overflow-x-auto">
             <table className="w-full min-w-[460px] text-[13px]">
-              <thead><tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">{tr("Quarter", "분기")}</th><th className="px-2 text-right">{tr("Beauty GMV", "뷰티 GMV")}</th><th className="px-2 text-right">{tr("In won", "원화")}</th><th className="px-2">{tr("Nykaa vs a year earlier", "Nykaa 전년 대비")}</th><th className="px-2 text-right">{tr("Our estimate", "우리 추정")}</th><th className="px-2 pr-4" /></tr></thead>
+              <thead><tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">{tr("Quarter", "분기")}</th><th className="px-2 text-right">{tr("Beauty GMV", "뷰티 GMV")}</th><th className="px-2 text-right">{tr("In won", "원화")}</th><th className="px-2">{tr("Nykaa vs a year earlier", "Nykaa 전년 대비")}</th><th className="px-2 pr-4" /></tr></thead>
               <tbody>{quarters.map((q) => (
                 <Fragment key={q.fy}>
                   <tr className={`${q.note ? "" : "border-b border-line/60"}`}>
@@ -318,10 +228,9 @@ function BriefPage() {
                     <td className="px-2 py-2 text-right tabular">{q.gmv ? `₹${q.gmv.toLocaleString("en-IN")} cr` : "–"}</td>
                     <td className="whitespace-nowrap px-2 py-2 text-right tabular text-ink-2">{q.gmv ? eok(q.gmv) : "–"}</td>
                     <td className="whitespace-nowrap px-2 py-2 font-semibold tabular">{q.value !== null ? signed(q.value) : <span className="font-normal text-muted">{tr("provisional", "잠정")}</span>}{growthBar(q.value)}</td>
-                    <td className="whitespace-nowrap px-2 py-2 text-right tabular text-ink-2">{ours.get(q.fy)?.estimate != null ? <a href="#growth" className="underline decoration-line-2 underline-offset-2">{signed(ours.get(q.fy)!.estimate)}</a> : "–"}</td>
                     <td className="px-2 py-2 pr-4 text-right text-[12px]"><PdfLink href={q.url}>PDF</PdfLink></td>
                   </tr>
-                  {q.note && <tr><td colSpan={6} className="px-4 pb-2.5 text-[12px] text-ink-2">{q.note}</td></tr>}
+                  {q.note && <tr><td colSpan={5} className="px-4 pb-2.5 text-[12px] text-ink-2">{q.note}</td></tr>}
                 </Fragment>))}</tbody>
             </table>
           </Card>
@@ -380,7 +289,6 @@ function BriefPage() {
         ],
         calc: [
           tr(`Won: ₹ crore × ${KRW_PER_INR} ÷ 10 = 억원 (planning rate ₹1 = ₩${KRW_PER_INR}). 3-year growth rate: (FY26 ÷ FY23)^(1/3) − 1. Latest 12 months: the last four reported quarters added.`, `원화: ₹ crore × ${KRW_PER_INR} ÷ 10 = 억원 (기획 환율 ₹1 = ₩${KRW_PER_INR}). 3년 연평균 성장률: (FY26 ÷ FY23)^(1/3) − 1. 최근 12개월: 최근 발표 4개 분기 합.`),
-          tr("Our growth (the same rule on product, brand and Nykaa level): written reviews in a quarter against the same quarter a year earlier, only products that already had reviews a year earlier. Products launched since are left out, because the products we track are picked from today's lists. Nykaa-level estimate: K-beauty, Indian and global growth, each weighted by that origin's share of daily buying in today's top 100s (unclassified brands carry no weight; an origin with fewer than 10 products is left out).", "우리 성장률 (제품·브랜드·Nykaa 전체 동일 기준): 분기 작성 리뷰를 전년 같은 분기와 비교, 1년 전에도 리뷰가 있던 제품만. 이후 출시 제품은 제외 (추적 제품이 오늘 목록에서 뽑혔기 때문). Nykaa 전체 추정: K-뷰티·인도·글로벌 성장률을 오늘 상위 100위의 출신별 일 구매 점유율로 가중 (미분류 브랜드는 가중치 없음, 제품 10개 미만 출신은 제외)."),
           ...BUYING_METHOD(m.flowSpan).calc,
           tr("Across categories (e.g. Nykaa's own brands' share): each category's buying is divided by its number of rating days, then added.", "카테고리 합계(예: Nykaa 자체 브랜드 비중): 카테고리별 구매를 평가 일수로 나눈 뒤 합산."),
         ],

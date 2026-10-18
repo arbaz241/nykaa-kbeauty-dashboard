@@ -3,8 +3,7 @@
 import { createContext, Fragment, useContext, useEffect, useState } from "react";
 import useSWR from "swr";
 import type { Session } from "@supabase/supabase-js";
-import { setSessionReady, supabase } from "@/lib/supabase";
-import { openSite } from "@/lib/staticData";
+import { supabase } from "@/lib/supabase";
 import { requireLogin, visitorId } from "@/lib/access";
 import { loadLang, tr, useLang } from "@/lib/i18n";
 import { useDictionary } from "@/lib/dict";
@@ -31,11 +30,6 @@ let known: Session | null | undefined;
 /** Renders children for a signed-in user or, while the site is open, a guest; otherwise sends them to /login/. */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(known);
-  // While the site is open to anyone with the link, its data comes from the nightly files, so the page draws at once
-  // and the guest sign-in finishes behind it (owner 19 Oct 2026: pages in 0.1-0.2 s). Not on Admin: it shows only to
-  // a signed-in admin. Set after the first render so the prerendered HTML and the first client render agree.
-  const [early, setEarly] = useState(false);
-  useEffect(() => { if (openSite && !window.location.pathname.startsWith("/admin")) setEarly(true); }, []);
   const lang = useLang();
   const dictReady = useDictionary();
   useEffect(loadLang, []);
@@ -50,10 +44,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       const needAccount = await requireLogin();
       if (s?.user.is_anonymous && needAccount) { await auth.signOut(); s = null; }
       if (!s && !needAccount) { const r = await auth.signInAnonymously(); s = r.data.session ?? null; }
-      if (s) setSessionReady();
       if (live) setSession((known = s));
     })().catch(() => { if (live) setSession((known = null)); });
-    const { data: sub } = supabase().auth.onAuthStateChange((_e, s) => { if (s) { setSessionReady(); setSession((known = s)); } });
+    const { data: sub } = supabase().auth.onAuthStateChange((_e, s) => { if (s) setSession((known = s)); });
     return () => { live = false; sub.subscription.unsubscribe(); };
   }, []);
   useEffect(() => {
@@ -65,9 +58,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (uid) supabase().rpc("log_visit", { p_path: `${window.location.pathname}${window.location.search}`, p_visitor: visitorId(), p_referrer: document.referrer || null }).then(() => {}, () => {});
   }, [uid]); // each page mounts its own gate, so tab changes inside the app still log one visit per page
-  if ((!session && !(early && session === undefined)) || !dictReady) return <div className="grid min-h-screen place-items-center text-sm text-muted">{tr("Loading…", "불러오는 중…")}</div>;
+  if (!session || !dictReady) return <div className="grid min-h-screen place-items-center text-sm text-muted">{tr("Loading…", "불러오는 중…")}</div>;
   // The drawer provider wraps whole pages, so any component on a page (not only inside Shell) can open a product.
   // Keyed on the language: switching re-mounts the page, so text built once (memoised findings, labels) is rebuilt in
   // the new language. Data stays in SWR's cache, so nothing is fetched again.
-  return <SessionCtx.Provider value={session ?? null}><Fragment key={lang}><ProductDrawerProvider><DetailProvider>{children}</DetailProvider></ProductDrawerProvider></Fragment></SessionCtx.Provider>;
+  return <SessionCtx.Provider value={session}><Fragment key={lang}><ProductDrawerProvider><DetailProvider>{children}</DetailProvider></ProductDrawerProvider></Fragment></SessionCtx.Provider>;
 }
