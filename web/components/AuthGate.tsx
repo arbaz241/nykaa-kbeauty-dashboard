@@ -4,6 +4,7 @@ import { createContext, Fragment, useContext, useEffect, useState } from "react"
 import useSWR from "swr";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { requireLogin, visitorId } from "@/lib/access";
 import { loadLang, tr, useLang } from "@/lib/i18n";
 import { useDictionary } from "@/lib/dict";
 import { DetailProvider } from "./Detail";
@@ -26,24 +27,36 @@ export function useIsAdmin() {
  *  page at once instead of on a "Loading…" screen while the session is read again. */
 let known: Session | null | undefined;
 
-/** Renders children only for a signed-in user; otherwise sends them to /login/. */
+/** Renders children for a signed-in user or, while the site is open, a guest; otherwise sends them to /login/. */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(known);
   const lang = useLang();
   const dictReady = useDictionary();
   useEffect(loadLang, []);
   useEffect(() => {
-    supabase().auth.getSession().then(({ data }) => setSession((known = data.session)));
-    const { data: sub } = supabase().auth.onAuthStateChange((_e, s) => setSession((known = s)));
-    return () => sub.subscription.unsubscribe();
+    // Open access (lib/access): with no session, a visitor is signed in as a guest unless the owner has switched
+    // sign-in back on; a guest session is ended when sign-in is required. Anything unexpected falls back to /login/.
+    let live = true;
+    (async () => {
+      const auth = supabase().auth;
+      const { data } = await auth.getSession();
+      let s = data.session;
+      const needAccount = await requireLogin();
+      if (s?.user.is_anonymous && needAccount) { await auth.signOut(); s = null; }
+      if (!s && !needAccount) { const r = await auth.signInAnonymously(); s = r.data.session ?? null; }
+      if (live) setSession((known = s));
+    })().catch(() => { if (live) setSession((known = null)); });
+    const { data: sub } = supabase().auth.onAuthStateChange((_e, s) => { if (s) setSession((known = s)); });
+    return () => { live = false; sub.subscription.unsubscribe(); };
   }, []);
   useEffect(() => {
     if (session === null) window.location.replace("/login/");
   }, [session]);
-  // One row per page opened, for Admin › People. Best effort: a failure never affects the page.
+  // One row per page opened, for Admin › People: the database adds the IP address and browser from the request.
+  // Best effort: a failure never affects the page.
   const uid = session?.user.id;
   useEffect(() => {
-    if (uid) supabase().from("app_visits").insert({ path: window.location.pathname }).then(() => {}, () => {});
+    if (uid) supabase().rpc("log_visit", { p_path: `${window.location.pathname}${window.location.search}`, p_visitor: visitorId(), p_referrer: document.referrer || null }).then(() => {}, () => {});
   }, [uid]); // each page mounts its own gate, so tab changes inside the app still log one visit per page
   if (!session || !dictReady) return <div className="grid min-h-screen place-items-center text-sm text-muted">{tr("Loading…", "불러오는 중…")}</div>;
   // The drawer provider wraps whole pages, so any component on a page (not only inside Shell) can open a product.

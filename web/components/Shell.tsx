@@ -44,15 +44,18 @@ function UserMenu() {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
   const email = session?.user.email ?? "";
+  const guest = !!session?.user.is_anonymous;
   return (
     <div ref={ref} className="relative">
       <button type="button" aria-label={tr("Account menu", "계정 메뉴")} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}
-        className="press grid h-9 w-9 place-items-center rounded-full bg-sunken text-[13px] font-semibold uppercase text-ink-2 ring-1 ring-line hover:bg-line">{email[0] ?? "·"}</button>
+        className="press grid h-9 w-9 place-items-center rounded-full bg-sunken text-[13px] font-semibold uppercase text-ink-2 ring-1 ring-line hover:bg-line">{guest ? "G" : email[0] ?? "·"}</button>
       {open && (
         <div role="menu" className="rise absolute right-0 top-full z-40 mt-2 w-64 rounded-2xl bg-surface p-1.5 shadow-pop ring-1 ring-line">
-          <div className="truncate px-3.5 py-2.5 text-[13px] text-muted">{email}</div>
-          <button role="menuitem" type="button" onClick={async () => { await clearCached(); await supabase().auth.signOut(); window.location.replace("/login/"); }}
-            className="block w-full rounded-xl px-3.5 py-2.5 text-left text-[14px] text-ink-2 hover:bg-sunken hover:text-ink">{tr("Sign out", "로그아웃")}</button>
+          <div className="truncate px-3.5 py-2.5 text-[13px] text-muted">{guest ? tr("Browsing as a guest", "게스트로 보는 중") : email}</div>
+          {guest
+            ? <a role="menuitem" href="/login/" className="block w-full rounded-xl px-3.5 py-2.5 text-left text-[14px] text-ink-2 hover:bg-sunken hover:text-ink">{tr("Sign in (admins)", "로그인 (관리자)")}</a>
+            : <button role="menuitem" type="button" onClick={async () => { await clearCached(); await supabase().auth.signOut(); window.location.replace("/login/"); }}
+                className="block w-full rounded-xl px-3.5 py-2.5 text-left text-[14px] text-ink-2 hover:bg-sunken hover:text-ink">{tr("Sign out", "로그아웃")}</button>}
         </div>
       )}
     </div>
@@ -106,6 +109,7 @@ export default function Shell({ active, asOf: rawAsOf, children }: { active: str
             <div className="mb-2 flex items-center gap-2.5 text-ink"><LogoMark size={22} /><span className="font-display text-[14px] font-semibold">Nykaa Market Intelligence</span></div>
             {tr("Built from public Nykaa India listings, reviews and search results, collected every night. Rankings are Nykaa's own order; shares and demand are derived from them.",
               "Nykaa 인도의 공개 상품 목록·리뷰·검색 결과를 매일 밤 수집해 만듭니다. 순위는 Nykaa가 정한 순서이며, 점유율과 수요는 이를 바탕으로 계산합니다.")}
+            <div className="mt-2">{tr("Visits to this site are recorded (IP address, browser and pages opened) and seen only by its owner.", "이 사이트 방문 기록(IP 주소, 브라우저, 열어 본 페이지)은 저장되며 사이트 소유자만 볼 수 있습니다.")}</div>
           </div>
           <div className="sm:text-right">{asOf ? tr(<>Data as of <span className="font-medium text-ink-2">{asOf}</span></>, <><span className="font-medium text-ink-2">{asOf}</span> 기준 데이터</>) : tr("Refreshed nightly", "매일 밤 갱신")}<br />{tr("Prices in ₹ · ratings out of 5", "가격 단위 ₹ · 평점 5점 만점")}<br /><DefinitionsButton className="font-medium text-accent-strong underline-offset-2 hover:underline" /></div>
         </div>

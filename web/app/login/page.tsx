@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { guestsAllowed } from "@/lib/access";
 import { loadLang, tr, useLang } from "@/lib/i18n";
 import LangToggle from "@/components/LangToggle";
 
@@ -17,6 +19,9 @@ export default function Login() {
   const [msg, setMsg] = useState<{ kind: "err" | "ok"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // while the site is open (lib/access), anyone can go in without an account
+  const [open, setOpen] = useState(false);
+  useEffect(() => { guestsAllowed().then(setOpen, () => {}); }, []);
   useEffect(() => {
     // the client reads the reset link's token from the URL and announces it as PASSWORD_RECOVERY
     const { data: sub } = supabase().auth.onAuthStateChange((e) => { if (e === "PASSWORD_RECOVERY") setMode("reset"); });
@@ -72,6 +77,7 @@ export default function Login() {
           </button>
         </form>
         {msg && <p className={`mt-4 text-sm ${msg.kind === "err" ? "text-bad" : "text-good"}`}>{msg.text}</p>}
+        {open && mode === "in" && <Link href="/" className="mt-5 block rounded-xl px-4 py-3 text-center text-[15px] font-medium text-accent-strong ring-1 ring-line transition hover:bg-sunken">{tr("Open the dashboard without an account →", "계정 없이 대시보드 열기 →")}</Link>}
         {mode !== "reset" && (
           <div className="mt-6 flex justify-between text-sm text-ink-2">
             <button onClick={() => { setMode(mode === "in" ? "up" : "in"); setMsg(null); }} className="underline-offset-4 hover:underline">
