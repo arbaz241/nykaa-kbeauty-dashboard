@@ -27,6 +27,7 @@ import type { SearchRow, Suggestion } from "@/lib/types";
 import useSWR from "swr";
 import { push } from "@/lib/group";
 import { dayMonth, monthYY, tr } from "@/lib/i18n";
+import { ScopeLine } from "@/components/Scope";
 
 /** Demand (Round 3): who is buying more, who shoppers find when they search, who pays for attention, and what
  *  Nykaa suggests as they type, always as the anchor against the focus brands (owner decisions 12 Oct 2026). */
@@ -40,7 +41,7 @@ const signed = (v: number | null | undefined) => (v === null || v === undefined 
 const same = (a: string, b: string) => norm(a) === norm(b);
 
 const NAV = (): NavItem[] => [
-  { id: "summary", label: tr("Summary", "요약") }, { id: "demand", label: tr("Written reviews", "작성 리뷰") }, { id: "sos", label: tr("Search vs reviews", "검색 vs 리뷰") },
+  { id: "summary", label: tr("Summary", "요약") }, { id: "demand", label: tr("Written reviews", "작성 리뷰") },
   { id: "search", label: tr("Search", "검색") }, { id: "ads", label: tr("Ads", "광고") }, { id: "suggest", label: tr("What shoppers type", "소비자 검색어") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
 
@@ -186,7 +187,6 @@ function DemandPage() {
     const unpaid1 = ds.map((d) => { const rs = rows.filter((r) => r.query === active && r.scrape_date === d); return rs.length ? split(rs).unpaid[0]?.brand ?? null : null; });
     return { ds, brands: [...bs.entries()].sort((a, b) => (tiers.order(a[0]) - tiers.order(b[0])) || [...b[1].values()].reduce((x, y) => x + y, 0) - [...a[1].values()].reduce((x, y) => x + y, 0)), unpaid1 };
   }, [rows, days, active, tiers]);
-  const totalTop10 = sov.reduce((a, s) => a + s.top10, 0);
   const totalAds = sov.reduce((a, s) => a + s.ads, 0);
   const focusAds = sov.filter((s) => tiers.inSet(s.brand)).reduce((a, s) => a + s.ads, 0);
   const anchorS = sov.find((s) => isA(s.brand));
@@ -207,36 +207,20 @@ function DemandPage() {
   }, [keywords, byKw, A, tiers.focus]);
   const absent = keywords.filter((k) => !grid.pos.get(k)?.get(norm(A))?.rank).length;
 
-  // share of search (unpaid top-10 places) vs share of demand (reviews, last 3 months): Binet's "excess share of search"
-  const sos = useMemo(() => {
-    const names = new Set([...sov.filter((s) => s.top10 > 0).map((s) => s.brand), ...brands.filter((b) => (b.last3 ?? 0) > 0).map((b) => b.brand)]);
-    return [...names].map((b) => {
-      const s = sov.find((x) => same(x.brand, b)); const d = brands.find((x) => same(x.brand, b));
-      const search = s ? s.top10 / Math.max(1, totalTop10) : 0; const demand = d?.last3 ? d.last3 / Math.max(1, demTot) : 0;
-      return { brand: b, search, demand, excess: search - demand, origin: s?.origin ?? origin.get(b) ?? "unknown", tracked: !!d?.last3 };
-    }).filter((x) => x.search > 0 || x.demand > 0.002)
-      .sort((a, b) => (isA(a.brand) ? -1 : isA(b.brand) ? 1 : tiers.order(a.brand) - tiers.order(b.brand) || b.search + b.demand - a.search - a.demand));
-  }, [brands, sov, totalTop10, demTot, origin, tiers]); // eslint-disable-line react-hooks/exhaustive-deps
-  const launchOf = (b: string) => { const n = (notes.data ?? []).find((x) => x.kind === "launch" && x.brand && same(x.brand, b)); return n ? dayMonth(n.starts_on) : null; };
-  const anchorSos = sos.find((x) => isA(x.brand));
-  const focusSos = sos.filter((x) => tiers.inSet(x.brand) && x.tracked);
-  const ahead = focusSos.filter((x) => !isA(x.brand) && x.excess > 0.01).sort((a, b) => b.excess - a.excess).slice(0, 3);
-  const behind = focusSos.filter((x) => !isA(x.brand) && !launchOf(x.brand) && x.excess < -0.01).sort((a, b) => a.excess - b.excess).slice(0, 3);
-
   /* ---- what shoppers type */
   const typed = useMemo(() => suggestionInsights(sugg.data ?? [], suggHist.data ?? [], known, A, (b) => tiers.inSet(b)), [sugg.data, suggHist.data, known, A, tiers]);
 
   /* ---- verdict */
-  const gap = anchorSos ? anchorSos.excess : null;
-  const verdict = anchorD ? tr(`${A}'s written reviews are ${anchorD.growth === null ? "too thinly tracked to read" : `${anchorD.growth >= (mkt ?? 0) ? "growing faster than" : "lagging"} all tracked products (${signed(anchorD.growth)} vs ${signed(mkt)})`}, #${anchorRank} of ${setRanked.length} main brands by reviews; ${gap === null ? "" : gap < -0.005 ? `but shoppers who search find it less than buyers choose it (${pct(anchorSos!.search)} of search vs ${pct(anchorSos!.demand)} of written reviews)` : gap > 0.005 ? `and shoppers find it more often than buyers choose it (${pct(anchorSos!.search)} of search vs ${pct(anchorSos!.demand)} of written reviews), a lead indicator of growth` : `and its search share matches its share of written reviews (${pct(anchorSos!.search)})`}.`,
-      `${A} 작성 리뷰: ${anchorD.growth === null ? "추적 데이터 부족으로 판단 어려움" : `추적 전체보다 ${anchorD.growth >= (mkt ?? 0) ? "빠르게 성장" : "뒤처짐"}(${signed(anchorD.growth)}, 시장 ${signed(mkt)})`}, 리뷰 기준 주요 브랜드 ${setRanked.length}개 중 ${anchorRank}위. ${gap === null ? "" : gap < -0.005 ? `다만 구매자가 고르는 만큼 검색에선 잘 안 보임(검색 ${pct(anchorSos!.search)}, 리뷰 ${pct(anchorSos!.demand)}).` : gap > 0.005 ? `구매자가 고르는 것보다 검색에서 더 자주 보임(검색 ${pct(anchorSos!.search)}, 리뷰 ${pct(anchorSos!.demand)}) → 성장의 선행 신호.` : `검색 점유율이 리뷰 점유율과 비슷(${pct(anchorSos!.search)}).`}`) : "";
-  const soWhat = !anchorD ? null : gap !== null && gap < -0.005 ? tr(`Search is the gap: ${A} is outside the unpaid top 10 on ${absent} of ${keywords.length} keywords. Winning those searches is the cheapest demand to add.`, `약점은 검색: ${A}는 키워드 ${keywords.length}개 중 ${absent}개에서 비광고 상위 10위 밖. 이 검색어를 가져오는 게 가장 적은 비용으로 수요를 늘리는 방법.`)
+  const verdict = anchorD ? tr(`${A}'s written reviews are ${anchorD.growth === null ? "too thinly tracked to read" : `${anchorD.growth >= (mkt ?? 0) ? "growing faster than" : "lagging"} all products we follow (${signed(anchorD.growth)} vs ${signed(mkt)}; Nykaa beauty as a whole: see the Brief)`}, #${anchorRank} of ${setRanked.length} main brands by reviews; it reaches the unpaid top 10 on ${keywords.length - absent} of ${keywords.length} search keywords.`,
+      `${A} 작성 리뷰: ${anchorD.growth === null ? "추적 데이터 부족으로 판단 어려움" : `추적 전체보다 ${anchorD.growth >= (mkt ?? 0) ? "빠르게 성장" : "뒤처짐"}(${signed(anchorD.growth)}, 추적 전체 ${signed(mkt)})`}, 리뷰 기준 주요 브랜드 ${setRanked.length}개 중 ${anchorRank}위. 검색어 ${keywords.length}개 중 ${keywords.length - absent}개에서 비광고 상위 10위 안.`) : "";
+  const soWhat = !anchorD ? null : keywords.length > 0 && absent > keywords.length / 2 ? tr(`Search is the gap: ${A} is outside the unpaid top 10 on ${absent} of ${keywords.length} keywords. Winning those searches is the cheapest demand to add.`, `약점은 검색: ${A}는 키워드 ${keywords.length}개 중 ${absent}개에서 비광고 상위 10위 밖. 이 검색어를 가져오는 게 가장 적은 비용으로 수요를 늘리는 방법.`)
     : anchorD.growth !== null && mkt !== null && anchorD.growth < mkt ? tr(`Demand is losing momentum against all tracked products; check its top products' prices and stock first.`, `추적 전체 대비 리뷰 모멘텀 약화 중. 대표 제품의 가격·재고부터 확인.`)
-    : tr(`${A}'s search share is level with its demand share, and demand is growing faster than all tracked products; protect the products driving it (${topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A).split(/,| - /)[0] : "its leaders"}) and keep them in stock.`, `${A} 검색 점유율이 리뷰 점유율과 비슷하고, 리뷰는 추적 전체보다 빠르게 성장 중. 성장을 이끄는 제품(${topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A).split(/,| - /)[0] : "대표 제품"})의 노출·재고 유지.`);
+    : tr(`${A} is found in most searches, and its written reviews are growing faster than all tracked products; protect the products driving it (${topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A).split(/,| - /)[0] : "its leaders"}) and keep them in stock.`, `${A}: 대부분의 검색에서 노출되고, 작성 리뷰는 추적 전체보다 빠르게 성장 중. 성장을 이끄는 제품(${topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A).split(/,| - /)[0] : "대표 제품"})의 노출·재고 유지.`);
 
   return (
     <Shell active="Demand" asOf={latest ? day(latest) : undefined}>
       <PageHead eyebrow={tr("Demand & search", "수요·검색")} title={tr("Demand & search", "수요·검색")} sub={tr(<>Who is gaining written reviews fastest (a 12-month trend, since ratings froze on 10 Oct), and who shoppers find when they search on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type. {A} against the {tiers.focus.length} main brands.</>, <>작성 리뷰가 가장 빠르게 느는 브랜드(12개월 추세)와, Nykaa 검색 시 소비자가 만나는 브랜드(비광고 결과, 광고, 입력 중 추천 검색어). 주요 브랜드 {tiers.focus.length}곳과 비교한 {A}.</>)} />
+      <ScopeLine uses={["followed"]} measure={tr("growth in written reviews (the last 3 complete months against the same months a year earlier, same products only), and who appears in Nykaa search for the keywords we read nightly.", "작성 리뷰 성장률(최근 완결된 3개월 vs 전년 같은 달, 동일 제품만)과 매일 밤 수집하는 검색어의 Nykaa 검색 결과.")} />
       {(!months.data || !hist.data || !demandView.data) ? <Loading what={tr("demand and search data", "수요·검색 데이터")} /> : (
         <>
           <SectionNav items={NAV()} />
@@ -259,7 +243,7 @@ function DemandPage() {
               <Kpi href="#demand" label={tr("Fastest-rising main brand, written reviews", "작성 리뷰가 가장 빠르게 는 주요 브랜드")} value={up?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="good" sub={up ? tr(<>{signed(up.growth)}: {compact(up.prev3)} → {compact(up.last3)} reviews</>, <>{signed(up.growth)}: 리뷰 {compact(up.prev3)} → {compact(up.last3)}건</>) : undefined} basis={period} />
               <Kpi href="#demand" label={tr("Sharpest decline, main brands", "가장 크게 하락한 주요 브랜드")} value={dn?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="bad" sub={dn ? tr(<>{signed(dn.growth)}: {compact(dn.prev3)} → {compact(dn.last3)} reviews</>, <>{signed(dn.growth)}: 리뷰 {compact(dn.prev3)} → {compact(dn.last3)}건</>) : undefined} basis={period} />
               <Kpi href="#demand" label={tr("Top main-brand product by written reviews", "작성 리뷰 1위 주요 브랜드 제품")} value={topFocusProduct?.brand ?? <Missing>{tr("none tracked", "추적 제품 없음")}</Missing>} sub={topFocusProduct ? tr(`${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · ${compact(topFocusProduct.last3)} reviews`, `${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · 리뷰 ${compact(topFocusProduct.last3)}건`) : undefined} basis={tr("reviews, last 3 complete months", "최근 완결된 3개월 리뷰")} />
-              <Kpi href="#sos" label={tr(`${A}: search vs demand`, `${A}: 검색 vs 리뷰`)} value={anchorSos ? `${pct(anchorSos.search)} vs ${pct(anchorSos.demand)}` : <Missing>{tr("not tracked", "추적 안 됨")}</Missing>} sub={anchorSos ? (anchorSos.excess >= 0 ? tr("search ahead of demand", "검색이 리뷰보다 앞섬") : tr("search behind demand", "검색이 리뷰보다 뒤처짐")) : undefined} basis={tr("unpaid top 10 today vs reviews, 3 months", "오늘 비광고 상위 10 vs 3개월 리뷰")} />
+              <Kpi href="#search" label={tr(`${A}: search keywords reached`, `${A}: 노출된 검색어`)} value={tr(`${keywords.length - absent} of ${keywords.length}`, `${keywords.length}개 중 ${keywords.length - absent}개`)} sub={tr(`${anchorS?.top5 ?? 0} unpaid top-5 places today`, `오늘 비광고 상위 5위 ${anchorS?.top5 ?? 0}자리`)} basis={tr("unpaid top 10, today", "오늘 비광고 상위 10")} />
               <Kpi href="#ads" label={tr(`${A} ad slots today`, `${A} 오늘 광고 자리`)} value={tr(`${anchorS?.ads ?? 0} of ${totalAds}`, `${totalAds}개 중 ${anchorS?.ads ?? 0}개`)} sub={tr(`main brands hold ${pct(focusAds / Math.max(1, totalAds), 0)}`, `주요 브랜드 비중 ${pct(focusAds / Math.max(1, totalAds), 0)}`)} basis={tr(`first 20 results of ${keywords.length} keywords`, `키워드 ${keywords.length}개의 첫 20개 결과`)} />
             </div>
             {outliers.length > 0 && <p className="mt-2 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the main brands:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.last3)}건`)})</span>)}.</p>}
@@ -341,42 +325,6 @@ function DemandPage() {
                 <Basis className="mt-1.5">{tr(`Reviews in the last 3 complete months; change = ${period}. “New” = no reviews in ${dw.prior}, so no growth rate.`, `최근 완결된 3개월 리뷰. 변화 = ${period}. “신규” = ${dw.prior} 리뷰가 없어 성장률 없음.`)}</Basis>
               </div>
             </div>
-          </ActionSection>
-
-          <ActionSection id="sos" kicker={tr("Search vs written reviews · a leading signal", "검색 vs 작성 리뷰 · 선행 신호")} title={tr(`${ahead.length ? `${ahead.map((x) => x.brand).join(", ")} take more of search than of written reviews, a sign they are set to grow` : "No main brand's search share clearly runs ahead of its share of written reviews"}${anchorSos ? `; ${A} is ${anchorSos.excess > 0.005 ? "ahead" : anchorSos.excess < -0.005 ? "behind" : "level"} (${pct(anchorSos.search)} of search vs ${pct(anchorSos.demand)} of written reviews)` : ""}.`,
-              `${ahead.length ? `${ahead.map((x) => x.brand).join(", ")}: 리뷰보다 검색 비중이 큼 → 성장이 이어질 신호` : "검색 점유율이 리뷰를 뚜렷이 앞서는 주요 브랜드 없음"}${anchorSos ? `. ${A}: ${anchorSos.excess > 0.005 ? "검색이 앞섬" : anchorSos.excess < -0.005 ? "검색이 뒤처짐" : "비슷"} (검색 ${pct(anchorSos.search)}, 리뷰 ${pct(anchorSos.demand)})` : ""}.`)}
-            note={tr(<>Research on share of search (Les Binet) found that a brand whose share of search runs ahead of its share of sales tends to grow next; one behind tends to lose ground. Here, demand = reviews.</>, <>검색 점유율 연구(Les Binet): 검색 점유율이 판매 점유율보다 앞서는 브랜드는 이후 성장하고, 뒤처지는 브랜드는 점유율을 잃는 경향. 여기선 판매 대신 리뷰 사용.</>)}>
-            <div className="mb-3 grid gap-2 md:grid-cols-3">
-              {(tr([["1", "Share of search", "Who shoppers find: the brand's share of unpaid top-10 results across today's keywords."], ["2", "Share of demand", "Who buyers choose: the brand's share of reviews in the last 3 complete months."], ["3", "The gap", "Search ahead of demand (green dot to the right) usually comes before growth; behind usually comes before decline."]],
-                [["1", "검색 점유율", "소비자가 찾는 브랜드: 오늘 키워드 전체의 비광고 상위 10개 결과 중 브랜드 비중."], ["2", "수요 점유율", "구매자가 선택하는 브랜드: 최근 완결된 3개월 리뷰 중 브랜드 비중."], ["3", "격차", "검색이 리뷰보다 앞서면(초록 점이 오른쪽) 대개 성장이, 뒤처지면 대개 하락이 뒤따름."]])).map(([n, t, d]) => (
-                <div key={n} className="flex gap-3 rounded-[14px] bg-sunken/60 px-4 py-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-[12px] font-semibold text-on-brand">{n}</span><span className="text-[12.5px] leading-snug"><b className="block text-[13px]">{t}</b><span className="text-ink-2">{d}</span></span></div>
-              ))}
-            </div>
-            <Card className="overflow-x-auto">
-              <div className="min-w-[640px]">
-                <div className="grid grid-cols-[minmax(160px,1fr)_minmax(260px,2fr)_110px] border-b border-line px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted">
-                  <span>{tr("Brand", "브랜드")}</span><span className="flex items-center gap-4"><span className="flex items-center gap-1.5 normal-case tracking-normal"><span className="h-2.5 w-2.5 rounded-full bg-good" />{tr("share of search", "검색 점유율")}</span><span className="flex items-center gap-1.5 normal-case tracking-normal"><span className="h-2.5 w-2.5 rounded-full bg-accent-strong" />{tr("share of demand", "수요 점유율")}</span></span><span className="text-right">{tr("Gap", "격차")}</span>
-                </div>
-                <TieredList rows={sos} brandOf={(x) => x.brand} tiers={tiers} top={12} render={(x) => {
-                  const mx = Math.max(0.01, ...sos.filter((s) => tiers.inSet(s.brand)).map((s) => Math.max(s.search, s.demand)));
-                  const l = (v: number) => `${Math.min(100, (v / mx) * 100)}%`; const lo = Math.min(x.search, x.demand); const hi = Math.max(x.search, x.demand);
-                  return (
-                    <div key={x.brand} className={`grid grid-cols-[minmax(160px,1fr)_minmax(260px,2fr)_110px] items-center border-b border-line px-4 py-2 text-[12.5px] ${isA(x.brand) ? "bg-accent-soft/50 font-semibold" : ""}`}>
-                      <span>{x.brand} <span className="text-[11px] font-normal text-muted">{!tiers.inSet(x.brand) ? tr("not a main brand", "주요 브랜드 외") : !x.tracked ? tr("reviews not tracked", "리뷰 추적 안 됨") : launchOf(x.brand) ? tr(`launched ${launchOf(x.brand)}: demand is the launch push`, `${launchOf(x.brand)} 출시: 리뷰는 출시 효과`) : ""}</span></span>
-                      <span className="relative mr-4 h-5">
-                        <span className="absolute inset-x-0 top-1/2 h-px bg-line" />
-                        <span className={`absolute top-1/2 h-1 -translate-y-1/2 rounded ${x.excess >= 0 ? "bg-good/40" : "bg-bad/40"}`} style={{ left: l(lo), width: `calc(${l(hi)} - ${l(lo)})` }} />
-                        <span title={tr(`Search ${pct(x.search)}`, `검색 ${pct(x.search)}`)} className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-good ring-2 ring-surface" style={{ left: l(x.search) }} />
-                        <span title={tr(`Demand ${pct(x.demand)}`, `리뷰 ${pct(x.demand)}`)} className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-strong ring-2 ring-surface" style={{ left: l(x.demand) }} />
-                      </span>
-                      <span className={`text-right tabular ${x.excess > 0.005 ? "text-good" : x.excess < -0.005 ? "text-bad" : "text-ink-2"}`}>{x.excess > 0 ? "+" : ""}{(x.excess * 100).toFixed(1)}{tr(" pts", "%p")}<span className="block text-[10.5px] font-normal text-muted">{pct(x.search)} vs {pct(x.demand)}</span></span>
-                    </div>
-                  );
-                }} />
-              </div>
-              <Basis className="border-t border-line px-4 py-2.5">{tr(`Search: unpaid top 10 of ${keywords.length} keywords on ${latest ? day(latest) : "the latest day"}. Written reviews: the last 3 complete months. Indicative: one day of search against three months of reviews.${behind.length ? ` Furthest behind among the main brands: ${behind.map((b) => b.brand).join(", ")}.` : ""}`,
-                `검색: ${latest ? day(latest) : "최근일"} 키워드 ${keywords.length}개의 비광고 상위 10개. 리뷰: 최근 완결된 3개월. 하루치 검색과 3개월 리뷰를 비교한 참고 지표.${behind.length ? ` 주요 브랜드 중 가장 뒤처진 곳: ${behind.map((b) => b.brand).join(", ")}.` : ""}`)}</Basis>
-            </Card>
           </ActionSection>
 
           <ActionSection id="search" kicker={tr("Search · who shoppers find", "검색 · 소비자가 만나는 브랜드")} title={tr(`${A} reaches the unpaid top 10 on ${keywords.length - absent} of ${keywords.length} keywords; ${grid.cols[1] ? `${grid.cols[1]} reaches ${grid.reach(grid.cols[1])}` : ""}.`, `${A}: 키워드 ${keywords.length}개 중 ${keywords.length - absent}개에서 비광고 상위 10위 안${grid.cols[1] ? `. ${grid.cols[1]}: ${grid.reach(grid.cols[1])}개` : ""}.`)}
@@ -514,7 +462,7 @@ function DemandPage() {
       <MethodNotes parts={{
         sources: [tr("Written reviews of the tracked products, by month, up to two years back (the main brands' key products and Nykaa's top products); Nykaa search results for the tracked keywords every day (unpaid results and AD tiles, first 20); Nykaa's autosuggest as shoppers type.", "추적 제품의 월별 작성 리뷰(최대 2년; 주요 브랜드 핵심 제품과 Nykaa 상위 제품), 추적 키워드의 Nykaa 검색 결과(매일, 비광고 결과와 광고, 첫 20개), 입력 중 Nykaa 추천 검색어.")],
         calc: [tr("Review growth: written reviews in the last 3 complete months against the same months a year earlier, counting only products whose history reaches back that far.", "리뷰 성장률: 최근 완결된 3개월 작성 리뷰를 1년 전 같은 달과 비교, 그때까지 이력이 있는 제품만."),
-          tr("Share of search: a brand's share of the unpaid top-10 results across today's keywords. Search vs written reviews: share of search minus share of written reviews; search ahead of reviews tends to come before growth.", "검색 점유율: 오늘 키워드 전체의 비광고 상위 10개 결과 중 브랜드 비중. 검색 vs 작성 리뷰: 검색 점유율 − 리뷰 점유율. 검색이 앞서면 성장이 뒤따르는 경향."),
+          tr("Search: each brand's best unpaid place per keyword today, and how many keywords put it in the unpaid top 10.", "검색: 오늘 키워드별 브랜드 최고 비광고 순위, 비광고 상위 10위 안에 든 키워드 수."),
           tr("Ads: AD tiles in the first 20 results of each keyword, per day.", "광고: 키워드별 첫 20개 결과의 광고 수, 일별.")],
         assume: [tr("Written reviews rise and fall with sales over months; one day of search stands for the shopper's view that day.", "작성 리뷰는 몇 달에 걸쳐 판매와 함께 오르내린다고 보고, 하루치 검색 결과는 그날 쇼핑객이 보는 화면을 대표한다고 봄.")],
         limits: [tr("Written reviews are fewer than ratings (about 1 in 11) and the ratio varies by product; this tab shows trends, while the Market tab's share of buying decides who is winning.", "작성 리뷰는 평가보다 적고(약 11분의 1) 제품마다 비율이 다름. 이 탭은 추세용이고, 승자는 Market 탭의 구매 점유율로 판단."),

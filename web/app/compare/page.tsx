@@ -26,6 +26,7 @@ import type { ReviewMonth } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
 import { push } from "@/lib/group";
 import { dayMonthYear, tr } from "@/lib/i18n";
+import { ScopeLine } from "@/components/Scope";
 
 /** Competitive Analysis: the old USP and Compare tabs as one report (docs/restructure-v2-plan.md), layered in round 2
  *  (docs/competitive-round2-plan.md): Product view answers first, then price, message, buyers, visibility, demand;
@@ -148,6 +149,7 @@ function CompetitivePage() {
   return (
     <Shell active="Competitive Analysis" asOf={asOf ? dayMonthYear(asOf) : undefined}>
       <PageHead eyebrow={tr("Competitive", "경쟁 분석")} title={tr("Competitive Analysis", "경쟁 분석")} sub={tr(<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail. Drop a rival or add any product with the bar under the hero.</>, <>한 카테고리 안에서 Innisfree와 직접 경쟁 제품 비교. 결론 먼저, 근거는 뒤에. › 표시를 누르면 상세 표시. 히어로 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
+      <ScopeLine uses={["top100", "followed"]} measure={tr("one category's products head to head: rank in the top 100, price per ml or g, written reviews, and what each product page claims.", "한 카테고리 제품끼리 정면 비교: 상위 100위 순위, ml·g당 가격, 작성 리뷰, 상품 페이지 주장.")} />
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">{tr("Could not load data", "데이터 불러오기 실패")}: {String(err.message ?? err)}</div>}
       {loading && !err ? <Loading what={tr("the comparison", "비교 데이터")} /> : !err && (
         <>

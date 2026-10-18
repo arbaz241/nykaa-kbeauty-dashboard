@@ -18,6 +18,7 @@ import { useTiers } from "@/lib/tiers";
 import { useMarket } from "@/lib/useMarket";
 import { dayMonth, tr } from "@/lib/i18n";
 import type { BrandOffer } from "@/lib/types";
+import { ScopeLine } from "@/components/Scope";
 
 const NAV = (): NavItem[] => [
   { id: "summary", label: tr("In one line", "요약") }, { id: "discounts", label: tr("Who discounts most", "할인 폭") }, { id: "cuts", label: tr("Price cuts in the period", "기간 중 가격 인하") },
@@ -132,6 +133,7 @@ function OffersPage() {
     <Shell active="Offers" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Offers & events", "프로모션·이벤트")} title={tr("What Nykaa and the brands are running", "지금 Nykaa와 브랜드가 진행 중인 것")}
         sub={tr("Nykaa's sales and homepage banners, read every night, and the offers each brand runs, so a move on the shelf can be read against them.", "매일 밤 수집한 Nykaa 세일·홈페이지 배너와 브랜드별 프로모션. 순위 변화와 함께 보면 됨.")} />
+      <ScopeLine uses={["lists", "top100"]} measure={tr("Nykaa's homepage banners and each brand's offers, read nightly, set against moves in the top 100s.", "매일 밤 수집한 Nykaa 홈페이지 배너와 브랜드별 프로모션을 상위 100위 변동과 함께.")} />
       <SectionNav items={NAV()} />
 
       <section id="summary" className="mt-8 scroll-mt-32">
