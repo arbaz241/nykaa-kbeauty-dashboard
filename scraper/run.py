@@ -146,6 +146,23 @@ def main() -> int:
                 blocked = True
             except Exception as e:  # noqa: BLE001
                 log.error("market signals step failed (non-fatal): %s", e)
+        if not blocked and not args.no_enrich and not args.categories:
+            # written-review counts: every list's top 30 nightly, ranks 31-100 every third night (time-boxed ~15 min)
+            from .review_counts import record
+            try:
+                shelf = [{**p, "subcategory": r.category.key} for r in results for p in r.products]
+                log.info("review counts: %s", asyncio.run(record(connect(), scraped_at[:10], shelf)))
+            except BlockedError as e:
+                log.error("BLOCKED during review counts — stopped: %s", e)
+                blocked = True
+            except Exception as e:  # noqa: BLE001
+                log.error("review counts step failed (non-fatal): %s", e)
+            # outside news for the main brands and the day's movers (Google News feed, ~1 minute, not Nykaa)
+            from . import news
+            try:
+                log.info("news: %s", news.run(connect(), scraped_at[:10]))
+            except Exception as e:  # noqa: BLE001
+                log.error("news step failed (non-fatal): %s", e)
         if not blocked and not args.no_enrich:
             # product details for products we have never fetched (capped per run)
             from .details import missing_catalog_ids, missing_product_ids, run_details
