@@ -32,7 +32,7 @@ export interface CatFight {
   /** Korean brands ranked by their share of the category's buying (all brands = 100%); `ofKorean` = out of Korean
    *  brands only; `units` = share of new ratings. */
   korean: { brand: string; share: number; ofKorean: number; units: number; best: FlowRow }[];
-  anchor: { share: number; ofKorean: number; units: number; place: number | null; best: FlowRow | null; rank: number | null };
+  anchor: { share: number; ofKorean: number; units: number; place: number | null; best: FlowRow | null; rank: number | null; growth: number | null };
 }
 
 /** Category by category: who leads among Korean brands, and where the anchor stands. */
@@ -55,10 +55,12 @@ export function useKFights(anchor: string, rivals: string[]) {
       const korean = [...by.values()].sort((a, b) => b.v - a.v).map((x) => ({ brand: x.brand, share: total ? x.v / total : 0, ofKorean: kTotal ? x.v / kTotal : 0, units: units ? x.u / units : 0, best: x.best }));
       const i = korean.findIndex((x) => same(x.brand, anchor));
       const shelfBest = m.shelf.filter((r) => r.subcategory === cat && same(r.brand, anchor)).sort((a, b) => a.rank - b.rank)[0];
-      out.push({ cat, total, koreanShare: total ? kTotal / total : 0, korean, anchor: { share: i >= 0 ? korean[i].share : 0, ofKorean: i >= 0 ? korean[i].ofKorean : 0, units: i >= 0 ? korean[i].units : 0, place: i >= 0 ? i + 1 : null, best: i >= 0 ? korean[i].best : null, rank: shelfBest?.rank ?? null } });
+      // the standard growth (same products, written reviews, latest 3 months vs a year earlier) of the anchor here
+      const g = m.latest ? reviewTrend(m.pool.filter((p) => same(p.brand, anchor) && p.category === cat), m.latest) : null;
+      out.push({ cat, total, koreanShare: total ? kTotal / total : 0, korean, anchor: { share: i >= 0 ? korean[i].share : 0, ofKorean: i >= 0 ? korean[i].ofKorean : 0, units: i >= 0 ? korean[i].units : 0, place: i >= 0 ? i + 1 : null, best: i >= 0 ? korean[i].best : null, rank: shelfBest?.rank ?? null, growth: g && g.products ? g.change : null } });
     }
     return out.sort((a, b) => b.total - a.total);
-  }, [m.flow, m.shelf, anchor, rivals]);
+  }, [m.flow, m.shelf, m.pool, m.latest, anchor, rivals]);
 }
 
 /** Innisfree against the Korean rivals, one row per category. */
@@ -89,7 +91,7 @@ export function KFightsSection({ anchor, rivals }: { anchor: string; rivals: str
                 <tr className="border-b border-line/60 align-top">
                   <td className="px-4 py-2.5 font-medium">{catName(f.cat)}<div className="text-[11.5px] font-normal text-muted">{tr(`${f.korean.length} Korean brands, ${pct(f.koreanShare, 0)} of all buying`, `K-뷰티 브랜드 ${f.korean.length}곳, 전체 구매의 ${pct(f.koreanShare, 0)}`)}</div></td>
                   <td className="max-w-[260px] px-2 py-2.5">{lead ? <><b className="font-medium">{lead.brand}</b> <span className="tabular">{pct(lead.share, 1)}</span><div className="text-[11.5px] text-muted">{tr("best seller: ", "베스트셀러: ")}{shortName(lead.best.name, lead.brand)}</div></> : "–"}</td>
-                  <td className="px-2 py-2.5 tabular">{a.share > 0 ? <><b className={isLead ? "text-good" : ""}>{pct(a.share, 1)}</b><div className="text-[11.5px] text-muted">{tr(`${pct(a.units, 1)} of units`, `수량 ${pct(a.units, 1)}`)}</div></> : <span className="text-muted">{a.rank ? tr(`on the list, #${a.rank}`, `목록 #${a.rank}`) : tr("not on the list", "목록 밖")}</span>}</td>
+                  <td className="px-2 py-2.5 tabular">{a.share > 0 ? <><b className={isLead ? "text-good" : ""}>{pct(a.share, 1)}</b><div className="text-[11.5px] text-muted">{tr(`${pct(a.units, 1)} of units`, `수량 ${pct(a.units, 1)}`)}</div></> : <span className="text-muted">{a.rank ? tr(`on the list, #${a.rank}`, `목록 #${a.rank}`) : tr("not on the list", "목록 밖")}</span>}{a.growth !== null && <div className={`text-[11.5px] ${a.growth >= 0 ? "text-good" : "text-bad"}`}>{tr(`written reviews ${signed(a.growth)} vs a year earlier`, `작성 리뷰 전년 대비 ${signed(a.growth)}`)}</div>}</td>
                   <td className="px-2 py-2.5 tabular">{a.share > 0 ? <>{pct(a.ofKorean, 0)}<div className="text-[11.5px] text-muted">{tr(`#${a.place} of ${f.korean.length} Korean`, `K-뷰티 ${f.korean.length}곳 중 ${a.place}위`)}</div></> : <span className="text-muted">–</span>}</td>
                   <td className="max-w-[380px] px-2 py-2.5 text-ink-2">{says}</td>
                   <td className="px-4 py-2.5 text-right">{lead && <DetailsButton open={open === f.cat} onClick={() => setOpen(open === f.cat ? null : f.cat)} />}</td>

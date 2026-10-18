@@ -89,16 +89,22 @@ export function reviewTrend(pool: PoolProduct[], latest: string): ReviewTrend {
   const axis = Array.from({ length: 24 }, (_, i) => new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 24 + i, 1)).toISOString().slice(0, 10));
   const values = axis.map((m) => { let any = false; let n = 0; for (const p of pool) { if (m >= p.coverage) { any = true; n += p.byMonth.get(m) ?? 0; } } return any ? n : null; });
   const w = monthWindow(latest, 3, "yoy");
-  // a year-on-year comparison needs the product's history to reach the earlier months, or the product to be launched after them
-  const lastBase = w.base[w.base.length - 1];
-  let recent = 0; let base = 0; let launches = 0;
-  const comparable = pool.filter((p) => p.coverage <= w.base[0] || (p.first !== null && p.first > lastBase));
-  for (const p of comparable) {
-    recent += w.recent.reduce((a, m) => a + (p.byMonth.get(m) ?? 0), 0);
-    base += w.base.reduce((a, m) => a + (p.byMonth.get(m) ?? 0), 0);
-    if (p.first !== null && p.first > lastBase) launches++;
+  const g = sameProductGrowth(pool, w.recent, w.base);
+  return { axis, values, recent: g.recent, base: g.base, change: g.change, recentLabel: w.recentLabel, baseLabel: w.baseLabel, products: g.products, launches: g.launches };
+}
+
+/** The standard growth (lib/analysis growthOf, for review pools): written reviews in `recent` months against `base`
+ *  months a year earlier, the same products only (history reaching back, reviews in the base). Launches since are
+ *  counted apart. One product, a brand's products or every tracked product: the same rule. */
+export function sameProductGrowth(pool: PoolProduct[], recentMonths: string[], baseMonths: string[]) {
+  let recent = 0; let base = 0; let products = 0; let launches = 0;
+  for (const p of pool) {
+    if (p.coverage > baseMonths[0]) continue;
+    const r = recentMonths.reduce((a, m) => a + (p.byMonth.get(m) ?? 0), 0);
+    const b = baseMonths.reduce((a, m) => a + (p.byMonth.get(m) ?? 0), 0);
+    if (b > 0) { recent += r; base += b; products++; } else if (r > 0) launches++;
   }
-  return { axis, values, recent, base, change: base > 0 ? recent / base - 1 : null, recentLabel: w.recentLabel, baseLabel: w.baseLabel, products: comparable.length, launches };
+  return { recent, base, change: base > 0 ? recent / base - 1 : null, products, launches };
 }
 
 /** Days in the period a brand was on Nykaa's homepage, from banner runs. */

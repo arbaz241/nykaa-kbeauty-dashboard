@@ -40,6 +40,8 @@ export const BUYING_METHOD = () => ({
     tr(<><b>Shared ratings counted once:</b> when Nykaa shows one rating count for several of a brand&rsquo;s products (e.g. 20 Nykaa sheet masks share 7.6 million ratings), it counts once, at the median price of those products.</>,
       <><b>공유 평가는 한 번만:</b> Nykaa가 한 브랜드의 여러 제품에 하나의 평가 수를 보여주면(예: Nykaa 시트 마스크 20종이 760만 건 공유) 그 제품들의 중간 가격으로 한 번만 집계.</>),
     tr("Combos and kits are left out: Nykaa shows them with their contents' ratings.", "세트·키트 제외: Nykaa가 구성품 평가를 합쳐 보여주기 때문."),
+    tr("Share of buying uses the last 30 days with live rating counts (19 Sep – 9 Oct while Nykaa's counts are frozen); the \"moves over\" switch changes rank moves only.", "구매 점유율은 평가 수가 살아 있는 최근 30일 기준 (Nykaa 평가 수 정지 중엔 9월 19일–10월 9일). \"변동 기간\" 선택은 순위 변동에만 적용."),
+    tr("Growth (same rule on every page): written reviews in the last 3 complete months against the same months a year earlier, only products that already had reviews then; launches since are counted apart.", "성장률 (모든 페이지 동일 기준): 최근 완결된 3개월 작성 리뷰를 전년 같은 달과 비교, 그때도 리뷰가 있던 제품만. 이후 출시 제품은 따로 집계."),
   ],
   assume: [
     tr("Ratings rise in step with sales, at a similar rate across brands in a category.", "평가는 판매와 함께 늘고, 같은 카테고리 안에선 브랜드 간 비율이 비슷하다고 가정."),

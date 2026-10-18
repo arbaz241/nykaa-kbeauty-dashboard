@@ -1,7 +1,8 @@
 import { labels } from "./i18n";
 
 export const inr = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `₹${Math.round(v).toLocaleString("en-IN")}`);
-export const pct = (v: number | null | undefined, d = 0) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `${(v * 100).toFixed(d)}%`);
+// a share too small to show at this precision reads "<0.1%", never "0.0%" (owner 19 Oct 2026)
+export const pct = (v: number | null | undefined, d = 0) => (v === null || v === undefined || Number.isNaN(v) ? "–" : v > 0 && v * 100 < 0.5 * 10 ** -d ? `<${(10 ** -d).toFixed(d)}%` : `${(v * 100).toFixed(d)}%`);
 export const num = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : Math.round(v).toLocaleString("en-IN"));
 export const compact = (v: number | null | undefined) => {
   if (v === null || v === undefined || Number.isNaN(v)) return "–";

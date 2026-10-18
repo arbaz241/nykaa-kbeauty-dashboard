@@ -26,7 +26,7 @@ import { useTiers } from "@/lib/tiers";
 import type { SearchRow, Suggestion } from "@/lib/types";
 import useSWR from "swr";
 import { push } from "@/lib/group";
-import { dayMonth, josa, monthYY, tr } from "@/lib/i18n";
+import { dayMonth, monthYY, tr } from "@/lib/i18n";
 
 /** Demand (Round 3): who is buying more, who shoppers find when they search, who pays for attention, and what
  *  Nykaa suggests as they type, always as the anchor against the focus brands (owner decisions 12 Oct 2026). */

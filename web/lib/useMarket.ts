@@ -51,10 +51,22 @@ export function useMarket() {
   const latest = ix.days[ix.days.length - 1] ?? null;
   const win: ShelfWindow | null = useMemo(() => shelfWindow(ix.days, period.days), [ix.days, period.days]);
   const ratingEnd = freeze?.lastLive;
-  const flow: FlowRow[] = useMemo(() => (win ? ratingFlow(ix, dims, win.start, win.end, false, ratingEnd) : []), [ix, dims, win, ratingEnd]);
-  const prevFlow: FlowRow[] | null = useMemo(() => (win?.prev ? ratingFlow(ix, dims, win.prev.start, win.prev.end, false, ratingEnd) : null), [ix, dims, win, ratingEnd]);
-  /** The days the buying figures actually cover (start → the earlier of the period end and the last live day). */
-  const flowSpan = win ? { start: win.start, end: ratingEnd && ratingEnd < win.end ? ratingEnd : win.end, none: !!ratingEnd && ratingEnd <= win.start } : null;
+  /** Share of buying has its own fixed window (owner 19 Oct 2026: the period picker is not needed everywhere): the
+   *  last 30 collected days that have live rating counts. While Nykaa's counts are frozen (since 10 Oct) it ends on
+   *  the last live day, so a short period never leaves buying empty. The period picker now moves rank moves only. */
+  const buyWin = useMemo(() => {
+    const days = ix.days; if (!days.length) return null;
+    const lastLive = ratingEnd && ratingEnd < days[days.length - 1] ? ratingEnd : days[days.length - 1];
+    const i = days.indexOf(lastLive);
+    const start = days[Math.max(0, i - 29)];
+    const j = days.indexOf(start);
+    const prev = j >= 30 ? { start: days[j - 30], end: start } : null;
+    return { start, lastLive, end: days[days.length - 1], prev };
+  }, [ix.days, ratingEnd]);
+  const flow: FlowRow[] = useMemo(() => (buyWin ? ratingFlow(ix, dims, buyWin.start, buyWin.end, false, ratingEnd) : []), [ix, dims, buyWin, ratingEnd]);
+  const prevFlow: FlowRow[] | null = useMemo(() => (buyWin?.prev ? ratingFlow(ix, dims, buyWin.prev.start, buyWin.prev.end, false) : null), [ix, dims, buyWin]);
+  /** The days the buying figures cover. */
+  const flowSpan = buyWin ? { start: buyWin.start, end: buyWin.lastLive, none: false } : null;
 
   return { ready, error, period, shelf: today, catalog: catalog.data ?? [], products: products.data ?? [], months: months.data ?? [], dims, ix, pool, originOf,
     latest, win, flow, prevFlow, freeze, flowSpan };

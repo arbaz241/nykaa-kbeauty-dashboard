@@ -57,11 +57,16 @@ export function demandRows(months: ReviewMonth[], demand: ProductDemand[], shelf
   return [...best.values()].map((r) => ({ product_id: r.product_id, brand: r.brand, name: r.name, category: r.category, url: r.url, recent: r.recent, prior: r.prior, complete: r.complete }));
 }
 
-/** Growth from complete products only, with how many products it rests on. */
+/** The one growth figure used everywhere (owner 19 Oct 2026: "standardise this growth for products, brands and
+ *  Nykaa as a whole"): written reviews in the last 3 complete months against the same 3 months a year earlier, for
+ *  the SAME products only (complete history and reviews a year ago). Products launched since are counted apart
+ *  (`launches`), never as growth: the products we track are picked from today's lists, so counting launches would
+ *  read as growth that the market didn't have (Demand read +75% that way; same products read close to Nykaa). */
 export function growthOf(rows: DemandRow[]) {
-  const c = rows.filter((r) => r.complete);
+  const c = rows.filter((r) => r.complete && r.prior > 0);
   const recent = c.reduce((a, r) => a + r.recent, 0); const prior = c.reduce((a, r) => a + r.prior, 0);
-  return { growth: prior > 0 ? recent / prior - 1 : null, recent, prior, products: c.length };
+  const launches = rows.filter((r) => r.complete && r.prior === 0 && r.recent > 0).length;
+  return { growth: prior > 0 ? recent / prior - 1 : null, recent, prior, products: c.length, launches };
 }
 
 /* ------------------------------------------------------------------ shelf share, like for like */

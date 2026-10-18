@@ -50,7 +50,7 @@ function MarketPage() {
   const allBrands = useMemo(() => new Set((cb.data ?? []).filter((b) => b.last_seen === latestStat && b.subcategory !== "kbeauty_store").map((b) => b.brand)).size, [cb.data, latestStat]);
 
   if (!m.ready || !m.win) return <Shell active="Top by category"><PageHead eyebrow={tr("Market", "시장")} title={tr("Who is winning each category", "카테고리별 승자")} sub="" /><Loading what={tr("the market", "시장")} /></Shell>;
-  const win = m.win; const span = m.flowSpan!;
+  const span = m.flowSpan!;
 
   const NAV: NavItem[] = cat === "all"
     ? [{ id: "snapshot", label: tr("Category snapshot", "카테고리 요약") }, { id: "mainbrands", label: tr("Main brands", "주요 브랜드") }, { id: "origins", label: tr("Korean, Indian, global", "K-뷰티·인도·글로벌") }]
@@ -59,8 +59,7 @@ function MarketPage() {
   return (
     <Shell active="Top by category" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Market", "시장")} title={tr("Who is winning each category", "카테고리별 승자")}
-        sub={tr("Pick one category, or all of them. Its brands, its top products and what moved are on this page together. Press \"Details\" on any row to see more without leaving the page.", "카테고리 하나 또는 전체 선택. 브랜드, 상위 제품, 변동을 한 페이지에서 확인. 어느 행이든 \"자세히\"를 누르면 이 페이지에서 바로 더 보기.")}
-        right={<PeriodBar shelf={win} freeze={m.freeze} />} />
+        sub={tr("Pick one category, or all of them. Its brands, its top products and what moved are on this page together. Press \"Details\" on any row to see more without leaving the page.", "카테고리 하나 또는 전체 선택. 브랜드, 상위 제품, 변동을 한 페이지에서 확인. 어느 행이든 \"자세히\"를 누르면 이 페이지에서 바로 더 보기.")} />
       <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label={tr("Category", "카테고리")}>
         <button className={pill(cat === "all")} onClick={() => setCat("all")}>{tr(`All ${CATEGORIES.length} categories`, `${CATEGORIES.length}개 카테고리 전체`)}</button>
         {CATEGORIES.map((c) => <button key={c} className={pill(cat === c)} onClick={() => setCat(c)}>{catName(c)}</button>)}
@@ -283,7 +282,7 @@ function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; sp
         </Card>
       </ActionSection>
 
-      <ActionSection id="moved" kicker={tr(`${catName(cat)} · what moved and why`, `${catName(cat)} · 변동과 이유`)} title={tr(`Biggest moves over the ${spanLabel(m.period.days)}, with what changed at the same time`, `${spanLabel(m.period.days)} 최대 변동과 같은 시기의 변화`)}>
+      <ActionSection id="moved" kicker={tr(`${catName(cat)} · what moved and why`, `${catName(cat)} · 변동과 이유`)} title={tr(`Biggest moves over the ${spanLabel(m.period.days)}, with what changed at the same time`, `${spanLabel(m.period.days)} 최대 변동과 같은 시기의 변화`)} right={<PeriodBar />}>
         <CategoryGlance cat={cat} part="moves" />
       </ActionSection>
 

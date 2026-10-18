@@ -144,7 +144,6 @@ function Product() {
             {/* eslint-disable-next-line @next/next/no-img-element -- images served by Nykaa's CDN */}
             <img src={row.image_url} alt="" className="h-[85%] w-[85%] object-contain" />
           </div>}
-          <PeriodBar shelf={win} freeze={m.freeze} />
         </div>} />
       <SectionNav items={NAV()} />
 
@@ -153,7 +152,7 @@ function Product() {
         <Basis className="mt-2">{tr(<>Rank moves use the middle of the first and last three days. Buying = <Def k="ratingFlow">new ratings × price</Def>, combos left out. Reviews: complete months only.</>, <>순위 변화 = 처음·마지막 3일 중앙값 기준. 구매 = <Def k="ratingFlow">신규 평가 × 가격</Def>, 콤보 제외. 리뷰: 완결된 달만.</>)}</Basis>
       </section>
 
-      <ActionSection id="shelf" kicker={tr("Rank & why", "순위와 이유")} title={mv && Math.abs(mv.gain) >= 5 ? tr(`${mv.gain > 0 ? "Up" : "Down"} ${Math.abs(mv.gain)} places in ${main ? catName(main).toLowerCase() : ""} over the ${spanLabel(m.period.days)}`, `${spanLabel(m.period.days)} ${main ? catName(main) : ""}에서 ${Math.abs(mv.gain)}계단 ${mv.gain > 0 ? "상승" : "하락"}`) : tr("Its place on Nykaa's lists", "Nykaa 목록 속 위치")}
+      <ActionSection id="shelf" right={<PeriodBar />} kicker={tr("Rank & why", "순위와 이유")} title={mv && Math.abs(mv.gain) >= 5 ? tr(`${mv.gain > 0 ? "Up" : "Down"} ${Math.abs(mv.gain)} places in ${main ? catName(main).toLowerCase() : ""} over the ${spanLabel(m.period.days)}`, `${spanLabel(m.period.days)} ${main ? catName(main) : ""}에서 ${Math.abs(mv.gain)}계단 ${mv.gain > 0 ? "상승" : "하락"}`) : tr("Its place on Nykaa's lists", "Nykaa 목록 속 위치")}
         note={tr("Daily rank in each category's top 100 since tracking began (1 = top; gaps = outside the top 100). Shaded: Nykaa sales and days the brand was on Nykaa's homepage.", "수집 시작 이후 카테고리별 상위 100위 일별 순위 (1 = 최상위, 끊김 = 100위 밖). 음영 = Nykaa 세일, 브랜드 홈페이지 노출일.")}>
         <Card className="p-5">
           {series.some((s) => s.values.some((v) => v !== null)) ? <LineChart labels={allDays.map((d) => dayMonth(d))} series={series} invert height={240} markers={markers} />

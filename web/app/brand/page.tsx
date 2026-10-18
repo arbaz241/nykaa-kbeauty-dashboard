@@ -24,7 +24,7 @@ import { useMarket } from "@/lib/useMarket";
 import TrailBar, { useTrail } from "@/components/Trail";
 import ExternalNewsList, { useNewsFor } from "@/components/External";
 import MethodNotes, { BUYING_METHOD } from "@/components/MethodNotes";
-import { dayMonth, josa, monthYY, tr } from "@/lib/i18n";
+import { dayMonth, monthYY, tr } from "@/lib/i18n";
 
 /** The brand page (plan v2, owner 17 Oct 2026: "the information would revolve around it"). Everything about one brand:
  *  what to know, its products on the shelf with their moves and reasons, where it wins buying, offers and homepage,
@@ -104,8 +104,8 @@ function Brand() {
   points.push(own.day ? (brandOwn.length ? tr(<>Running its own offer: {(brandOwn[0].description || brandOwn[0].title || "").replace(/\s+/g, " ").slice(0, 90)}.{hp ? ` On Nykaa's homepage ${hp} days.` : " Not on Nykaa's homepage in the period."}</>, <>자체 프로모션 진행: {(brandOwn[0].description || brandOwn[0].title || "").replace(/\s+/g, " ").slice(0, 90)}.{hp ? ` 홈페이지 노출 ${hp}일.` : " 기간 중 홈페이지 노출 없음."}</>)
     : tr(<>No brand-own offer on its pages{own.offers.length ? ` (only Nykaa-wide ones, such as "${(own.offers[0].title ?? "").slice(0, 40)}")` : ""}.{hp ? ` On Nykaa's homepage ${hp} days.` : " Not on Nykaa's homepage in the period."}</>, <>상품 페이지에 브랜드 자체 프로모션 없음{own.offers.length ? ` (Nykaa 전체 프로모션만)` : ""}.{hp ? ` 홈페이지 노출 ${hp}일.` : " 기간 중 홈페이지 노출 없음."}</>))
     : tr(<>{hp ? `On Nykaa's homepage ${hp} days in the period. ` : ""}Its offers are not read nightly (focus brands and the 40 brands with most places are).</>, <>{hp ? `기간 중 홈페이지 노출 ${hp}일. ` : ""}매일 프로모션을 읽는 브랜드가 아님.</>));
-  if (trend && trend.change !== null) points.push(tr(<>Written reviews: <b>{trend.recent.toLocaleString("en-IN")}</b> in {trend.recentLabel} vs {trend.base.toLocaleString("en-IN")} a year earlier (<b>{signed(trend.change)}</b>, {trend.products} tracked products{trend.launches ? `, ${trend.launches} launched since` : ""}). For scale: Nykaa beauty {signed(nykaa.value)} ({nykaa.label}){origin === "kbeauty" ? `, Korean beauty on Nykaa ${signed(kReported.value)} (FY26)` : ""}.</>,
-    <>작성 리뷰: {trend.recentLabel} <b>{trend.recent.toLocaleString("en-IN")}건</b>, 1년 전 {trend.base.toLocaleString("en-IN")}건 (<b>{signed(trend.change)}</b>, 추적 제품 {trend.products}개{trend.launches ? `, 이후 출시 ${trend.launches}개` : ""}). 참고: Nykaa 뷰티 {signed(nykaa.value)} ({nykaa.label}){origin === "kbeauty" ? `, Nykaa K-뷰티 ${signed(kReported.value)} (FY26)` : ""}.</>));
+  if (trend && trend.change !== null) points.push(tr(<>Written reviews: <b>{trend.recent.toLocaleString("en-IN")}</b> in {trend.recentLabel} vs {trend.base.toLocaleString("en-IN")} a year earlier (<b>{signed(trend.change)}</b>, the same {trend.products} products{trend.launches ? `; ${trend.launches} launched since are not counted` : ""}). For scale: Nykaa beauty {signed(nykaa.value)} ({nykaa.label}){origin === "kbeauty" ? `, Korean beauty on Nykaa ${signed(kReported.value)} (FY26)` : ""}.</>,
+    <>작성 리뷰: {trend.recentLabel} <b>{trend.recent.toLocaleString("en-IN")}건</b>, 1년 전 {trend.base.toLocaleString("en-IN")}건 (<b>{signed(trend.change)}</b>, 동일 제품 {trend.products}개{trend.launches ? `; 이후 출시 ${trend.launches}개 제외` : ""}). 참고: Nykaa 뷰티 {signed(nykaa.value)} ({nykaa.label}){origin === "kbeauty" ? `, Nykaa K-뷰티 ${signed(kReported.value)} (FY26)` : ""}.</>));
 
   const rowsShown = [...moves].sort((a, b) => (a.to ?? 999) - (b.to ?? 999));
   const spark = (s: typeof moves[number]) => m.ix.days.filter((d) => d >= win.start && d <= win.end).map((d) => m.ix.byDay.get(d)?.get(s.key)?.rank ?? null).map((v) => (v === null ? null : 101 - v));
@@ -114,8 +114,7 @@ function Brand() {
     <Shell active="auto" asOf={m.latest ?? undefined}>
       <div className="mt-6"><TrailBar trail={trail} /></div>
       <PageHead eyebrow={tr(`Brand · ${ORIGIN_LABEL[origin] ?? origin}${pinned ? " · our brand" : inSet ? " · main brand" : ""}`, `브랜드 · ${ORIGIN_LABEL[origin] ?? origin}${pinned ? " · 우리 브랜드" : inSet ? " · 주요 브랜드" : ""}`)} title={brand}
-        sub={tr(`Everything about ${brand} on Nykaa in one place: its products on the shelf and why they moved, where it wins, its offers, its review trend and search.`, `Nykaa 속 ${brand}의 모든 것: 진열 제품과 순위 변화 이유, 강한 카테고리, 프로모션, 리뷰 추세, 검색.`)}
-        right={<PeriodBar shelf={win} freeze={m.freeze} />} />
+        sub={tr(`Everything about ${brand} on Nykaa in one place: its products on the shelf and why they moved, where it wins, its offers, its review trend and search.`, `Nykaa 속 ${brand}의 모든 것: 진열 제품과 순위 변화 이유, 강한 카테고리, 프로모션, 리뷰 추세, 검색.`)} />
       <SectionNav items={NAV()} />
 
       <section id="know" className="mt-8 scroll-mt-32">
@@ -125,7 +124,7 @@ function Brand() {
         {news.length > 0 && <div className="mt-4"><div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("In the news in India, last 30 days", "인도 관련 뉴스, 최근 30일")}</div><ExternalNewsList brand={brand} max={5} /></div>}
       </section>
 
-      <ActionSection id="products" kicker={tr("Products on the shelf", "진열 제품")} title={tr(`${today.length} listing${today.length === 1 ? "" : "s"} in a top 100 today${up.length || down.length ? `; ${up.length} rose, ${down.length} fell` : ""}`, `오늘 상위 100위 ${today.length}개${up.length || down.length ? `, 상승 ${up.length}, 하락 ${down.length}` : ""}`)}
+      <ActionSection id="products" right={<PeriodBar />} kicker={tr("Products on the shelf", "진열 제품")} title={tr(`${today.length} listing${today.length === 1 ? "" : "s"} in a top 100 today${up.length || down.length ? `; ${up.length} rose, ${down.length} fell` : ""}`, `오늘 상위 100위 ${today.length}개${up.length || down.length ? `, 상승 ${up.length}, 하락 ${down.length}` : ""}`)}
         note={tr("Every listing of the brand seen in the period. Rank = place among the category's own products. Move = middle of the first three days to the middle of the last three. Click a product to open everything about it.", "기간 중 보인 브랜드의 모든 제품. 순위 = 카테고리 자체 제품 중 위치. 변화 = 처음 3일 중앙값 → 마지막 3일 중앙값. 제품을 누르면 전체 정보 표시.")}>
         <Card className="overflow-x-auto p-5">
           {rowsShown.length ? <table className="w-full min-w-[760px] text-[13px]">
