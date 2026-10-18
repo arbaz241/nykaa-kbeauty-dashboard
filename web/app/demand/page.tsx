@@ -115,15 +115,15 @@ function DemandPage() {
   const [mode, setMode] = useState<"reviews" | "index">("reviews");
   const brands = useMemo(() => demandLines(data, "brand").map((b) => {
     const rs = aggBy.get(norm(b.brand)) ?? []; if (!rs.length) return b; const g = growthOf(rs);
-    return { ...b, last3: rs.reduce((a, r) => a + r.recent, 0), prev3: g.products ? g.prior : null, growth: g.growth };
+    return { ...b, last3: rs.reduce((a, r) => a + r.recent, 0), prev3: g.products ? g.prior : null, same3: g.products ? g.recent : null, growth: g.growth };
   }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, aggBy]);
   const products = useMemo(() => demandLines(data, "product").map((p) => {
     const r = rowBy.get(p.key); if (!r) return p;
-    return { ...p, last3: r.recent, prev3: r.complete ? r.prior : null, growth: r.complete && r.prior > 0 ? r.recent / r.prior - 1 : null };
+    return { ...p, last3: r.recent, prev3: r.complete ? r.prior : null, same3: r.complete ? r.recent : null, growth: r.complete && r.prior > 0 ? r.recent / r.prior - 1 : null };
   }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, rowBy]);
   const market = useMemo(() => {
     const m = demandLines(data.map((x) => ({ ...x, brand: tr("All tracked brands", "추적 전체 브랜드") })), "brand")[0] as DemandLine | undefined; if (!m) return m;
-    const g = growthOf(drows); return { ...m, last3: drows.reduce((a, r) => a + r.recent, 0), prev3: g.prior, growth: g.growth };
+    const g = growthOf(drows); return { ...m, last3: drows.reduce((a, r) => a + r.recent, 0), prev3: g.prior, same3: g.recent, growth: g.growth };
   }, [data, drows]);
   const origin = useMemo(() => { const m = new Map<string, string>(); (shelf.data ?? []).forEach((r) => m.set(r.brand, r.origin)); return m; }, [shelf.data]);
   const win = monthsWindow(12);
@@ -133,7 +133,7 @@ function DemandPage() {
   const focusLines = brands.filter((b) => tiers.inSet(b.brand) && !isA(b.brand));
   const risers = focusLines.filter(solid).sort((a, b) => b.growth! - a.growth!);
   const up = risers[0]; const dn = risers.at(-1);
-  const outliers = brands.filter((b) => !tiers.inSet(b.brand) && b.growth !== null && (b.last3 ?? 0) >= 60 && Math.abs(b.growth) >= 0.5).sort((a, b) => Math.abs(b.growth!) - Math.abs(a.growth!)).slice(0, 3);
+  const outliers = brands.filter((b) => !tiers.inSet(b.brand) && b.growth !== null && (b.last3 ?? 0) >= 60 && (b.prev3 ?? 0) >= 20 && Math.abs(b.growth) >= 0.5).sort((a, b) => Math.abs(b.growth!) - Math.abs(a.growth!)).slice(0, 3);
   const anchorD = brands.find((b) => isA(b.brand));
   const setRanked = brands.filter((b) => tiers.inSet(b.brand) && b.last3 !== null).sort((a, b) => (b.last3 ?? 0) - (a.last3 ?? 0));
   const anchorRank = setRanked.findIndex((b) => isA(b.brand)) + 1;
@@ -166,6 +166,9 @@ function DemandPage() {
   const [kw, setKw] = useState<string | null>(null);
   const active = kw ?? keywords.find((k) => k === "korean sunscreen") ?? keywords[0];
   const byKw = useMemo(() => { const m = new Map<string, SearchRow[]>(); today.forEach((r) => push(m, r.query, r)); return m; }, [today]);
+  // the real number of unpaid top-10 places today: a keyword with fewer unpaid results has fewer places (audit 19 Oct:
+  // "18 of 250" while "korean beauty lipstick" shows 5 unpaid results, so 245, as the K-beauty tab counts)
+  const places10 = useMemo(() => [...byKw.values()].reduce((a, rs) => a + Math.min(10, split(rs).unpaid.length), 0), [byKw]);
   const sov = useMemo(() => {
     const t = new Map<string, { brand: string; origin: string; top5: number; top10: number; ads: number; adDays: number }>();
     const get = (b: string, o: string) => t.get(b) ?? t.set(b, { brand: b, origin: o, top5: 0, top10: 0, ads: 0, adDays: 0 }).get(b)!;
@@ -228,25 +231,25 @@ function DemandPage() {
           <section id="summary" className="mt-6 scroll-mt-32">
             {verdict && <Verdict eyebrow={tr(<>Verdict for {A}</>, <>{A} 종합 판단</>)} points={(tr([
               <><b className="text-on-brand">Demand:</b> {compact(anchorD?.last3 ?? 0)} reviews in {dw.recent} ({pct((anchorD?.last3 ?? 0) / Math.max(1, demTot))} of all tracked reviews). Top {A} product: {topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A) : "none tracked"}.</>,
-              up && dn ? <><b className="text-on-brand">Main brands:</b> {up.brand} rose fastest ({signed(up.growth)}, {compact(up.prev3)} → {compact(up.last3)} reviews); {dn.brand} fell hardest ({signed(dn.growth)}, {compact(dn.prev3)} → {compact(dn.last3)}).</> : null,
+              up && dn ? <><b className="text-on-brand">Main brands:</b> {up.brand} rose fastest ({signed(up.growth)}, {compact(up.prev3)} → {compact(up.same3 ?? up.last3)} reviews); {dn.brand} fell hardest ({signed(dn.growth)}, {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)}).</> : null,
               <><b className="text-on-brand">Search:</b> outside the unpaid top 10 on {absent} of {keywords.length} keywords; {anchorS?.top5 ?? 0} unpaid top-5 places today.</>,
               <><b className="text-on-brand">Ads:</b> {anchorS?.ads ?? 0} of {totalAds} ad slots today; the main brands hold {pct(focusAds / Math.max(1, totalAds), 0)}, led by {topAdv?.brand ?? "none"} ({topAdv?.ads ?? 0}).</>,
             ], [
               <><b className="text-on-brand">작성 리뷰:</b> {dw.recent} 리뷰 {compact(anchorD?.last3 ?? 0)}건 (추적 전체 리뷰의 {pct((anchorD?.last3 ?? 0) / Math.max(1, demTot))}). {A} 대표 제품: {topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A) : "추적 제품 없음"}.</>,
-              up && dn ? <><b className="text-on-brand">주요 경쟁사:</b> 가장 빠른 상승: {up.brand}({signed(up.growth)}, 리뷰 {compact(up.prev3)} → {compact(up.last3)}건), 가장 큰 하락: {dn.brand}({signed(dn.growth)}, {compact(dn.prev3)} → {compact(dn.last3)}건).</> : null,
+              up && dn ? <><b className="text-on-brand">주요 경쟁사:</b> 가장 빠른 상승: {up.brand}({signed(up.growth)}, 리뷰 {compact(up.prev3)} → {compact(up.same3 ?? up.last3)}건), 가장 큰 하락: {dn.brand}({signed(dn.growth)}, {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)}건).</> : null,
               <><b className="text-on-brand">검색:</b> 키워드 {keywords.length}개 중 {absent}개에서 비광고 상위 10위 밖. 오늘 비광고 상위 5위 자리 {anchorS?.top5 ?? 0}개.</>,
               <><b className="text-on-brand">광고:</b> 오늘 광고 자리 {totalAds}개 중 {anchorS?.ads ?? 0}개. 주요 브랜드 {pct(focusAds / Math.max(1, totalAds), 0)}, 선두 {topAdv?.brand ?? "없음"}({topAdv?.ads ?? 0}개).</>,
             ]) as React.ReactNode[]).filter(Boolean)} foot={soWhat && <><b>{tr("So what:", "시사점:")}</b> {soWhat}</>}>{verdict}</Verdict>}
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <Kpi href="#demand" label={tr(`${A} reviews, last 3 months`, `${A} 최근 3개월 리뷰`)} value={anchorD?.last3 != null ? compact(anchorD.last3) : <Missing>{tr("not tracked", "추적 안 됨")}</Missing>}
                 sub={anchorD ? <>{tr("Growth", "성장률")} <b className={anchorD.growth !== null && mkt !== null && anchorD.growth >= mkt ? "text-good" : "text-bad"}>{signed(anchorD.growth)}</b> {tr(`vs all tracked ${signed(mkt)}`, `(추적 전체 ${signed(mkt)})`)}</> : undefined} basis={period} />
-              <Kpi href="#demand" label={tr("Fastest-rising main brand, written reviews", "작성 리뷰가 가장 빠르게 는 주요 브랜드")} value={up?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="good" sub={up ? tr(<>{signed(up.growth)}: {compact(up.prev3)} → {compact(up.last3)} reviews</>, <>{signed(up.growth)}: 리뷰 {compact(up.prev3)} → {compact(up.last3)}건</>) : undefined} basis={period} />
-              <Kpi href="#demand" label={tr("Sharpest decline, main brands", "가장 크게 하락한 주요 브랜드")} value={dn?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="bad" sub={dn ? tr(<>{signed(dn.growth)}: {compact(dn.prev3)} → {compact(dn.last3)} reviews</>, <>{signed(dn.growth)}: 리뷰 {compact(dn.prev3)} → {compact(dn.last3)}건</>) : undefined} basis={period} />
+              <Kpi href="#demand" label={tr("Fastest-rising main brand, written reviews", "작성 리뷰가 가장 빠르게 는 주요 브랜드")} value={up?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="good" sub={up ? tr(<>{signed(up.growth)}: {compact(up.prev3)} → {compact(up.same3 ?? up.last3)} reviews</>, <>{signed(up.growth)}: 리뷰 {compact(up.prev3)} → {compact(up.same3 ?? up.last3)}건</>) : undefined} basis={period} />
+              <Kpi href="#demand" label={tr("Sharpest decline, main brands", "가장 크게 하락한 주요 브랜드")} value={dn?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="bad" sub={dn ? tr(<>{signed(dn.growth)}: {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)} reviews</>, <>{signed(dn.growth)}: 리뷰 {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)}건</>) : undefined} basis={period} />
               <Kpi href="#demand" label={tr("Top main-brand product by written reviews", "작성 리뷰 1위 주요 브랜드 제품")} value={topFocusProduct?.brand ?? <Missing>{tr("none tracked", "추적 제품 없음")}</Missing>} sub={topFocusProduct ? tr(`${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · ${compact(topFocusProduct.last3)} reviews`, `${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · 리뷰 ${compact(topFocusProduct.last3)}건`) : undefined} basis={tr("reviews, last 3 complete months", "최근 완결된 3개월 리뷰")} />
               <Kpi href="#search" label={tr(`${A}: search keywords reached`, `${A}: 노출된 검색어`)} value={tr(`${keywords.length - absent} of ${keywords.length}`, `${keywords.length}개 중 ${keywords.length - absent}개`)} sub={tr(`${anchorS?.top5 ?? 0} unpaid top-5 places today`, `오늘 비광고 상위 5위 ${anchorS?.top5 ?? 0}자리`)} basis={tr("unpaid top 10, today", "오늘 비광고 상위 10")} />
               <Kpi href="#ads" label={tr(`${A} ad slots today`, `${A} 오늘 광고 자리`)} value={tr(`${anchorS?.ads ?? 0} of ${totalAds}`, `${totalAds}개 중 ${anchorS?.ads ?? 0}개`)} sub={tr(`main brands hold ${pct(focusAds / Math.max(1, totalAds), 0)}`, `주요 브랜드 비중 ${pct(focusAds / Math.max(1, totalAds), 0)}`)} basis={tr(`first 20 results of ${keywords.length} keywords`, `키워드 ${keywords.length}개의 첫 20개 결과`)} />
             </div>
-            {outliers.length > 0 && <p className="mt-2 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the main brands:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.last3)}건`)})</span>)}.</p>}
+            {outliers.length > 0 && <p className="mt-2 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the main brands:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.same3 ?? o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.same3 ?? o.last3)}건`)})</span>)}.</p>}
           </section>
 
           <p className="mt-6 text-[13px] text-muted">{tr(<>Rank moves and their reasons now sit with the products: in <Link href="/categories/" className="underline underline-offset-2">Categories</Link> for each category, and on every brand and product page.</>, <>순위 변화와 이유는 이제 제품 옆에서 확인: <Link href="/categories/" className="underline underline-offset-2">카테고리</Link>별, 각 브랜드·제품 페이지.</>)}</p>
@@ -273,15 +276,15 @@ function DemandPage() {
               <div className="min-w-0">
                 <div className="mb-2 text-[14px] font-semibold">{tr("Review growth by brand", "브랜드별 리뷰 성장률")} <span className="text-[12px] font-normal text-muted">· {tr(`${A} and the main brands; search for any other · click a brand for its products`, `${A}와 주요 브랜드. 다른 브랜드는 검색 · 브랜드를 누르면 제품 표시`)}</span></div>
                 <Card className="overflow-x-auto"><div className="min-w-[600px]">
-                  <div className="grid grid-cols-[minmax(170px,1.4fr)_110px_1fr_80px_100px] border-b border-line px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted">
-                    <span>{tr("Brand", "브랜드")}</span><span>{tr("12 months", "12개월")}</span><span>{tr("Reviews, last 3 mo", "최근 3개월 리뷰")}</span><span className="text-right">{dw.prior}</span><span className="pl-3">{tr("Change", "변화")}</span>
+                  <div className="grid grid-cols-[minmax(170px,1.4fr)_110px_1fr_120px_100px] border-b border-line px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted">
+                    <span>{tr("Brand", "브랜드")}</span><span>{tr("12 months", "12개월")}</span><span>{tr("Reviews, last 3 mo", "최근 3개월 리뷰")}</span><span className="text-right">{tr(`Same products, ${dw.prior} → now`, `같은 제품, ${dw.prior} → 현재`)}</span><span className="pl-3">{tr("Change", "변화")}</span>
                   </div>
                   {market && (
-                    <div className="grid grid-cols-[minmax(170px,1.4fr)_110px_1fr_80px_100px] items-center border-b border-line bg-sunken/50 px-4 py-2">
+                    <div className="grid grid-cols-[minmax(170px,1.4fr)_110px_1fr_120px_100px] items-center border-b border-line bg-sunken/50 px-4 py-2">
                       <span className="text-[13px] font-semibold">{tr("All tracked brands", "추적 전체 브랜드")} <span className="text-[11px] font-normal text-muted">{tr("all tracked", "추적 전체")}</span></span>
                       <Sparkline values={market.spark} color="#8a8880" width={96} height={24} />
                       <b className="text-[13px] tabular">{compact(market.last3)}</b>
-                      <span className="text-right text-[12.5px] text-ink-2 tabular">{compact(market.prev3)}</span>
+                      <span className="text-right text-[12.5px] text-ink-2 tabular">{`${compact(market.prev3)} → ${compact(market.same3 ?? market.last3)}`}</span>
                       <span className="pl-3 text-[12.5px] tabular"><b>{signed(mkt)}</b></span>
                     </div>
                   )}
@@ -297,11 +300,11 @@ function DemandPage() {
                             <span className="min-w-0 text-[12.5px] leading-snug">{shortName(p.label, p.brand)}{s ? <span className="ml-2 text-[11px] text-muted">{tr(`#${s.rank} on shelf`, `진열 ${s.rank}위`)}</span> : null}<span className="mt-0.5 block"><Sparkline values={p.spark} color={c} width={120} height={20} /></span></span>
                             <span className="text-right text-[12.5px]"><b className="tabular">{p.last3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(p.last3)}</b><span className="block"><Change g={p.growth} vol={p.last3} market={mkt} /></span></span>
                           </button>); })}</div>
-                      </>) })} className={`grid w-full grid-cols-[minmax(170px,1.4fr)_110px_1fr_80px_100px] items-center border-b border-line px-4 py-2 text-left transition hover:bg-sunken/50 ${isA(b.brand) ? "bg-accent-soft/50" : ""}`}>
+                      </>) })} className={`grid w-full grid-cols-[minmax(170px,1.4fr)_110px_1fr_120px_100px] items-center border-b border-line px-4 py-2 text-left transition hover:bg-sunken/50 ${isA(b.brand) ? "bg-accent-soft/50" : ""}`}>
                         <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: colors[b.brand] ?? "#d9d7cf" }} /><span className={`text-[13.5px] ${isA(b.brand) ? "font-semibold" : "font-medium"}`}>{b.brand} <span className="text-muted">›</span></span><span className="text-[11px] text-muted">{tiers.inSet(b.brand) ? ORIGIN_LABEL[origin.get(b.brand) ?? "unknown"] : tr("not a main brand", "주요 브랜드 외")}</span></span>
                         <Sparkline values={b.spark} color={c} width={96} height={24} />
                         <span className="flex items-center gap-2 pr-4"><b className="w-12 text-[13.5px] tabular">{b.last3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(b.last3)}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full" style={{ width: `${Math.min(100, ((b.last3 ?? 0) / maxL) * 100)}%`, background: c }} /></span></span>
-                        <span className="text-right text-[12.5px] text-ink-2 tabular">{b.prev3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(b.prev3)}</span>
+                        <span className="text-right text-[12.5px] text-ink-2 tabular">{b.prev3 === null ? <Missing>{tr("partial", "일부")}</Missing> : `${compact(b.prev3)} → ${compact(b.same3 ?? b.last3)}`}</span>
                         <span className="pl-3"><Change g={b.growth} vol={b.last3} market={mkt} /></span>
                       </button>
                     );
@@ -366,7 +369,7 @@ function DemandPage() {
                   <div key={s.brand} className={`grid grid-cols-[minmax(180px,1.5fr)_1fr_1fr] items-center border-b border-line px-5 py-2 text-[13px] ${isA(s.brand) ? "bg-accent-soft/50 font-semibold" : ""}`}>
                     <span className="flex items-center gap-2"><span>{s.brand}</span><span className="text-[11px] font-normal text-muted">{tiers.inSet(s.brand) ? ORIGIN_LABEL[s.origin] : tr("not a main brand", "주요 브랜드 외")}</span></span>
                     <span className="flex items-center gap-2 pr-6 tabular"><b className="w-6">{s.top5}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full bg-brand" style={{ width: `${(s.top5 / mx) * 100}%` }} /></span></span>
-                    <span className="tabular">{s.top10} <span className="text-[11px] text-muted">{tr(`of ${keywords.length * 10}`, `/ ${keywords.length * 10}`)}</span></span>
+                    <span className="tabular">{s.top10} <span className="text-[11px] text-muted">{tr(`of ${places10}`, `/ ${places10}`)}</span></span>
                   </div>
                 );
               }} />

@@ -106,7 +106,7 @@ export function brandInsights(scores: BrandScore[]): string[] {
   return out;
 }
 
-export interface DemandLine { key: string; label: string; brand: string; spark: (number | null)[]; last3: number | null; prev3: number | null; growth: number | null; url?: string | null }
+export interface DemandLine { key: string; label: string; brand: string; spark: (number | null)[]; last3: number | null; prev3: number | null; /** The same products' reviews now (the growth's numerator); last3 also counts launches since. */ same3?: number | null; growth: number | null; url?: string | null }
 
 /** Monthly reviews over the last 12 complete months for one product or brand, using only months each product
  *  reliably covers. Momentum (last 3 vs prior 3) only from products that cover all 6 of those months. */
