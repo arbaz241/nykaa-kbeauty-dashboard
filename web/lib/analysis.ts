@@ -178,7 +178,8 @@ export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: stri
   const all = rows.reduce((a, r) => a + r.recent, 0);
   const usual = all ? rows.filter((r) => same(r.brand, anchor)).reduce((a, r) => a + r.recent, 0) / all : 0;
   const by = new Map<string, DemandRow[]>();
-  for (const r of rows) if (r.category && r.category !== "kbeauty_store") push(by, r.category, r);
+  // the hidden cleansing-balm list (owner, 18 Oct) stays off the map like everywhere else
+  for (const r of rows) if (r.category && r.category !== "kbeauty_store" && r.category !== "cleansing_balm") push(by, r.category, r);
   const cells: CategoryCell[] = [];
   for (const [category, rs] of by) {
     const recent = rs.reduce((a, r) => a + r.recent, 0);
@@ -225,7 +226,7 @@ export function rangeGrid(anchor: string, catalog: CatalogRow[], isFocus: (b: st
       const inCell = (r: CatalogRow) => (r.subcategories ?? []).includes(c) && price(r) !== null && price(r)! >= lo && price(r)! < hi;
       const a = anchorRows.filter(inCell);
       const rv = rows.filter((r) => !same(r.brand, anchor) && isFocus(r.brand) && inCell(r));
-      return { label, anchor: a, rivals: rv, rivalBrands: [...new Set(rv.map((r) => r.brand))], gap: a.length === 0 && rv.length >= 3 };
+      return { label, anchor: a, rivals: rv, rivalBrands: [...new Map(rv.map((r) => [norm(r.brand), r.brand])).values()], gap: a.length === 0 && rv.length >= 3 };
     }),
   }));
 }

@@ -189,7 +189,7 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
         : tr(`${anchor}'s products in ${cat(m.category)} now look relatively more expensive.`, `${cat(m.category)}에서 ${anchor} 제품이 상대적으로 비싸 보이게 됨.`),
       tone: same(m.brand, anchor) ? "watch" : "threat",
       weight: 45 + Math.abs(m.price_change_14d) * 100,
-      headline: tr(`${m.brand} cut ${shorten(m.name, m.brand)} by ${pct(m.price_change_14d)} in ${cat(m.category)}`, `${m.brand}, ${cat(m.category)} ${shorten(m.name, m.brand)} 가격 ${Math.round(Math.abs(m.price_change_14d) * 100)}% 인하`),
+      headline: tr(`${m.brand} cut the price of ${shorten(m.name, m.brand)} by ${Math.round(Math.abs(m.price_change_14d) * 100)}% in ${cat(m.category)}`, `${m.brand}, ${cat(m.category)} ${shorten(m.name, m.brand)} 가격 ${Math.round(Math.abs(m.price_change_14d) * 100)}% 인하`),
       detail: tr(`₹${m.price_14d} to ₹${m.price} at the same MRP, so this is a genuine discount rather than Nykaa switching the pack size shown.`,
         `정가(MRP)는 그대로인데 ₹${m.price_14d} → ₹${m.price}. Nykaa 표시 용량 변경이 아니라 실제 할인.`),
       evidence: [

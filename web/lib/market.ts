@@ -3,7 +3,7 @@ import { push } from "./group";
 import { addDays, type MonthWindow } from "./period";
 import type { CatalogRow, HomepageFeature, MarketEvent, ProductDemand, ReviewMonth, ShelfDay, ShelfProduct, ShelfRow, BrandOffer } from "./types";
 import { tr } from "./i18n";
-import { inr, median } from "./format";
+import { CATEGORIES, inr, median } from "./format";
 
 /** Round 4 market layer (plan https://claude.ai/artifact/EHrtxEG82NePyf1d9CJPBv, owner decisions 17 Oct 2026).
  *
@@ -361,14 +361,15 @@ export function aggregate(rows: FlowRow[], keyOf: (r: FlowRow) => string): Map<s
 export function placesOn(ix: DailyIndex, dims: Map<string, Dim>, day: string, cats?: Set<string>) {
   const m = new Map<string, number>();
   for (const r of ix.byDay.get(day)?.values() ?? []) {
-    if (r.subcategory === STORE || (cats && !cats.has(r.subcategory))) continue;
+    // only the shown lists: the hidden cleansing-balm list (owner, 18 Oct) is still collected and would count here
+    if (!CATEGORIES.includes(r.subcategory) || (cats && !cats.has(r.subcategory))) continue;
     const b = dims.get(r.product_id)?.brand; if (!b) continue;
     m.set(b, (m.get(b) ?? 0) + 1);
   }
   return m;
 }
 export function catsOn(ix: DailyIndex, day: string) {
-  return new Set([...(ix.byDay.get(day)?.values() ?? [])].map((r) => r.subcategory).filter((c) => c !== STORE));
+  return new Set([...(ix.byDay.get(day)?.values() ?? [])].map((r) => r.subcategory).filter((c) => c !== STORE && CATEGORIES.includes(c)));
 }
 
 /** New ratings per day across the categories (each day vs the day before, listings on both days). */
