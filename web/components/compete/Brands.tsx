@@ -177,7 +177,7 @@ export function PriceBasket({ facts, anchor }: { facts: BrandFacts[]; anchor: st
   };
   const gap = (f: BrandFacts) => (f.basket.source === "shelf" ? tr("Crawl pending", "수집 대기") : tr("Not sold", "미판매"));
   return (
-    <ActionSection id="price" kicker={tr("Price · like for like, on MRP", "가격 · 정가 기준 동일 조건 비교")} title={title} note={tr(`Median full-size MRP in each core category (${basketLabel()}). "×" compares with Innisfree on the categories both sell; click a price for how it was built.`, `핵심 카테고리별 정규 용량 정가 중앙값 (${basketLabel()}). "×" = 둘 다 판매하는 카테고리에서 Innisfree 대비 값, 가격을 누르면 계산 방법 표시.`)}>
+    <ActionSection id="basket" kicker={tr("Price · like for like, on MRP", "가격 · 정가 기준 동일 조건 비교")} title={title} note={tr(`Median full-size MRP in each core category (${basketLabel()}). "×" compares with Innisfree on the categories both sell; click a price for how it was built.`, `핵심 카테고리별 정규 용량 정가 중앙값 (${basketLabel()}). "×" = 둘 다 판매하는 카테고리에서 Innisfree 대비 값, 가격을 누르면 계산 방법 표시.`)}>
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-[12.5px] tabular">
           <thead>

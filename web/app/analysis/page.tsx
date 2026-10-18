@@ -206,7 +206,7 @@ function Analysis() {
       <PageHead eyebrow={tr("K-beauty", "K-뷰티")} title={tr(`${anchor} against its Korean rivals`, `${anchor} vs K-뷰티 경쟁사`)} sub={tr(<>{anchor} first, category by category against its {n - 1} Korean rivals, judged on what shoppers buy. Then every other Korean brand we watch, K-beauty on Nykaa as a whole, and the deeper brief. Press &ldquo;Details&rdquo; on any row to see more here.</>,
         <>{anchor} 먼저, K-뷰티 경쟁사 {n - 1}곳과 카테고리별 구매 비교 → 기타 K-뷰티 브랜드 → Nykaa의 K-뷰티 전체 → 상세 보고서. 어느 행이든 &ldquo;자세히&rdquo;를 누르면 여기서 바로 확인.</>)}
         right={<BrandSelect value={anchor} onChange={setPicked} tiers={tiers} all={known} />} />
-      <ScopeLine uses={["lists", "top100", "followed"]} measure={tr("share of buying within each category (top 100s), and growth: written reviews in the last 3 complete months against the same months a year earlier, same products only.", "카테고리 안 구매 점유율(상위 100위)과 성장률: 최근 완결된 3개월 작성 리뷰를 전년 같은 달과 비교, 동일 제품만.")} />
+      <ScopeLine uses={["top100", "followed"]} measure={tr("share of buying within each category (top 100s), and growth: written reviews in the last 3 complete months against the same months a year earlier, same products only.", "카테고리 안 구매 점유율(상위 100위)과 성장률: 최근 완결된 3개월 작성 리뷰를 전년 같은 달과 비교, 동일 제품만.")} />
       <SectionNav items={NAV(anchor)} />
       {!deep && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">{tr(<><b>{anchor}</b> is outside the rival set, so this is a scorecard: it is compared with the K-beauty rivals, and sections without data for it say so.</>, <><b>{anchor}</b>는 K-뷰티 경쟁사 밖이라 간이 평가로 표시. K-뷰티 경쟁사와 비교하며, 데이터 없는 영역은 따로 표시.</>)}</p>}
 

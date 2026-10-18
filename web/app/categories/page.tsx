@@ -61,7 +61,7 @@ function MarketPage() {
     <Shell active="Top by category" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Market", "시장")} title={tr("Who is winning each category", "카테고리별 승자")}
         sub={tr("Pick one category, or all of them. Its brands, its top products and what moved are on this page together. Press \"Details\" on any row to see more without leaving the page.", "카테고리 하나 또는 전체 선택. 브랜드, 상위 제품, 변동을 한 페이지에서 확인. 어느 행이든 \"자세히\"를 누르면 이 페이지에서 바로 더 보기.")} />
-      <ScopeLine uses={["lists", "selling", "top100"]} measure={tr("share of buying (new ratings × price over the last 30 days of live rating counts, within one category) and places in each top 100; brand counts come from Nykaa's brand filter.", "구매 점유율(평가 수가 살아 있는 최근 30일 신규 평가 수 × 가격, 카테고리 안에서)과 상위 100위 순위. 브랜드 수는 Nykaa 브랜드 필터 기준.")} />
+      <ScopeLine uses={["selling", "top100"]} measure={tr("share of buying (new ratings × price over the last 30 days of live rating counts, within one category) and places in each top 100; brand counts come from Nykaa's brand filter.", "구매 점유율(평가 수가 살아 있는 최근 30일 신규 평가 수 × 가격, 카테고리 안에서)과 상위 100위 순위. 브랜드 수는 Nykaa 브랜드 필터 기준.")} />
       <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label={tr("Category", "카테고리")}>
         <button className={pill(cat === "all")} onClick={() => setCat("all")}>{tr(`All ${CATEGORIES.length} categories`, `${CATEGORIES.length}개 카테고리 전체`)}</button>
         {CATEGORIES.map((c) => <button key={c} className={pill(cat === c)} onClick={() => setCat(c)}>{catName(c)}</button>)}

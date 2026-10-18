@@ -11,7 +11,6 @@ import { Brands, PriceBasket, WhereCompete } from "@/components/compete/Brands";
 import RivalPicker, { loadEdits, saveEdits, MAX_PRODUCTS, type RivalEdit } from "@/components/compete/RivalPicker";
 import { useMarket } from "@/lib/useMarket";
 import { SectionNav, type NavItem } from "@/components/Report";
-import Segmented from "@/components/Segmented";
 import Shell from "@/components/Shell";
 import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ANCHOR_BRAND, SLOT_COLORS, resolveBrand } from "@/lib/brands";
@@ -29,26 +28,30 @@ import { dayMonthYear, tr } from "@/lib/i18n";
 import { ScopeLine } from "@/components/Scope";
 
 /** Competitive Analysis: the old USP and Compare tabs as one report (docs/restructure-v2-plan.md), layered in round 2
- *  (docs/competitive-round2-plan.md): Product view answers first, then price, message, buyers, visibility, demand;
- *  brand-vs-brand lives in its own Brand view so the two never repeat each other. Detail opens in the side panel. */
+ *  (docs/competitive-round2-plan.md). Owner 19 Oct 2026: no view switch (few would find it); one page, brand to
+ *  brand first, then product to product. Detail opens in the side panel. */
 
 const ORDER = [...HERO_ORDER, ...CATEGORIES.filter((c) => !HERO_ORDER.includes(c))];
 const readUrl = () => (typeof window === "undefined" ? {} : Object.fromEntries(new URLSearchParams(window.location.search).entries())) as Record<string, string>;
 
-const PRODUCT_NAV = (): NavItem[] => [
-  { id: "summary", label: tr("Verdict", "결론") },
+const NAV = (): NavItem[] => [
+  { id: "brands", label: tr("Brand scorecard", "브랜드 스코어카드") },
+  { id: "compete", label: tr("Where they compete", "경쟁 지점") },
+  { id: "basket", label: tr("Price basket", "가격 바스켓") },
+  { id: "summary", label: tr("Product verdict", "제품 결론") },
   { id: "price", label: tr("Price", "가격") },
   { id: "message", label: tr("Message", "메시지") },
   { id: "buyers", label: tr("What buyers say", "구매자 반응") },
   { id: "visibility", label: tr("Visibility", "노출") },
   { id: "demand", label: tr("Demand", "수요") },
 ];
-const BRAND_NAV = (): NavItem[] => [
-  { id: "brands", label: tr("Brand scorecard", "브랜드 스코어카드") },
-  { id: "compete", label: tr("Where they compete", "경쟁 지점") },
-  { id: "price", label: tr("Price basket", "가격 바스켓") },
-];
-type View = "product" | "brand";
+const PartHead = ({ id, n, title, sub }: { id: string; n: number; title: string; sub: React.ReactNode }) => (
+  <div id={id} className="mt-10 scroll-mt-32 border-t-2 border-ink pt-4">
+    <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{tr(`Part ${n}`, `${n}부`)}</div>
+    <h2 className="mt-1 font-display text-[26px] font-semibold tracking-tight">{title}</h2>
+    <p className="mt-1 max-w-[760px] text-[13.5px] leading-relaxed text-ink-2">{sub}</p>
+  </div>
+);
 
 function CompetitivePage() {
   const shelf = useShelf(); const catalog = useCatalog(); const months = useReviewMonths(); const search = useSearch(); const assort = useAssortment();
@@ -64,7 +67,6 @@ function CompetitivePage() {
   const [heroPick, setHeroPick] = useState<string | null>(url.hero ?? null);
   const [brandOverride, setBrandOverride] = useState<string[] | null>(null);
   const [swap, setSwap] = useState<Record<string, string>>({});
-  const [view, setView] = useState<View>(url.view === "brand" ? "brand" : "product");
   // Round 4: rivals anyone can drop or add, kept per hero (or per category without one) in this browser
   const [edits, setEdits] = useState<Record<string, RivalEdit>>(() => (typeof window === "undefined" ? {} : loadEdits()));
   const market = useMarket();
@@ -74,9 +76,9 @@ function CompetitivePage() {
   const uspBy = useMemo(() => new Map((uspP.data ?? []).map((p) => [p.product_id, p])), [uspP.data]);
 
   useEffect(() => {
-    const p = new URLSearchParams({ cat, ...(hero ? { hero: hero.anchor_product_id } : {}), ...(view === "brand" ? { view } : {}) });
+    const p = new URLSearchParams({ cat, ...(hero ? { hero: hero.anchor_product_id } : {}), });
     window.history.replaceState(null, "", `?${p.toString()}${window.location.hash}`);
-  }, [cat, hero, view]);
+  }, [cat, hero]);
 
   // without an analysed hero: the focus brands selling best in this category (2 Korean, 1 Indian, 1 global where they exist)
   const focusRivals = useMemo(() => {
@@ -148,13 +150,13 @@ function CompetitivePage() {
 
   return (
     <Shell active="Competitive Analysis" asOf={asOf ? dayMonthYear(asOf) : undefined}>
-      <PageHead eyebrow={tr("Competitive", "경쟁 분석")} title={tr("Competitive Analysis", "경쟁 분석")} sub={tr(<>Innisfree against its direct rivals in one category. The verdict first, then the evidence; click anything with › for the detail. Drop a rival or add any product with the bar under the hero.</>, <>한 카테고리 안에서 Innisfree와 직접 경쟁 제품 비교. 결론 먼저, 근거는 뒤에. › 표시를 누르면 상세 표시. 히어로 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
-      <ScopeLine uses={["top100", "followed"]} measure={tr("one category's products head to head: rank in the top 100, price per ml or g, written reviews, and what each product page claims.", "한 카테고리 제품끼리 정면 비교: 상위 100위 순위, ml·g당 가격, 작성 리뷰, 상품 페이지 주장.")} />
+      <PageHead eyebrow={tr("Competitive analysis", "경쟁 분석")} title={tr("Competitive analysis", "경쟁 분석")} sub={tr(<>Pick a category and an Innisfree hero. Part 1 compares Innisfree with the rival brands behind it; Part 2 puts the hero product against the rival products. Click anything with › for the detail.</>, <>카테고리와 Innisfree 히어로 선택. 1부: Innisfree vs 경쟁 브랜드, 2부: 히어로 제품 vs 경쟁 제품. › 표시를 누르면 상세 표시.</>)} />
+      <ScopeLine uses={["top100", "followed"]} measure={tr("Part 1, brands: places in the top 100s, written reviews and growth, and a like-for-like price basket. Part 2, products in one category: rank, price per ml or g, written reviews, and what each product page claims.", "1부 브랜드: 상위 100위 자리, 작성 리뷰·성장률, 동일 조건 가격 바스켓. 2부 한 카테고리 제품: 순위, ml·g당 가격, 작성 리뷰, 상품 페이지 주장.")} />
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">{tr("Could not load data", "데이터 불러오기 실패")}: {String(err.message ?? err)}</div>}
       {loading && !err ? <Loading what={tr("the comparison", "비교 데이터")} /> : !err && (
         <>
           {hero && productIds.some((p) => !tiers.inSet(p.brand)) && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">{tr(<>{[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")} {productIds.filter((p) => !tiers.inSet(p.brand)).length === 1 ? "is" : "are"} compared here because the comparison was made before your main brands were chosen; it is not one of them.</>,
-            <>이 히어로의 경쟁 제품은 주요 브랜드 목록이 생기기 전에 AI 비교용으로 고른 것. {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")}는 주요 브랜드가 아님. 비교 결과는 분석된 그대로 두고, 아래 브랜드 보기에서 브랜드를 바꾸면 주요 브랜드 기준으로 표시.</>)}</p>}
+            <>이 히어로의 경쟁 제품은 주요 브랜드 목록이 생기기 전에 AI 비교용으로 고른 것. {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")}는 주요 브랜드가 아님. 비교 결과는 분석된 그대로 두고, 1부 브랜드 비교에서 브랜드를 바꾸면 주요 브랜드 기준으로 표시.</>)}</p>}
           <Card className="mt-5 px-4 py-3.5">
             <div className="flex flex-wrap gap-1.5">
               {ORDER.filter((c) => HERO_ORDER.includes(c) || sells(c)).map((c) => {
@@ -178,33 +180,27 @@ function CompetitivePage() {
             </div>
           </Card>
 
-          <div className="mt-4">
-            <Segmented value={view} onChange={(v) => { setView(v); window.scrollTo({ top: 0 }); }} options={[
-              { value: "product", label: tr("Product view", "제품 보기"), hint: hero ? tr(`${shortTitle(hero.anchor_name, "Innisfree")} vs its rivals`, `${shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품`) : tr(`Best product per brand in ${CATEGORY_LABEL[cat]}`, `${CATEGORY_LABEL[cat]} 브랜드별 최고 제품`) },
-              { value: "brand", label: tr("Brand view", "브랜드 보기"), hint: tr("Innisfree vs the brands behind them", "Innisfree vs 경쟁 브랜드") },
-            ]} />
-          </div>
-          {view === "product" ? (<>
-            <RivalPicker cat={cat} anchorBrand={anchor} edited={!!edit} rows={rows} catalog={cat0} flow={market.flow}
-              current={products.map((p) => ({ pid: p.pid, brand: p.brand, role: p.role === "anchor" || p.pid === productIds[0]?.pid ? "anchor" : p.role, name: p.name }))}
-              onRemove={(pid) => changeEdit((e) => ({ removed: e.added.some((a) => a.pid === pid) ? e.removed : [...e.removed, pid], added: e.added.filter((a) => a.pid !== pid) }))}
-              onAdd={(pid, brand) => changeEdit((e) => ({ removed: e.removed.filter((x) => x !== pid), added: [...e.added, { pid, brand }] }))}
-              onReset={() => changeEdit(() => null)} />
-            <SectionNav key="p" items={PRODUCT_NAV()} />
-            <Summary hero={hero} products={products} bench={bench} cat={cat} />
-            <PriceSection products={products} colors={colors} bench={bench} std={stdMl} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
-            <Message hero={hero} products={products} colors={colors} />
-            <Buyers products={products} colors={colors} loading={reviews.isLoading} />
-            <Visibility products={products} colors={colors} cat={cat} />
-            <Demand products={products} colors={colors} />
-          </>) : (<>
-            <SectionNav key="b" items={BRAND_NAV()} />
-            <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isHeroSet={!brandOverride} focusSet={[tiers.pinned, ...tiers.focus]} inSet={tiers.inSet}
-              onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
-            <WhereCompete facts={bfacts} anchor={anchor} rows={rows} catalog={cat0} uspBy={uspBy} comps={uspC.data ?? []} colors={colors} brands={brands}
-              onPickCat={(c) => { setCat(c); setHeroPick(null); setView("product"); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
-            <PriceBasket facts={bfacts} anchor={anchor} />
-          </>)}
+          <SectionNav items={NAV()} />
+
+          <PartHead id="part-brands" n={1} title={tr("Brand to brand", "브랜드 대 브랜드")} sub={tr(<>Innisfree against the brands behind {hero ? "this hero's rivals" : "the rival products"}: the scorecard, the categories where they meet, and a like-for-like price basket. Change the brands in the scorecard.</>, <>{hero ? "이 히어로의 경쟁 제품" : "경쟁 제품"} 브랜드와 Innisfree 비교: 스코어카드, 맞붙는 카테고리, 동일 조건 가격 바스켓. 스코어카드에서 브랜드 변경 가능.</>)} />
+          <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isHeroSet={!brandOverride} focusSet={[tiers.pinned, ...tiers.focus]} inSet={tiers.inSet}
+            onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
+          <WhereCompete facts={bfacts} anchor={anchor} rows={rows} catalog={cat0} uspBy={uspBy} comps={uspC.data ?? []} colors={colors} brands={brands}
+            onPickCat={(c) => { setCat(c); setHeroPick(null); setTimeout(() => document.getElementById("part-products")?.scrollIntoView({ behavior: "smooth" }), 50); }} />
+          <PriceBasket facts={bfacts} anchor={anchor} />
+
+          <PartHead id="part-products" n={2} title={tr(`Product to product · ${CATEGORY_LABEL[cat]}`, `제품 대 제품 · ${CATEGORY_LABEL[cat]}`)} sub={tr(<>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} against its rival products</> : <>Each brand&rsquo;s best-ranked product in {CATEGORY_LABEL[cat]}</>}: the verdict, then price, message, what buyers say, visibility and demand. Drop a rival or add any product with the bar below.</>, <>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품</> : <>{CATEGORY_LABEL[cat]} 브랜드별 최고 순위 제품</>}: 결론, 가격, 메시지, 구매자 반응, 노출, 수요 순. 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
+          <RivalPicker cat={cat} anchorBrand={anchor} edited={!!edit} rows={rows} catalog={cat0} flow={market.flow}
+            current={products.map((p) => ({ pid: p.pid, brand: p.brand, role: p.role === "anchor" || p.pid === productIds[0]?.pid ? "anchor" : p.role, name: p.name }))}
+            onRemove={(pid) => changeEdit((e) => ({ removed: e.added.some((a) => a.pid === pid) ? e.removed : [...e.removed, pid], added: e.added.filter((a) => a.pid !== pid) }))}
+            onAdd={(pid, brand) => changeEdit((e) => ({ removed: e.removed.filter((x) => x !== pid), added: [...e.added, { pid, brand }] }))}
+            onReset={() => changeEdit(() => null)} />
+          <Summary hero={hero} products={products} bench={bench} cat={cat} />
+          <PriceSection products={products} colors={colors} bench={bench} std={stdMl} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
+          <Message hero={hero} products={products} colors={colors} />
+          <Buyers products={products} colors={colors} loading={reviews.isLoading} />
+          <Visibility products={products} colors={colors} cat={cat} />
+          <Demand products={products} colors={colors} />
         </>
       )}
       <MethodNotes parts={{

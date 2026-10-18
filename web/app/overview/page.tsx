@@ -215,9 +215,9 @@ function BriefPage() {
       <SectionNav items={NAV()} />
 
       <ActionSection id="scope" kicker={tr("What we track", "추적 범위")}
-        title={scope ? tr(`${scope.lists} Nykaa categories, ${scope.selling.brands.toLocaleString("en-IN")} brands selling in them, ${scope.top100.products.toLocaleString("en-IN")} products in today's top 100s`, `Nykaa 카테고리 ${scope.lists}개, 판매 브랜드 ${scope.selling.brands.toLocaleString("en-IN")}개, 오늘 상위 100위 제품 ${scope.top100.products.toLocaleString("en-IN")}개`) : tr("What we track", "추적 범위")}
-        note={tr(<>Four groups, each narrower than the one before. Every number on every tab comes from one of them, and each tab says which at the top. Read nightly since 13 Sep 2026{scope?.day ? `; latest ${dayMonth(scope.day)}` : ""}. Nykaa&rsquo;s Korean Beauty store lists {scope?.storeBrands ?? "–"} brands; they count in group 2 only where they sell in our categories.</>,
-          <>네 그룹, 뒤로 갈수록 좁아짐. 모든 탭의 숫자는 이 중 하나에서 나오고, 각 탭 상단에 어느 그룹인지 표시. 2026년 9월 13일부터 매일 밤 수집{scope?.day ? `, 최근 ${dayMonth(scope.day)}` : ""}. Nykaa K-뷰티 스토어 브랜드 {scope?.storeBrands ?? "–"}개는 우리 카테고리에서 판매할 때만 2번 그룹에 포함.</>)}>
+        title={scope ? tr(`Inside ${scope.lists} Nykaa categories: ${scope.selling.brands.toLocaleString("en-IN")} brands sell, ${scope.top100.brands} reach a top 100 today, ${scope.followed.brands} are followed month by month`, `Nykaa 카테고리 ${scope.lists}개 안: 판매 브랜드 ${scope.selling.brands.toLocaleString("en-IN")}개, 오늘 상위 100위 안 ${scope.top100.brands}개, 월별 추적 ${scope.followed.brands}개`) : tr("What we track", "추적 범위")}
+        note={tr(<>We count two things, brands and products, in three groups. Every number on every tab comes from one of these depths, and each tab says which at the top. Read nightly since 13 Sep 2026{scope?.day ? `; latest ${dayMonth(scope.day)}` : ""}.</>,
+          <>브랜드와 제품 두 가지를 세 그룹으로 집계. 모든 탭의 숫자는 이 중 한 단계에서 나오고, 각 탭 상단에 어느 단계인지 표시. 2026년 9월 13일부터 매일 밤 수집{scope?.day ? `, 최근 ${dayMonth(scope.day)}` : ""}.</>)}>
         <ScopePanel />
       </ActionSection>
 

@@ -19,7 +19,7 @@ const NAV = () => [
   // plan v3: Categories and Brands are one Market tab
   { label: "Top by category", text: tr("Market", "시장"), href: "/categories/" },
   { label: "Analysis", text: tr("K-beauty", "K-뷰티"), href: "/analysis/" },
-  { label: "Competitive Analysis", text: tr("Competitive", "경쟁 분석"), href: "/compare/" },
+  { label: "Competitive Analysis", text: tr("Competitive analysis", "경쟁 분석"), href: "/compare/" },
   { label: "Demand", text: tr("Demand & search", "수요·검색"), href: "/demand/" },
   { label: "Offers", text: tr("Offers & events", "프로모션·이벤트"), href: "/offers/" },
 ];
