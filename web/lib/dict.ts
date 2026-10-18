@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { fetchAll } from "./supabase";
+import { hasStatic, openSite, staticThenLive } from "./staticData";
 import { isKo, useLang } from "./i18n";
 
 /** Korean for text that comes from the data rather than the code: Nykaa's own product-page wording (claims,
@@ -25,12 +26,14 @@ export const txs = (xs: string[] | null | undefined) => (xs ?? []).map((x) => tx
 /** Loads the dictionary while the site is in Korean. AuthGate waits for it so a page never opens half-translated. */
 export function useDictionary(): boolean {
   const ko = useLang() === "ko";
-  const { data, error } = useSWR(ko ? "ko_dictionary" : null, async () => {
-    const rows = await fetchAll<{ en: string; ko: string }>("ko_dictionary");
+  // with the nightly files and no dictionary among them (not translated yet), there is nothing to wait for
+  const none = openSite && !hasStatic("ko_dictionary");
+  const { data, error } = useSWR(ko && !none ? "ko_dictionary" : null, async () => {
+    const rows = await staticThenLive("ko_dictionary", "ko_dictionary_rows", () => fetchAll<{ en: string; ko: string }>("ko_dictionary"));
     dict = new Map(rows.map((r) => [r.en, r.ko]));
     lower = new Map(rows.map((r) => [r.en.trim().toLowerCase(), r.ko]));
     return true;
   }, { revalidateOnFocus: false, dedupingInterval: 60 * 60 * 1000 });
   // without the table (not yet translated, or offline) the page still opens: data text stays in English
-  return !ko || !!data || !!error;
+  return !ko || none || !!data || !!error;
 }

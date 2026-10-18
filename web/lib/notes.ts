@@ -2,7 +2,8 @@
 
 import useSWR from "swr";
 import { norm } from "./brands";
-import { supabase } from "./supabase";
+import { db } from "./supabase";
+import { staticThenLive } from "./staticData";
 import type { Marker } from "@/components/LineChart";
 import { josa, labels, tr } from "./i18n";
 
@@ -22,11 +23,11 @@ export const NOTE_WORD: Record<DataNote["kind"], string> = labels({
 });
 
 export function useDataNotes() {
-  return useSWR("data_notes", async () => {
-    const { data, error } = await supabase().from("data_notes").select("*").order("starts_on");
+  return useSWR("data_notes", () => staticThenLive("data_notes", "data_notes", async () => {
+    const { data, error } = await (await db()).from("data_notes").select("*").order("starts_on");
     if (error) throw new Error(error.message);
     return (data ?? []) as DataNote[];
-  }, { revalidateOnFocus: false });
+  }), { revalidateOnFocus: false });
 }
 
 /** Markers for a chart whose x-axis is a list of ISO dates (days or month starts). Brand notes only show when
