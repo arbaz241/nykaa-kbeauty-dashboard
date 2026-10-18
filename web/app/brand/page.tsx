@@ -122,7 +122,7 @@ function Brand() {
         <Verdict eyebrow={tr(`What to know · ${spanLabel(m.period.days)}`, `핵심 · ${spanLabel(m.period.days)}`)} points={points}>{lead}</Verdict>
         <Basis className="mt-2">{tr(<>Products in the top 100: today, counting only products Nykaa files under each category; the change counts the {both.size} categories tracked on both days. Buying = <Def k="ratingFlow">new ratings × price</Def>, combos left out. Reviews: all tracked products of the brand, complete months only.</>,
           <>상위 100위 제품: 오늘 기준, Nykaa가 해당 카테고리로 분류한 제품만. 변화는 양일 모두 추적한 {both.size}개 카테고리 기준. 구매 = <Def k="ratingFlow">신규 평가 × 가격</Def>, 콤보 제외. 리뷰: 브랜드의 추적 제품 전체, 완결된 달만.</>)}</Basis>
-        {news.length > 0 && <div className="mt-4"><div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("Outside Nykaa, last 30 days", "Nykaa 밖 소식, 최근 30일")}</div><ExternalNewsList brand={brand} max={5} /></div>}
+        {news.length > 0 && <div className="mt-4"><div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("In the news in India, last 30 days", "인도 관련 뉴스, 최근 30일")}</div><ExternalNewsList brand={brand} max={5} /></div>}
       </section>
 
       <ActionSection id="products" kicker={tr("Products on the shelf", "진열 제품")} title={tr(`${today.length} listing${today.length === 1 ? "" : "s"} in a top 100 today${up.length || down.length ? `; ${up.length} rose, ${down.length} fell` : ""}`, `오늘 상위 100위 ${today.length}개${up.length || down.length ? `, 상승 ${up.length}, 하락 ${down.length}` : ""}`)}

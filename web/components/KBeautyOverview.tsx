@@ -7,7 +7,7 @@ import { Basis, Def } from "./Tiered";
 import { BrandQuick, DetailsButton, ProductQuick } from "./Quick";
 import { norm } from "@/lib/brands";
 import { useBrandOffers, useCategoryBrands, useExternalNews, useHomepage } from "@/lib/data";
-import { ExternalTag } from "./External";
+import { ExternalTag, isRelevant } from "./External";
 import { CATEGORY_LABEL, inr, pct, shortName, signed } from "@/lib/format";
 import { catsOn, classifyOffer, homepageRuns, MAKEUP, placesOn, type FlowRow } from "@/lib/market";
 import { reviewTrend } from "@/lib/profile";
@@ -137,7 +137,7 @@ export default function KBeautyOverview({ tiers, anchor }: { tiers: Tiers; ancho
     // best seller = the brand's product with the most buying (plan v4), with its share of that category
     const best = flow.filter((r) => same(r.brand, b)).sort((x, y) => y.value - x.value)[0] ?? null;
     const cut = newsDay ? new Date(+new Date(newsDay) - 30 * 864e5).toISOString().slice(0, 10) : "";
-    const headlines = (news.data ?? []).filter((n) => same(n.brand, b) && (n.published_at ?? n.first_seen).slice(0, 10) >= cut).length;
+    const headlines = (news.data ?? []).filter((n) => same(n.brand, b) && (n.published_at ?? n.first_seen).slice(0, 10) >= cut && isRelevant(n)).length;
     return { b, places: pick(pAll, b), placesD: pick(p1, b) - pick(p0, b), strong: strongest(b), best, bestShare: best ? best.value / (catTotals.get(best.subcategory) || 1) : 0, reviews: tr12 && tr12.products >= 2 && tr12.base >= 30 ? tr12.change : null, offer: off[0]?.description ?? off[0]?.title ?? null, hp, headlines };
   };
   const set = [anchor, ...rivals.filter((b) => !same(b, anchor))].map(row).sort((a, b) => (same(a.b, anchor) ? -1 : same(b.b, anchor) ? 1 : (b.strong?.s ?? 0) - (a.strong?.s ?? 0)));
