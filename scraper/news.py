@@ -27,16 +27,17 @@ log = logging.getLogger("news")
 
 FEED = "https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
 CONTEXT = "(skincare OR makeup OR beauty OR Nykaa OR cosmetics OR launch OR brand)"
-BEAUTY = re.compile(r"\b(skin|skincare|makeup|cosmetics?|nykaa|serums?|sunscreens?|lip|creams?|toners?|masks?|d2c|k-beauty|korean beauty)\b", re.I)
+BEAUTY = re.compile(r"\b(skin|skincare|makeup|cosmetics?|nykaa|serums?|sunscreens?|lip|creams?|toners?|masks?|tints?|d2c|k-beauty|korean beauty|wellness)\b", re.I)
 # searches for names that are everyday words: the brand's own fuller name or its company
 QUERY = {"Minimalist": '"Minimalist" (skincare OR serum OR sunscreen OR HUL OR "Hindustan Unilever")', "Plum": '"Plum Goodness" OR "Plum skincare"',
          "Ponds": '"Pond\'s" (skin OR cream OR HUL)', "Simple": '"Simple skincare" OR "Simple face wash"', "MARS": '"MARS Cosmetics"',
          "The Ordinary": '"The Ordinary" (skincare OR serum OR Deciem)', "Hyphen": '"Hyphen" (skincare OR "Kriti Sanon")',
-         "Deconstruct": '"Deconstruct" (skincare OR sunscreen OR serum)', "Sugar": '"SUGAR Cosmetics"', "Lakme": '"Lakme" -fashion'}
+         "Deconstruct": '"Deconstruct" (skincare OR sunscreen OR serum)', "Sugar": '"SUGAR Cosmetics"', "Lakme": '"Lakme" -fashion',
+         "Etude": '"Etude House" OR "ETUDE" (makeup OR tint OR beauty)', "Aminu": '"Aminu Wellness" OR "Aminu skincare"'}
 PER_BRAND = 8
 # brand names that are also ordinary words or other companies: the headline must also be about beauty
 AMBIGUOUS = {"plum", "simple", "mars", "minimalist", "ponds", "pond's", "deconstruct", "hyphen", "foxtale", "o3+",
-             "pilgrim", "nivea", "vaseline", "garnier", "lakme", "sugar", "insight cosmetics", "earth rhythm", "dot & key"}
+             "pilgrim", "nivea", "vaseline", "garnier", "lakme", "sugar", "insight cosmetics", "earth rhythm", "dot & key", "etude", "aminu"}
 MAIN_SHELF_BRANDS = 10      # Indian and global brands holding the most top-100 places, besides the Korean set
 MAX_MOVERS = 12
 DAYS_BACK = 30
