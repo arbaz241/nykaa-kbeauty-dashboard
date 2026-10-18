@@ -8,6 +8,8 @@ const display = Inter_Tight({ variable: "--font-display-face", subsets: ["latin"
 export const metadata: Metadata = {
   title: "Nykaa Market Intelligence",
   description: "Brand and product intelligence for beauty on Nykaa India.",
+  // open by link, not for search engines (owner, 18 Oct 2026)
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

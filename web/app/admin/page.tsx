@@ -7,6 +7,7 @@ import Shell from "@/components/Shell";
 import { Card, Loading, PageHead } from "@/components/ui";
 import { ORIGIN_LABEL } from "@/lib/brands";
 import People from "@/components/admin/People";
+import Access from "@/components/admin/Access";
 import { NotesAdmin, TiersAdmin } from "@/components/admin/Settings";
 import { useShelf } from "@/lib/data";
 import { fetchAll, supabase } from "@/lib/supabase";
@@ -82,7 +83,7 @@ function AdminPage() {
           ))}
         </div>
       )}
-      {!isAdmin ? <p className="mt-8 text-[14px] text-muted">{tr("Only admins can open this page.", "관리자만 열 수 있는 페이지입니다.")}</p>   : tab === "people" ? <People /> : tab === "tiers" ? <TiersAdmin known={[...slots.keys()]} /> : tab === "notes" ? <NotesAdmin /> : !brands.data ? <Loading what={tr("brands", "브랜드")} /> : (
+      {!isAdmin ? <p className="mt-8 text-[14px] text-muted">{tr("Only admins can open this page.", "관리자만 열 수 있는 페이지입니다.")}</p>   : tab === "people" ? <><Access /><People /></> : tab === "tiers" ? <TiersAdmin known={[...slots.keys()]} /> : tab === "notes" ? <NotesAdmin /> : !brands.data ? <Loading what={tr("brands", "브랜드")} /> : (
         <>
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search brand", "브랜드 검색")} className="w-56 rounded-xl border border-line bg-surface px-3.5 py-2 text-[13px] outline-none focus:border-accent-strong" />
