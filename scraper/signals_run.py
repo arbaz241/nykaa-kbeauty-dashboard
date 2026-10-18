@@ -24,7 +24,7 @@ from . import config
 from .db import (connect, fetch_all, read_review_cursors, write_assortment, write_review_history, write_review_texts,
                  write_search, write_suggestions)
 from .nykaa import BlockedError, open_browser
-from .signals import (SEARCH_QUERIES, RateLimited, assortment, key_products, products_missing_text, review_history,
+from .signals import (SAME_AS_FIXED, SEARCH_QUERIES, RateLimited, assortment, key_products, products_missing_text, review_history,
                       review_texts_only, search_shelf, suggestions)
 
 log = logging.getLogger("signals")
@@ -199,7 +199,7 @@ async def run_signals(client, which: set[str], unlimited: bool = False) -> dict:
                     extra = []
                     for r in srows:
                         kw = (r["suggestion"] or "").strip().lower()
-                        if r["kind"] in ("query", "search") and kw and kw not in core and kw not in extra and len(kw) <= 40:
+                        if r["kind"] in ("query", "search") and kw and kw not in core and kw not in SAME_AS_FIXED and kw not in extra and len(kw) <= 40:
                             extra.append(kw)
                     extra = extra[:config.SUGGESTED_KEYWORDS_MAX]
                     # 3. results: core terms sampled several times (ads rotate per load), suggested terms once

@@ -34,6 +34,9 @@ SEARCH_QUERIES = [
     "korean toner", "korean sheet mask", "korean lip tint", "glass skin", "snail mucin", "cica",
     "rice toner", "centella", "niacinamide serum", "sunscreen for oily skin",
 ]
+# Suggested keywords Nykaa sends to the same results as a fixed one: tracking them repeats a row, so the next
+# suggestion takes the slot (audit 19 Oct: "korean beauty" = "korean skincare", identical unpaid results every day since 1 Oct).
+SAME_AS_FIXED = {"korean beauty"}
 REVIEWS_URL = ("https://www.nykaa.com/gateway-api/products/{product_id}/reviews"
                "?pageNo={page_no}&size=50&sort=MOST_RECENT&domain=nykaa&source=react")
 
