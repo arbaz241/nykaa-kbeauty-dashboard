@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import PeriodBar from "./PeriodBar";
 import { Card } from "./ui";
 import { Basis, Def } from "./Tiered";
-import { BrandLink, ProductLink } from "./Links";
+import { DetailsButton, ProductQuick } from "./Quick";
 import { ORIGIN_COLOR, ORIGIN_LABEL } from "@/lib/brands";
 import { useBrandOffers, useCategoryBrands, useCategoryStats, useEvents, useHomepage } from "@/lib/data";
 import { CATEGORY_LABEL, pct, shortName } from "@/lib/format";
@@ -17,7 +17,7 @@ import { dayMonth, tr } from "@/lib/i18n";
 /** Round 4: one category at a glance, above its top-100 table. How many brands sell in it, how Korean its shelf is,
  *  its top seller, how concentrated it is, and what rose and fell over the chosen period, with the likely reasons
  *  (plan v2: the moves live here and on the brand and product pages, no longer on Demand). */
-export default function CategoryGlance({ cat }: { cat: string }) {
+export default function CategoryGlance({ cat, part = "all" }: { cat: string; part?: "all" | "facts" | "moves" }) {
   const m = useMarket(); const stats = useCategoryStats(); const cb = useCategoryBrands();
   const events = useEvents(); const home = useHomepage(); const offers = useBrandOffers();
   const { win, flow, ix } = m;
@@ -51,15 +51,15 @@ export default function CategoryGlance({ cat }: { cat: string }) {
   };
 
   return (
-    <section className="mt-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className={part === "all" ? "mt-6" : ""}>
+      {part === "all" && <>      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · {tr("at a glance", "한눈에")}</div>
-          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × price, single products only. Click any name for its page.`, `구매·순위 변동은 ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 구매 = 신규 평가 × 가격, 단일 제품만. 이름을 누르면 해당 페이지가 열립니다.`)}</p>
+          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × price, single products only.`, `구매·순위 변동은 ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 구매 = 신규 평가 × 가격, 단일 제품만.`)}</p>
         </div>
         <PeriodBar shelf={win} freeze={m.freeze} />
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
+      </div></>}
+      {part !== "moves" && <div className="mt-4 grid gap-3 md:grid-cols-4">
         <Card className="px-5 py-4">
           <div className="text-[12.5px] text-muted"><Def k="brandCount">{tr("Brands on Nykaa", "Nykaa 입점 브랜드")}</Def></div>
           <div className="mt-1 font-display text-[28px] font-semibold tabular">{stat ? stat.brands.toLocaleString("en-IN") : "–"}</div>
@@ -76,37 +76,40 @@ export default function CategoryGlance({ cat }: { cat: string }) {
           <div className="text-[12.5px] text-muted"><Def k="ratingFlow">{tr("Top seller", "최다 판매")}</Def></div>
           {topSeller ? <>
             <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(topSeller.value / tot, 1)}</div>
-            <Basis><BrandLink brand={topSeller.brand} className="font-medium" /> <ProductLink id={topSeller.product_id} cat={cat}>{shortName(topSeller.name, topSeller.brand)}</ProductLink></Basis>
+            <Basis><b className="font-medium text-ink">{topSeller.brand}</b> {shortName(topSeller.name, topSeller.brand)}</Basis>
           </> : <div className="mt-1 font-display text-[28px] font-semibold">–</div>}
         </Card>
         <Card className="px-5 py-4">
           <div className="text-[12.5px] text-muted">{tr("Top 5 brands hold", "상위 5개 브랜드 점유")}</div>
           <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(top5)}</div>
-          <Basis>{brands.slice(0, 5).map((b, i) => <span key={b.key}>{i ? " · " : ""}<BrandLink brand={b.key} /> {pct(b.value / tot)}</span>)}</Basis>
+          <Basis>{brands.slice(0, 5).map((b, i) => <span key={b.key}>{i ? " · " : ""}<b className="font-medium text-ink">{b.key}</b> {pct(b.value / tot)}</span>)}</Basis>
         </Card>
-      </div>
-      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+      </div>}
+      {part !== "facts" && <><div className="mt-3 grid gap-3 lg:grid-cols-3">
         <MoveList title={tr(`Climbed most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 오른 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={risers} spark={spark} empty={tr("Nothing climbed 5+ places.", "5계단 이상 오른 제품이 없습니다.")} />
         <MoveList title={tr(`Fell most, ${dayMonth(win.start)} → ${dayMonth(win.end)}`, `가장 많이 내린 제품, ${dayMonth(win.start)} → ${dayMonth(win.end)}`)} items={fallers} spark={spark} empty={tr("Nothing fell 5+ places.", "5계단 이상 내린 제품이 없습니다.")} />
         <MoveList title={tr("New in the top 100 this period", "이번 기간 상위 100위 신규 진입")} items={entrants} spark={spark} empty={tr("No new entries in this period.", "이 기간에는 신규 진입이 없습니다.")} />
       </div>
-      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유는 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁)이며 증거는 아닙니다.")}</p>
+      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유는 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁)이며 증거는 아닙니다.")}</p></>}
     </section>
   );
 }
 
 function MoveList({ title, items, spark, empty }: { title: string; items: ListingMove[]; spark: (pid: string) => React.ReactNode; empty: string }) {
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <Card className="px-5 py-4">
       <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{title}</div>
       <ul className="mt-2 divide-y divide-line/60">{items.length ? items.map((x) => (
         <li key={x.key} className="py-2 text-[13px]">
           <div className="flex items-center gap-3">
-            <span className="min-w-0 flex-1 truncate"><BrandLink brand={x.brand} className="font-medium" /> <ProductLink id={x.product_id} cat={x.subcategory}>{shortName(x.name, x.brand)}</ProductLink></span>
+            <span className="min-w-0 flex-1 truncate"><b className="font-medium">{x.brand}</b> {shortName(x.name, x.brand)}</span>
             {spark(x.product_id)}
             <span className="shrink-0 text-right tabular text-ink-2">{x.entered ? <b className="text-ink">#{x.to}</b> : <>#{x.from} → <b className="text-ink">#{x.to}</b></>}</span>
+            <DetailsButton open={open === x.key} onClick={() => setOpen(open === x.key ? null : x.key)} />
           </div>
-          {!x.entered && <div className="mt-1 flex flex-wrap gap-1">{x.why.length ? x.why.slice(0, 2).map((w) => <span key={w.text} className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: REASON_COLOR[w.kind] }}>{w.text}</span>) : <span className="text-[11.5px] text-muted">{tr("no clear cause", "뚜렷한 원인 없음")}</span>}</div>}
+          {!x.entered && <div className="mt-1 flex flex-wrap gap-1">{x.why.length ? x.why.slice(0, 2).map((w) => <span key={w.text} className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: REASON_COLOR[w.kind] }}>{w.text}</span>) : <span className="text-[11.5px] text-muted">{tr("nothing we track changed", "추적 항목 변화 없음")}</span>}</div>}
+          {open === x.key && <ProductQuick pid={x.product_id} cat={x.subcategory} />}
         </li>)) : <li className="py-2 text-[12.5px] text-muted">{empty}</li>}</ul>
     </Card>
   );

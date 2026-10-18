@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import AuthGate from "@/components/AuthGate";
 import Shell from "@/components/Shell";
 import PeriodBar from "@/components/PeriodBar";
 import EventLog from "@/components/EventLog";
 import LineChart from "@/components/LineChart";
-import { Card, Loading, PageHead, Verdict, pill } from "@/components/ui";
+import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import { Basis } from "@/components/Tiered";
 import { ORIGIN_COLOR, ORIGIN_LABEL } from "@/lib/brands";
@@ -20,7 +20,8 @@ import { dayMonth, tr } from "@/lib/i18n";
 import type { BrandOffer } from "@/lib/types";
 
 const NAV = (): NavItem[] => [
-  { id: "summary", label: tr("Summary", "요약") }, { id: "calendar", label: tr("Sales calendar", "세일 캘린더") }, { id: "offers", label: tr("Brand offers", "브랜드 프로모션") },
+  { id: "summary", label: tr("In one line", "요약") }, { id: "discounts", label: tr("Who discounts most", "할인 깊이") }, { id: "cuts", label: tr("Price cuts in the period", "기간 중 가격 인하") },
+  { id: "calendar", label: tr("Sales calendar", "세일 캘린더") }, { id: "offers", label: tr("Brand offers", "브랜드 프로모션") },
   { id: "tags", label: tr("Offers on the shelf", "진열 프로모션") }, { id: "effect", label: tr("Do offers move rank?", "프로모션 효과") }, { id: "events", label: tr("Event log", "이벤트 기록") },
 ];
 const KIND_CHIP: Record<OfferKind, string> = { percent: "bg-[#e9eff5] text-[#3d5670]", bogo: "bg-[#e4f0eb] text-[#1f5646]", gift: "bg-[#faefe2] text-[#8a5a22]", members: "bg-sunken text-muted", other: "bg-sunken text-muted" };
@@ -28,7 +29,6 @@ const KIND_CHIP: Record<OfferKind, string> = { percent: "bg-[#e9eff5] text-[#3d5
 function OffersPage() {
   const m = useMarket(); const offers = useBrandOffers(); const home = useHomepage(); const events = useEvents();
   const { win, ix, dims } = m;
-  const [scope, setScope] = useState<"focus" | "all">("focus");
   const tiers = useTiers(useMemo(() => [...new Set((offers.data ?? []).map((o) => o.brand))], [offers.data]));
 
   const offerDays = useMemo(() => [...new Set((offers.data ?? []).map((o) => o.scrape_date))].sort(), [offers.data]);
@@ -79,17 +79,46 @@ function OffersPage() {
     return { n: flips.length, med: median(flips), up: up(flips), baseMed: median(others), baseUp: up(others), baseN: others.length };
   }, [ix, win]);
 
+  // discount depth today: how far below the printed price each top-100 listing sells, by origin and by brand
+  const disc = useMemo(() => {
+    const rows = m.shelf.filter((r) => r.subcategory !== "kbeauty_store" && r.price && r.mrp);
+    const d = (r: (typeof rows)[number]) => (r.mrp! > r.price! ? 1 - r.price! / r.mrp! : 0);
+    const byOrigin = Object.fromEntries((["kbeauty", "local", "global"] as const).map((o) => { const xs = rows.filter((r) => r.origin === o).map(d); return [o, { med: median(xs) ?? 0, n: xs.length, none: xs.filter((x) => x < 0.01).length / (xs.length || 1) }]; }));
+    const catMed = new Map<string, number>(); for (const c of new Set(rows.map((r) => r.subcategory))) catMed.set(c, median(rows.filter((r) => r.subcategory === c).map(d)) ?? 0);
+    const by = new Map<string, { brand: string; origin: string; xs: number[]; rel: number[] }>();
+    for (const r of rows) { const k = r.brand; const c = by.get(k) ?? { brand: k, origin: r.origin, xs: [], rel: [] }; c.xs.push(d(r)); c.rel.push(d(r) - (catMed.get(r.subcategory) ?? 0)); by.set(k, c); }
+    const brands = [...by.values()].filter((b) => b.xs.length >= 3).map((b) => ({ ...b, med: median(b.xs) ?? 0, rel: median(b.rel) ?? 0 }));
+    return { byOrigin, deepest: [...brands].sort((a, b) => b.med - a.med).slice(0, 8), shallowest: [...brands].sort((a, b) => a.med - b.med).slice(0, 8), all: brands };
+  }, [m.shelf]);
+  // price changes in the period: listings on the shelf at both ends with the same printed price
+  const cuts = useMemo(() => {
+    if (!win) return null;
+    const by = new Map<string, { brand: string; origin: string; cut: number; raised: number; listings: number }>();
+    const byO = new Map<string, { cut: number; raised: number; n: number }>();
+    for (const [k, s] of ix.series) {
+      if (k.startsWith("kbeauty_store|")) continue;
+      const inW = s.filter((r) => r.scrape_date >= win.start && r.scrape_date <= win.end);
+      const a = inW[0]; const b = inW[inW.length - 1];
+      if (!a || !b || a === b || !a.price || !b.price || a.mrp !== b.mrp) continue;
+      const dim = dims.get(b.product_id); const brand = dim?.brand ?? "?"; const origin = dim?.origin ?? "unknown";
+      const ch = b.price / a.price - 1;
+      const c = by.get(brand) ?? { brand, origin, cut: 0, raised: 0, listings: 0 }; c.listings++;
+      const o = byO.get(origin) ?? { cut: 0, raised: 0, n: 0 }; o.n++;
+      if (ch <= -0.05) { c.cut++; o.cut++; } else if (ch >= 0.05) { c.raised++; o.raised++; }
+      by.set(brand, c); byO.set(origin, o);
+    }
+    return { brands: [...by.values()].filter((x) => x.cut + x.raised > 0).sort((a, b) => b.cut - a.cut || b.raised - a.raised).slice(0, 12), byO };
+  }, [ix, dims, win]);
+
   if (!m.ready || !win || !offers.data || !home.data) return <Shell active="Offers"><PageHead eyebrow={tr("Offers & events", "프로모션·이벤트")} title={tr("What Nykaa and the brands are running", "Nykaa와 브랜드의 프로모션")} sub="" /><Loading what={tr("offers and events", "프로모션·이벤트")} /></Shell>;
 
-  const shown = brands.filter((b) => scope === "all" || tiers.inSet(b.brand));
+  // plan v3: one table, no scope switch; the main brands and brands with their own offer first
+  const shown = [...brands].sort((a, b) => Number(b.own.length > 0) - Number(a.own.length > 0) || Number(tiers.inSet(b.brand)) - Number(tiers.inSet(a.brand)) || a.brand.localeCompare(b.brand));
   const running = brands.filter((b) => b.own.length);
   const kRunning = running.filter((b) => b.origin === "kbeauty");
-  const deepest = [...running].sort((a, b) => b.depth - a.depth)[0];
   const latestHome = (home.data ?? []).reduce((a, x) => (x.scrape_date > a ? x.scrape_date : a), "");
   const liveSales = runs.filter((r) => r.end === latestHome && (r.kind === "sale" || r.kind === "campaign"));
-  const brandBanners = runs.filter((r) => r.end === latestHome && (r.kind === "brand" || r.kind === "brand_range"));
   const evs = eventsBetween(events.data ?? [], win.start, win.end);
-  const tagNow = tagSeries ? Object.fromEntries(Object.entries(tagSeries).map(([k, v]) => [k, v[v.length - 1]])) : {};
 
   // the calendar: one row per event or homepage run, across the period's days
   const calRows = [
@@ -101,23 +130,55 @@ function OffersPage() {
 
   return (
     <Shell active="Offers" asOf={m.latest ?? undefined}>
-      <PageHead eyebrow={tr("Offers & events · step 7", "프로모션·이벤트 · 7단계")} title={tr("What Nykaa and the brands are running", "Nykaa와 브랜드가 진행 중인 것")}
+      <PageHead eyebrow={tr("Offers & events", "프로모션·이벤트")} title={tr("What Nykaa and the brands are running", "Nykaa와 브랜드가 진행 중인 것")}
         sub={tr("Nykaa's sales and homepage banners, read every night, and the offers each brand runs, so a move on the shelf can be read against them.", "매일 밤 수집한 Nykaa 세일·홈페이지 배너와 브랜드별 프로모션. 진열 순위 변화를 이것과 함께 읽을 수 있습니다.")}
         right={<PeriodBar shelf={win} freeze={m.freeze} />} />
       <SectionNav items={NAV()} />
 
       <section id="summary" className="mt-8 scroll-mt-32">
-        <Verdict eyebrow={tr(`Tonight's read · ${today ? dayMonth(today) : "–"}`, `최근 수집 · ${today ? dayMonth(today) : "–"}`)}
+        <Verdict eyebrow={tr(`In one line · ${spanLabel(m.period.days)}`, `요약 · ${spanLabel(m.period.days)}`)}
           points={[
+            tr(<>Typical discount on today&rsquo;s top 100: Indian brands <b>{pct(disc.byOrigin.local.med)}</b> off the printed price, global <b>{pct(disc.byOrigin.global.med)}</b>, Korean <b>{pct(disc.byOrigin.kbeauty.med)}</b>.</>, <>오늘 상위 100위 일반 할인율: 인도 <b>{pct(disc.byOrigin.local.med)}</b>, 글로벌 <b>{pct(disc.byOrigin.global.med)}</b>, 한국 <b>{pct(disc.byOrigin.kbeauty.med)}</b>.</>),
+            cuts ? tr(<>Over the period, {cuts.byO.get("kbeauty")?.cut ?? 0} Korean, {cuts.byO.get("local")?.cut ?? 0} Indian and {cuts.byO.get("global")?.cut ?? 0} global listings were sold at least 5% cheaper by the end{cuts.brands[0] ? <>; {cuts.brands[0].brand} cut the most ({cuts.brands[0].cut})</> : null}.</>, <>기간 중 5% 이상 싸게 팔린 제품: 한국 {cuts.byO.get("kbeauty")?.cut ?? 0}, 인도 {cuts.byO.get("local")?.cut ?? 0}, 글로벌 {cuts.byO.get("global")?.cut ?? 0}개{cuts.brands[0] ? <>. 가장 많이 내린 브랜드: {cuts.brands[0].brand} ({cuts.brands[0].cut})</> : null}.</>) : null,
+            effect && effect.n ? tr(<>When an offer starts on a product it rises in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for products without one.</>, <>프로모션이 시작되면 {pct(effect.up)}의 경우 순위 상승 (없는 제품 {pct(effect.baseUp)}).</>) : null,
             liveSales.length ? tr(<>Live on Nykaa&rsquo;s homepage: <b>{liveSales.map((r) => r.label).join(", ")}</b>.</>, <>Nykaa 홈페이지 진행 중: <b>{liveSales.map((r) => r.label).join(", ")}</b>.</>) : null,
-            brandBanners.length ? tr(<>Brands in the homepage carousel: {brandBanners.map((r) => r.label).join(", ")}{brandBanners.some((r) => r.isAd) ? " (served as ads, so most are paid)" : ""}.</>, <>홈페이지 배너 브랜드: {brandBanners.map((r) => r.label).join(", ")}{brandBanners.some((r) => r.isAd) ? " (광고로 노출되어 대부분 유료)" : ""}.</>) : null,
-            deepest ? tr(<>Deepest brand offer: <b>{deepest.brand}</b>, {deepest.own.sort((a, b) => b.depth - a.depth)[0]?.o.description}.</>, <>가장 큰 브랜드 프로모션: <b>{deepest.brand}</b>, {deepest.own.sort((a, b) => b.depth - a.depth)[0]?.o.description}.</>) : null,
-            tr(<>Offer tags on top-100 listings today: K-beauty {pct((tagNow.kbeauty ?? 0) / 100)}, Indian {pct((tagNow.local ?? 0) / 100)}, global {pct((tagNow.global ?? 0) / 100)}.</>, <>오늘 상위 100위 제품의 프로모션 표시: K-뷰티 {pct((tagNow.kbeauty ?? 0) / 100)}, 인도 {pct((tagNow.local ?? 0) / 100)}, 글로벌 {pct((tagNow.global ?? 0) / 100)}.</>),
-            tr(<>Offers and homepage are read nightly from 17 Oct; the history builds from there. Offer tags on listings go back to 13 Sep.</>, <>프로모션과 홈페이지는 10월 17일부터 매일 수집하며 그때부터 이력이 쌓입니다. 제품 프로모션 표시는 9월 13일부터 있습니다.</>),
+            tr(<>Brand offers and the homepage are read nightly since 17 Oct ({offerDays.length} night{offerDays.length === 1 ? "" : "s"} so far), so their trends appear after about two weeks. Prices and offer tags go back to 13 Sep.</>, <>브랜드 프로모션과 홈페이지는 10월 17일부터 매일 수집(지금까지 {offerDays.length}일)하므로 추세는 약 2주 후에 보입니다. 가격과 프로모션 표시는 9월 13일부터 있습니다.</>),
           ].filter(Boolean) as React.ReactNode[]}>
-          {tr(<><b>{running.length} of {brands.length}</b> brands we check are running their own offer tonight, {kRunning.length} of them Korean.</>, <>확인한 브랜드 <b>{brands.length}개 중 {running.length}개</b>가 자체 프로모션을 진행 중이며, 그중 {kRunning.length}개가 한국 브랜드입니다.</>)}
+          {(() => { const os = (["kbeauty", "local", "global"] as const).map((o) => ({ o, v: disc.byOrigin[o].med })).sort((a, b) => a.v - b.v); const lo = os[0]; const hi = os[os.length - 1];
+            const tie = os.filter((x) => Math.round(x.v * 100) === Math.round(lo.v * 100)).map((x) => ORIGIN_LABEL[x.o]).join(tr(" and ", "·"));
+            return tr(<>{tie} brands discount least ({pct(lo.v)} off the printed price) and {ORIGIN_LABEL[hi.o]} brands most ({pct(hi.v)}); {running.length} of the {brands.length} brands we check run an offer of their own ({kRunning.length} Korean).</>,
+              <>{tie} 브랜드가 가장 적게({pct(lo.v)}), {ORIGIN_LABEL[hi.o]} 브랜드가 가장 많이({pct(hi.v)}) 할인합니다. 확인한 {brands.length}개 브랜드 중 {running.length}개가 자체 프로모션 진행 (한국 {kRunning.length}개).</>); })()}
         </Verdict>
       </section>
+
+      <ActionSection id="discounts" kicker={tr("Who discounts most", "할인 깊이")} title={tr(`${disc.deepest[0]?.brand ?? "–"} sells deepest below its printed price (${pct(disc.deepest[0]?.med ?? 0)} off, typical across its listings)`, `정가 대비 가장 깊게 할인하는 브랜드: ${disc.deepest[0]?.brand ?? "–"} (일반 ${pct(disc.deepest[0]?.med ?? 0)})`)}
+        note={tr("Discount = how far the selling price is below the printed price (MRP) on today's top-100 listings. Typical = the middle value of a brand's listings (3 or more). \"vs category\" compares each listing with the middle discount of its own category.", "할인 = 오늘 상위 100위 제품의 정가(MRP) 대비 판매가 차이. 일반 = 브랜드 제품(3개 이상)의 중앙값. \"카테고리 대비\"는 각 제품을 해당 카테고리 중앙값과 비교합니다.")}>
+        <div className="grid gap-3 md:grid-cols-3">
+          {(["kbeauty", "local", "global"] as const).map((o) => (
+            <Card key={o} className="px-5 py-4"><div className="text-[12.5px] text-muted">{ORIGIN_LABEL[o]}</div><div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(disc.byOrigin[o].med)}</div>
+              <Basis>{tr(`typical discount · ${pct(disc.byOrigin[o].none)} of ${disc.byOrigin[o].n} listings sell at the printed price`, `일반 할인율 · ${disc.byOrigin[o].n}개 중 ${pct(disc.byOrigin[o].none)}는 정가 판매`)}</Basis></Card>))}
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {[{ t: tr("Deepest discounts", "할인이 가장 깊은 브랜드"), rows: disc.deepest }, { t: tr("Closest to the printed price", "정가에 가장 가까운 브랜드"), rows: disc.shallowest }].map((g) => (
+            <Card key={g.t} className="px-5 py-4">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{g.t}</div>
+              <ul className="mt-2 divide-y divide-line/60">{g.rows.map((b) => (
+                <li key={b.brand} className="flex items-center justify-between gap-3 py-1.5 text-[13px]"><span><b className="font-medium">{b.brand}</b> <span className="rounded px-1.5 py-px text-[10px] font-semibold uppercase" style={{ background: ORIGIN_COLOR[b.origin]?.soft, color: ORIGIN_COLOR[b.origin]?.ink }}>{ORIGIN_LABEL[b.origin]}</span></span>
+                  <span className="tabular"><b>{pct(b.med)}</b> <span className="text-[11.5px] text-muted">{tr(`${b.rel >= 0 ? "+" : ""}${Math.round(b.rel * 100)} pts vs category · ${b.xs.length} listings`, `카테고리 대비 ${b.rel >= 0 ? "+" : ""}${Math.round(b.rel * 100)}%p · ${b.xs.length}개`)}</span></span></li>))}</ul>
+            </Card>))}
+        </div>
+      </ActionSection>
+
+      {cuts && <ActionSection id="cuts" kicker={tr("Price cuts in the period", "기간 중 가격 인하")} title={cuts.brands[0] ? tr(`${cuts.brands[0].brand} cut the price on the most listings (${cuts.brands[0].cut})`, `가장 많은 제품 가격을 내린 브랜드: ${cuts.brands[0].brand} (${cuts.brands[0].cut}개)`) : tr("No price cuts of 5% or more in the period", "기간 중 5% 이상 가격 인하 없음")}
+        note={tr(`Listings on the shelf at the start and end of the ${spanLabel(m.period.days)} with the same printed price, sold at least 5% cheaper (cut) or dearer (raised) by the end. A changed printed price means a new pack, so it is left out.`, `${spanLabel(m.period.days)} 시작과 끝에 모두 있고 정가가 같은 제품 중 판매가가 5% 이상 내리거나(인하) 오른(인상) 제품. 정가가 바뀌면 새 포장이므로 제외합니다.`)}>
+        <Card className="overflow-x-auto">
+          <table className="w-full min-w-[620px] text-[13px]">
+            <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">{tr("Brand", "브랜드")}</th><th className="px-2">{tr("Sold cheaper", "인하")}</th><th className="px-2">{tr("Sold dearer", "인상")}</th><th className="px-2 pr-4">{tr("Listings checked", "확인 제품")}</th></tr></thead>
+            <tbody>{cuts.brands.map((b) => (
+              <tr key={b.brand} className="border-b border-line/60 last:border-0"><td className="px-4 py-2 font-medium">{b.brand} <span className="rounded px-1.5 py-px text-[10px] font-semibold uppercase" style={{ background: ORIGIN_COLOR[b.origin]?.soft, color: ORIGIN_COLOR[b.origin]?.ink }}>{ORIGIN_LABEL[b.origin]}</span></td><td className="px-2 py-2 tabular text-good">{b.cut || "–"}</td><td className="px-2 py-2 tabular text-bad">{b.raised || "–"}</td><td className="px-2 py-2 pr-4 tabular">{b.listings}</td></tr>))}</tbody>
+          </table>
+        </Card>
+      </ActionSection>}
 
       <ActionSection id="calendar" kicker={tr("Sales calendar", "세일 캘린더")} title={tr(`What ran in the ${spanLabel(m.period.days)}`, `${spanLabel(m.period.days)} 진행된 것`)}
         note={tr("Sales and campaigns from Nykaa's homepage (read nightly), brand banners in its carousel, and the event log below. Past sales from deal-site calendars stay marked estimated until confirmed.", "Nykaa 홈페이지(매일 수집)의 세일·캠페인, 배너 속 브랜드, 아래 이벤트 기록. 딜 사이트 달력에서 가져온 과거 세일은 확인 전까지 추정으로 표시합니다.")}>
@@ -141,7 +202,7 @@ function OffersPage() {
 
       <ActionSection id="offers" kicker={tr("Brand offers", "브랜드 프로모션")} title={tr(`${running.length} brands are running their own offer`, `${running.length}개 브랜드가 자체 프로모션 진행 중`)}
         note={tr(<>From each brand&rsquo;s Nykaa product page on {today ? dayMonth(today) : "–"}. <b>Brand offer</b> = run on that brand; <b>Nykaa-wide</b> = a category, Luxe, members or new-customer offer that also shows on its page. Nights with an offer count from 17 Oct.</>, <>{today ? dayMonth(today) : "–"} 각 브랜드 Nykaa 제품 페이지 기준. <b>브랜드 프로모션</b> = 해당 브랜드 행사, <b>Nykaa 전체</b> = 카테고리·Luxe·회원·신규 고객 행사가 페이지에 함께 표시된 것. 프로모션 일수는 10월 17일부터 셉니다.</>)}
-        right={<div className="flex gap-2"><button className={pill(scope === "all", "sm")} onClick={() => setScope("all")}>{tr("All checked brands", "확인한 모든 브랜드")}</button><button className={pill(scope === "focus", "sm")} onClick={() => setScope("focus")}>{tr("Focus brands", "주요 브랜드")}</button></div>}>
+>
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-[13px]">
             <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">

@@ -34,7 +34,7 @@ const NAV = (): NavItem[] => [
 const catName = (c: string) => CATEGORY_LABEL[c] ?? c;
 
 export default function BrandPage() {
-  return <AuthGate><Suspense fallback={<Shell active="Brands"><Loading what={tr("the brand", "브랜드")} /></Shell>}><Brand /></Suspense></AuthGate>;
+  return <AuthGate><Suspense fallback={<Shell active="Top by category"><Loading what={tr("the brand", "브랜드")} /></Shell>}><Brand /></Suspense></AuthGate>;
 }
 
 function Brand() {
@@ -52,8 +52,8 @@ function Brand() {
   const pool = useMemo(() => m.pool.filter((p) => norm(p.brand) === norm(brand)), [m.pool, brand]);
   const trend = useMemo(() => (m.latest && pool.length ? reviewTrend(pool, m.latest) : null), [pool, m.latest]);
 
-  if (!asked) return <Shell active="Brands"><PageHead title={tr("No brand chosen", "선택된 브랜드 없음")} sub={tr("Open a brand from any table, or search for it at the top.", "표에서 브랜드를 열거나 위 검색창에서 찾으세요.")} /></Shell>;
-  if (!m.ready || !m.win || !ctx) return <Shell active="Brands"><PageHead eyebrow={tr("Brand", "브랜드")} title={brand} sub="" /><Loading what={tr("the brand", "브랜드")} /></Shell>;
+  if (!asked) return <Shell active="Top by category"><PageHead title={tr("No brand chosen", "선택된 브랜드 없음")} sub={tr("Open a brand from any table, or search for it at the top.", "표에서 브랜드를 열거나 위 검색창에서 찾으세요.")} /></Shell>;
+  if (!m.ready || !m.win || !ctx) return <Shell active="Top by category"><PageHead eyebrow={tr("Brand", "브랜드")} title={brand} sub="" /><Loading what={tr("the brand", "브랜드")} /></Shell>;
 
   const win = m.win; const span = m.flowSpan!;
   const origin = m.originOf(brand);
@@ -103,7 +103,7 @@ function Brand() {
   const spark = (s: typeof moves[number]) => m.ix.days.filter((d) => d >= win.start && d <= win.end).map((d) => m.ix.byDay.get(d)?.get(s.key)?.rank ?? null).map((v) => (v === null ? null : 101 - v));
 
   return (
-    <Shell active="Brands" asOf={m.latest ?? undefined}>
+    <Shell active="Top by category" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr(`Brand · ${ORIGIN_LABEL[origin] ?? origin}${pinned ? " · our brand" : inSet ? " · focus brand" : ""}`, `브랜드 · ${ORIGIN_LABEL[origin] ?? origin}${pinned ? " · 우리 브랜드" : inSet ? " · 주요 브랜드" : ""}`)} title={brand}
         sub={tr(`Everything about ${brand} on Nykaa in one place: its products on the shelf and why they moved, where it wins, its offers, its review trend and search.`, `Nykaa에서의 ${brand}에 관한 모든 것: 진열 제품과 순위 변화 이유, 강한 카테고리, 프로모션, 리뷰 추세, 검색.`)}
         right={<PeriodBar shelf={win} freeze={m.freeze} />} />

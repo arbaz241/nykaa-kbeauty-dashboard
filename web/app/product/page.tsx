@@ -38,7 +38,7 @@ const CAT_COLORS = ["#0e3b2e", "#eb6834", "#2a78d6", "#eda100"];
 const catName = (c: string) => CATEGORY_LABEL[c] ?? (c === "kbeauty_store" ? tr("Korean store", "K-뷰티 스토어") : c);
 
 export default function ProductPage() {
-  return <AuthGate><Suspense fallback={<Shell active=""><Loading what={tr("the product", "제품")} /></Shell>}><Product /></Suspense></AuthGate>;
+  return <AuthGate><Suspense fallback={<Shell active="Top by category"><Loading what={tr("the product", "제품")} /></Shell>}><Product /></Suspense></AuthGate>;
 }
 
 function Product() {
@@ -70,8 +70,8 @@ function Product() {
   const trend = useMemo(() => (m.latest && poolMine.length ? reviewTrend(poolMine, m.latest) : null), [poolMine, m.latest]);
   const hero = (comps.data ?? []).find((g) => g.anchor_product_id === id || g.products.includes(id));
 
-  if (!id) return <Shell active=""><PageHead title={tr("No product chosen", "선택된 제품 없음")} sub={tr("Open a product from any table, or search for it at the top.", "표에서 제품을 열거나 위 검색창에서 찾으세요.")} /></Shell>;
-  if (!m.ready || !m.win || !ctx) return <Shell active=""><PageHead eyebrow={tr("Product", "제품")} title={name === id ? tr("Loading product…", "제품 불러오는 중…") : shortName(name, brand)} sub="" /><Loading what={tr("the product", "제품")} /></Shell>;
+  if (!id) return <Shell active="Top by category"><PageHead title={tr("No product chosen", "선택된 제품 없음")} sub={tr("Open a product from any table, or search for it at the top.", "표에서 제품을 열거나 위 검색창에서 찾으세요.")} /></Shell>;
+  if (!m.ready || !m.win || !ctx) return <Shell active="Top by category"><PageHead eyebrow={tr("Product", "제품")} title={name === id ? tr("Loading product…", "제품 불러오는 중…") : shortName(name, brand)} sub="" /><Loading what={tr("the product", "제품")} /></Shell>;
 
   const win = m.win; const span = m.flowSpan!;
   const mv = moves.find((x) => x.subcategory === main) ?? null;
@@ -132,7 +132,7 @@ function Product() {
   const rivalMove = (pid: string) => (main ? listingMove(ctx, main, pid) : null);
 
   return (
-    <Shell active="" asOf={m.latest ?? undefined}>
+    <Shell active="Top by category" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr(`Product · ${main ? catName(main) : "not on a tracked shelf"}`, `제품 · ${main ? catName(main) : "추적 진열 밖"}`)} title={shortName(name, brand)}
         sub={<><BrandLink brand={brand} className="font-medium text-ink" /> · {ORIGIN_LABEL[origin] ?? origin}{row?.country_name ? tr(` · made in ${row.country_name}`, ` · ${tx(row.country_name)} 생산`) : ""}{row?.rating ? <> · ★ {row.rating.toFixed(1)} ({compact(row.rating_count)} {tr("ratings", "평가")})</> : null}{row?.url ? <> · <a href={row.url} target="_blank" rel="noreferrer" className="text-accent-strong underline underline-offset-2">{tr("Open on Nykaa ↗", "Nykaa에서 보기 ↗")}</a></> : null}</>}
         right={<div className="flex items-end gap-4">

@@ -389,22 +389,22 @@ export function explainMove(args: {
   // a real price cut: the selling price fell while the MRP stayed the same (Nykaa also swaps the pack it shows)
   if (a.price && b.price && a.mrp === b.mrp && Math.abs(b.price / a.price - 1) >= 0.05) {
     const ch = b.price / a.price - 1;
-    if ((ch < 0) === up) out.push({ kind: "price", strength: 3, text: ch < 0 ? tr(`price cut ${Math.round(-ch * 100)}% (₹${Math.round(a.price)} → ₹${Math.round(b.price)}, same MRP)`, `가격 ${Math.round(-ch * 100)}% 인하 (₹${Math.round(a.price)} → ₹${Math.round(b.price)}, 정가 동일)`)
-      : tr(`price up ${Math.round(ch * 100)}% (same MRP)`, `가격 ${Math.round(ch * 100)}% 인상 (정가 동일)`) });
+    if ((ch < 0) === up) out.push({ kind: "price", strength: 3, text: ch < 0 ? tr(`sold ${Math.round(-ch * 100)}% cheaper (₹${Math.round(b.price)}, was ₹${Math.round(a.price)})`, `${Math.round(-ch * 100)}% 더 싸게 판매 (₹${Math.round(b.price)}, 이전 ₹${Math.round(a.price)})`)
+      : tr(`discount cut: now ₹${Math.round(b.price)}, was ₹${Math.round(a.price)}`, `할인 축소: 현재 ₹${Math.round(b.price)}, 이전 ₹${Math.round(a.price)}`) });
   }
-  if (a.is_ad !== b.is_ad && b.is_ad === up) out.push({ kind: "paid", strength: 3, text: b.is_ad ? tr("now in a paid (AD) slot", "현재 광고(AD) 자리") : tr("its paid (AD) slot ended", "광고(AD) 자리 종료") });
-  if (a.has_offer !== b.has_offer && b.has_offer === up) out.push({ kind: "offer", strength: 2, text: b.has_offer ? tr("an offer tag appeared on the listing", "제품에 프로모션 표시가 생김") : tr("its offer tag ended", "프로모션 표시가 사라짐") });
+  if (a.is_ad !== b.is_ad && b.is_ad === up) out.push({ kind: "paid", strength: 3, text: b.is_ad ? tr("the brand paid for a sponsored spot", "브랜드가 광고 자리를 구매") : tr("its sponsored spot ended", "광고 자리 종료") });
+  if (a.has_offer !== b.has_offer && b.has_offer === up) out.push({ kind: "offer", strength: 2, text: b.has_offer ? tr("an offer started on it", "프로모션 시작") : tr("its offer ended", "프로모션 종료") });
   const oos = s.some((r) => r.in_stock === false);
-  if (!up && oos) out.push({ kind: "stock", strength: 3, text: tr("went out of stock during the period", "기간 중 품절") });
+  if (!up && oos) out.push({ kind: "stock", strength: 3, text: tr("ran out of stock", "품절") });
   if (up && a.in_stock === false && b.in_stock !== false) out.push({ kind: "stock", strength: 2, text: tr("back in stock", "재입고") });
   // ratings burst: this period's pace vs the product's lifetime pace
   if (a.rating_count !== null && b.rating_count !== null && args.firstReview) {
     const days = Math.max(1, (Date.parse(end) - Date.parse(start)) / 864e5);
     const life = Math.max(30, (Date.parse(end) - Date.parse(args.firstReview)) / 864e5);
     const pace = (b.rating_count - a.rating_count) / days; const usual = b.rating_count / life;
-    if (up && pace > usual * 1.8 && b.rating_count - a.rating_count >= 50) out.push({ kind: "ratings", strength: 2, text: tr(`ratings coming in ${(pace / usual).toFixed(1)}× its usual pace`, `평가 유입이 평소의 ${(pace / usual).toFixed(1)}배`) });
+    if (up && pace > usual * 1.8 && b.rating_count - a.rating_count >= 50) out.push({ kind: "ratings", strength: 2, text: tr(`shoppers rated it ${(pace / usual).toFixed(1)}× faster than usual`, `평가가 평소보다 ${(pace / usual).toFixed(1)}배 빠르게 늘어남`) });
   }
-  if (up && args.firstReview && Date.parse(end) - Date.parse(args.firstReview) <= 120 * 864e5) out.push({ kind: "launch", strength: 1, text: tr("a recent launch, still climbing", "최근 출시 제품, 상승 중") });
+  if (up && args.firstReview && Date.parse(end) - Date.parse(args.firstReview) <= 120 * 864e5) out.push({ kind: "launch", strength: 1, text: tr("new launch, still climbing", "신제품, 상승 중") });
   // an event explains the move only if the listing moved the same way while it ran (from the day before it started)
   const total = a.rank - b.rank;
   const movedDuring = (from: string, to: string) => {
@@ -414,21 +414,21 @@ export function explainMove(args: {
     return last.scrape_date > before.scrape_date && (up ? d > 0 : d < 0) && Math.abs(d) >= Math.max(3, Math.abs(total) * 0.4);
   };
   for (const e of eventsBetween(args.events, start, end)) if ((e.kind === "sale" || !e.brand || norm(e.brand) === norm(args.brand)) && movedDuring(e.happened_on, e.ends_on ?? e.happened_on))
-    out.push({ kind: "sale", strength: e.brand ? 2 : 1, text: tr(`${e.label} (${e.status === "estimated" ? "estimated" : "logged"})`, `${e.label} (${e.status === "estimated" ? "추정" : "기록됨"})`) });
+    out.push({ kind: "sale", strength: e.brand ? 2 : 1, text: tr(`during ${e.label}${e.status === "estimated" ? " (dates estimated)" : ""}`, `${e.label} 기간${e.status === "estimated" ? " (날짜 추정)" : ""}`) });
   for (const r of args.runs) if (r.end >= start && r.start <= end && movedDuring(r.start, r.end)) {
-    if (r.kind === "sale") out.push({ kind: "sale", strength: 1, text: tr(`Nykaa homepage: ${r.label} live`, `Nykaa 홈페이지: ${r.label} 진행`) });
-    if (r.kind === "brand" && r.brand && norm(r.brand) === norm(args.brand) && up) out.push({ kind: "homepage", strength: 2, text: tr(`${r.brand} featured on Nykaa's homepage (${r.days} days)`, `${r.brand} Nykaa 홈페이지 노출 (${r.days}일)`) });
+    if (r.kind === "sale") out.push({ kind: "sale", strength: 1, text: tr(`during Nykaa's ${r.label} (on its homepage)`, `Nykaa ${r.label} 기간 (홈페이지)`) });
+    if (r.kind === "brand" && r.brand && norm(r.brand) === norm(args.brand) && up) out.push({ kind: "homepage", strength: 2, text: tr(`${r.brand} was on Nykaa's homepage for ${r.days} days`, `${r.brand} Nykaa 홈페이지 ${r.days}일 노출`) });
   }
   const offerNow = args.offers.filter((o) => norm(o.brand) === norm(args.brand) && o.offer_id !== "none" && o.scrape_date >= start && o.scrape_date <= end && classifyOffer(o).brandOwn)
     .sort((x, y) => offerDepth(y) - offerDepth(x));
   const say = (o: BrandOffer) => (o.description || o.title || "").replace(/\s+/g, " ").replace(/^NykaaPro Offer\s*/i, "").slice(0, 70);
-  if (up && offerNow.length) out.push({ kind: "offer", strength: 1, text: tr(`brand offer running: ${say(offerNow[0])}`, `브랜드 프로모션 진행: ${say(offerNow[0])}`) });
+  if (up && offerNow.length) out.push({ kind: "offer", strength: 1, text: tr(`brand offer: ${say(offerNow[0])}`, `브랜드 프로모션: ${say(offerNow[0])}`) });
   // a rival above it disappeared or went out of stock
   if (up && a.rank > 1) {
     const cat = key.split("|")[0];
     const above = [...(ix.byDay.get(start)?.values() ?? [])].filter((r) => r.subcategory === cat && r.rank < a.rank);
     const gone = above.filter((r) => { const now = ix.byDay.get(end)?.get(`${cat}|${r.product_id}`); return !now || now.in_stock === false; });
-    if (gone.length >= 5 && gone.length / above.length >= 0.35) out.push({ kind: "rival", strength: 1, text: tr(`${gone.length} listings above it dropped out or went out of stock`, `위 순위 제품 ${gone.length}개가 빠지거나 품절`) });
+    if (gone.length >= 5 && gone.length / above.length >= 0.35) out.push({ kind: "rival", strength: 1, text: tr(`${gone.length} products above it left the list or ran out`, `위 제품 ${gone.length}개가 목록에서 빠지거나 품절`) });
   }
   return out.sort((x, y) => y.strength - x.strength);
 }

@@ -8,7 +8,9 @@ import { tr } from "@/lib/i18n";
 
 export interface NavItem { id: string; label: string }
 
-/** Sticky section menu under the top bar; highlights the section in view. */
+/** "On this page": a numbered contents list under the top bar (plan v3, owner 18 Oct 2026: the old menu looked like
+ *  a second row of tabs and repeated the tabs' names). It reads as a table of contents, highlights the section in
+ *  view, and never uses a main tab's name. */
 export function SectionNav({ items }: { items: NavItem[] }) {
   const [active, setActive] = useState(items[0]?.id);
   useEffect(() => {
@@ -21,14 +23,17 @@ export function SectionNav({ items }: { items: NavItem[] }) {
     return () => io.disconnect();
   }, [items]);
   return (
-    <nav aria-label={tr("On this page", "이 페이지 목차")} className="sticky top-16 z-20 -mx-6 mt-6 border-b border-line bg-page/90 px-6 backdrop-blur-md">
-      <div className="flex gap-1 overflow-x-auto">
-        {items.map((i) => (
-          <a key={i.id} href={`#${i.id}`} aria-current={active === i.id ? "true" : undefined}
-            className={`-mb-px whitespace-nowrap border-b-2 px-3 py-3 text-[13.5px] transition ${active === i.id ? "border-brand font-semibold text-ink" : "border-transparent text-muted hover:text-ink"}`}>
-            {i.label}
-          </a>
-        ))}
+    <nav aria-label={tr("On this page", "이 페이지 목차")} className="sticky top-16 z-20 -mx-6 mt-6 bg-page/95 px-6 py-2 backdrop-blur-md">
+      <div className="flex items-center gap-3 overflow-x-auto rounded-xl bg-sunken px-3 py-1.5">
+        <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted">{tr("On this page", "이 페이지")}</span>
+        <ol className="flex gap-0.5">
+          {items.map((i, n) => (
+            <li key={i.id}><a href={`#${i.id}`} aria-current={active === i.id ? "true" : undefined}
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1 text-[12.5px] transition ${active === i.id ? "bg-surface font-semibold text-ink shadow-card" : "text-ink-2 hover:text-ink"}`}>
+              <span className={`grid h-4 w-4 place-items-center rounded-full text-[10px] tabular ${active === i.id ? "bg-brand text-on-brand" : "bg-line text-ink-2"}`}>{n + 1}</span>{i.label}
+            </a></li>
+          ))}
+        </ol>
       </div>
     </nav>
   );

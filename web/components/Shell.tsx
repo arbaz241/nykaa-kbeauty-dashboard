@@ -15,8 +15,8 @@ const NAV = () => [
   // Round 4 order (owner 17 Oct 2026): Nykaa as a whole first, then one level down per tab. Plan v2: the first tab is
   // the Brief; brand and product pages open from any name or from the search box
   { label: "Overview", text: tr("Brief", "브리핑"), href: "/overview/" },
-  { label: "Top by category", text: tr("Categories", "카테고리"), href: "/categories/" },
-  { label: "Brands", text: tr("Brands", "브랜드"), href: "/brands/" },
+  // plan v3: Categories and Brands are one Market tab
+  { label: "Top by category", text: tr("Market", "시장"), href: "/categories/" },
   { label: "Analysis", text: tr("K-beauty", "K-뷰티"), href: "/analysis/" },
   { label: "Competitive Analysis", text: tr("Competitive", "경쟁 분석"), href: "/compare/" },
   { label: "Demand", text: tr("Demand & search", "수요·검색"), href: "/demand/" },
