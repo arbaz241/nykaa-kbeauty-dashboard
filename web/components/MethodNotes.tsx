@@ -33,12 +33,12 @@ export default function MethodNotes({ parts, id = "method" }: { parts: MethodPar
 /** The parts every tab built on share of buying repeats. */
 export const BUYING_METHOD = (span?: { start: string; end: string } | null) => ({
   calc: [
-    tr(<><b>Share of buying</b> = a product&rsquo;s new ratings over the period × its price, out of all products in the same category (all brands = 100%). <b>Units</b> = new ratings alone.</>,
-      <><b>구매 점유율</b> = 기간 중 제품 신규 평가 수 × 가격, 같은 카테고리 전체 제품(모든 브랜드 = 100%) 대비 비중. <b>수량</b> = 신규 평가 수만.</>),
+    tr(<><b>Share of buying</b> = a product&rsquo;s new ratings over the period × its MRP (the printed price, which doesn&rsquo;t move with sales), out of all products in the same category (all brands = 100%). <b>Units</b> = new ratings alone.</>,
+      <><b>구매 점유율</b> = 기간 중 제품 신규 평가 수 × 정가(MRP), 같은 카테고리 전체 제품(모든 브랜드 = 100%) 대비 비중. <b>수량</b> = 신규 평가 수만.</>),
     tr(<><b>Own category only:</b> a product counts in a list only when Nykaa files it under that category that day (its L3 label); ranks are renumbered among those products. Nykaa&rsquo;s own position is shown in Details.</>,
       <><b>자기 카테고리만:</b> 그날 Nykaa가 해당 카테고리(L3 라벨)로 분류한 제품만 집계, 그 제품끼리 순위를 다시 매김. Nykaa 페이지 순위는 상세 정보에 표시.</>),
-    tr(<><b>Shared ratings counted once:</b> when Nykaa shows one rating count for several of a brand&rsquo;s products (e.g. 20 Nykaa sheet masks share 7.6 million ratings), it counts once, at the median price of those products.</>,
-      <><b>공유 평가는 한 번만:</b> Nykaa가 한 브랜드의 여러 제품에 하나의 평가 수를 보여주면(예: Nykaa 시트 마스크 20종이 760만 건 공유) 그 제품들의 중간 가격으로 한 번만 집계.</>),
+    tr(<><b>Shared ratings counted once:</b> when Nykaa shows one rating count for several of a brand&rsquo;s products (e.g. 20 Nykaa sheet masks share 7.6 million ratings), it counts once, at the median MRP of those products.</>,
+      <><b>공유 평가는 한 번만:</b> Nykaa가 한 브랜드의 여러 제품에 하나의 평가 수를 보여주면(예: Nykaa 시트 마스크 20종이 760만 건 공유) 그 제품들의 중간 정가로 한 번만 집계.</>),
     tr("Combos and kits are left out: Nykaa shows them with their contents' ratings.", "세트·키트 제외: Nykaa가 구성품 평가를 합쳐 보여주기 때문."),
     tr(`Share of buying uses up to the last 30 collected days that end on Nykaa's last day of live rating counts${span ? ` (${dayMonth(span.start)} – ${dayMonth(span.end)}; Nykaa has not updated counts since 10 Oct and our collection began 13 Sep)` : ""}; the "moves over" switch changes rank moves only.`,
       `구매 점유율: Nykaa 평가 수가 마지막으로 갱신된 날까지의 수집일 최대 30일${span ? ` (${dayMonth(span.start)}–${dayMonth(span.end)}; Nykaa 평가 수는 10월 10일부터 정지, 수집은 9월 13일 시작)` : ""}. "변동 기간" 선택은 순위 변동에만 적용.`),

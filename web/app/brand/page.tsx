@@ -119,8 +119,8 @@ function Brand() {
 
       <section id="know" className="mt-8 scroll-mt-32">
         <Verdict eyebrow={tr(`What to know · ${spanLabel(m.period.days)}`, `핵심 · ${spanLabel(m.period.days)}`)} points={points}>{lead}</Verdict>
-        <Basis className="mt-2">{tr(<>Products in the top 100: today, counting only products Nykaa files under each category; the change counts the {both.size} categories tracked on both days. Buying = <Def k="ratingFlow">new ratings × price</Def>, combos left out. Reviews: all tracked products of the brand, complete months only.</>,
-          <>상위 100위 제품: 오늘 기준, Nykaa가 해당 카테고리로 분류한 제품만. 변화 = 양일 모두 추적한 {both.size}개 카테고리 기준. 구매 = <Def k="ratingFlow">신규 평가 × 가격</Def>, 콤보 제외. 리뷰: 브랜드의 추적 제품 전체, 완결된 달만.</>)}</Basis>
+        <Basis className="mt-2">{tr(<>Products in the top 100: today, counting only products Nykaa files under each category; the change counts the {both.size} categories tracked on both days. Buying = <Def k="ratingFlow">new ratings × MRP</Def>, combos left out. Reviews: all tracked products of the brand, complete months only.</>,
+          <>상위 100위 제품: 오늘 기준, Nykaa가 해당 카테고리로 분류한 제품만. 변화 = 양일 모두 추적한 {both.size}개 카테고리 기준. 구매 = <Def k="ratingFlow">신규 평가 × 정가(MRP)</Def>, 콤보 제외. 리뷰: 브랜드의 추적 제품 전체, 완결된 달만.</>)}</Basis>
         {news.length > 0 && <div className="mt-4"><div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("In the news in India, last 30 days", "인도 관련 뉴스, 최근 30일")}</div><ExternalNewsList brand={brand} max={5} /></div>}
       </section>
 

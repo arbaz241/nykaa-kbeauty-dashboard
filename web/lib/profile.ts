@@ -65,7 +65,7 @@ export function listingMoves(c: Context, brand: string | null): ListingMove[] {
 
 export const runsFrom = (rows: HomepageFeature[]) => homepageRuns(rows);
 
-/** Share of a category's buying (new ratings × price, combos left out) for each product, and its place among them. */
+/** Share of a category's buying (new ratings × MRP, combos left out) for each product, and its place among them. */
 export function shareIn(flow: FlowRow[], cat: string) {
   const rows = flow.filter((r) => r.subcategory === cat && r.value > 0).sort((a, b) => b.value - a.value);
   const total = rows.reduce((a, r) => a + r.value, 0); const units = rows.reduce((a, r) => a + r.flow, 0);

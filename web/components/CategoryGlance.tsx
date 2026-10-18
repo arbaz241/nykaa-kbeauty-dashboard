@@ -63,7 +63,7 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
       {part === "all" && <>      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · {tr("at a glance", "한눈에")}</div>
-          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × price, single products only.`, `구매·순위 변동: ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 구매 = 신규 평가 × 가격, 단일 제품만.`)}</p>
+          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × MRP, single products only.`, `구매·순위 변동: ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 구매 = 신규 평가 × 정가(MRP), 단일 제품만.`)}</p>
         </div>
         <PeriodBar />
       </div></>}

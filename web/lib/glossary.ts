@@ -87,8 +87,8 @@ export const GLOSSARY = {
   valueGrowth: metric({
     name: ["Growth, like for like", "성장률 (동일 제품 기준)"],
     plain: ["How much more buying the products already on sale a year ago got. Kept only as a check on the Brief: products collect fewer reviews as they age, so it swings from -49% to +30% while Nykaa holds at 26–28%.", "1년 전에도 판매 중이던 제품의 구매 증감. 브리핑 점검용으로만 사용: 제품은 오래될수록 리뷰가 줄어, Nykaa가 26–28%를 유지하는 동안에도 이 값은 −49%~+30%로 흔들림."],
-    formula: ["Reviews in the chosen months × selling price, ÷ the same products' reviews × price in the same months a year earlier (or the months before), minus 1. Categories are added up by their share of that value, so Nykaa's total = Σ category weight × category growth.", "선택한 기간의 리뷰 수 × 판매가 ÷ 같은 제품의 1년 전 같은 기간(또는 직전 기간) 리뷰 수 × 판매가 − 1. 카테고리는 금액 비중으로 합산하므로 전체 = Σ 카테고리 비중 × 카테고리 성장률."],
-    source: ["Monthly review history of the products we track (about 600), by the date each review was written; today's selling price.", "추적 중인 약 600개 제품의 월별 리뷰 이력(리뷰 작성일 기준)과 현재 판매가."],
+    formula: ["Reviews in the chosen months × MRP, ÷ the same products' reviews × MRP in the same months a year earlier (or the months before), minus 1. Categories are added up by their share of that value, so Nykaa's total = Σ category weight × category growth.", "선택한 기간의 리뷰 수 × 정가(MRP) ÷ 같은 제품의 1년 전 같은 기간(또는 직전 기간) 리뷰 수 × 정가 − 1. 카테고리는 금액 비중으로 합산하므로 전체 = Σ 카테고리 비중 × 카테고리 성장률."],
+    source: ["Monthly review history of the products we track (about 600), by the date each review was written; today's MRP (the printed price).", "추적 중인 약 600개 제품의 월별 리뷰 이력(리뷰 작성일 기준)과 현재 정가(MRP)."],
     window: ["The months in the period picker, compared with a year earlier by default.", "기간 선택에서 고른 개월 수. 기본은 전년 동기 비교."],
   }),
   launchGrowth: metric({
@@ -101,7 +101,7 @@ export const GLOSSARY = {
   ratingFlow: metric({
     name: ["Share of buying", "구매 점유율"],
     plain: ["Which brands the shoppers of the period bought, read from the new ratings their listings gained on Nykaa's top-100 shelves.", "기간 중 소비자가 어떤 브랜드를 샀는지. Nykaa 상위 100위 제품에 새로 달린 평가 수로 판단."],
-    formula: ["New ratings over the period (rating count at the end − at the start, listings on the shelf both days) × selling price; a set of ratings shared by sizes of one product counts once. A brand's share = its value ÷ all value.", "기간 중 새 평가 수(종료일 평가 수 − 시작일 평가 수, 양일 모두 진열된 제품) × 판매가. 여러 제품이 공유하는 평가는 한 번만 집계. 브랜드 점유율 = 브랜드 금액 ÷ 전체 금액."],
+    formula: ["New ratings over the period (rating count at the end − at the start, listings on the shelf both days) × MRP (the printed price, which doesn't move with sales); a set of ratings shared by sizes of one product counts once. A brand's share = its value ÷ all value.", "기간 중 새 평가 수(종료일 평가 수 − 시작일 평가 수, 양일 모두 진열된 제품) × 정가(MRP, 세일에 따라 바뀌지 않는 표시 가격). 여러 제품이 공유하는 평가는 한 번만 집계. 브랜드 점유율 = 브랜드 금액 ÷ 전체 금액."],
     source: ["Nykaa's rating counts on 13 category top-100 lists, read every morning since 13 Sep 2026.", "2026년 9월 13일부터 매일 아침 수집한 카테고리별 상위 100위의 평가 수."],
     window: ["The days in the period picker (last 30 by default).", "기간 선택의 일수 (기본 최근 30일)."],
   }),

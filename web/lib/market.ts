@@ -8,11 +8,12 @@ import { CATEGORIES, inr, median } from "./format";
 /** Round 4 market layer (plan https://claude.ai/artifact/EHrtxEG82NePyf1d9CJPBv, owner decisions 17 Oct 2026).
  *
  *  Two measures of buying, one per clock:
- *  - Review value (monthly, years back): reviews written in a month × the product's selling price. Growth compares the
+ *  - Review value (monthly, years back): reviews written in a month × the product's MRP (owner 19 Oct 2026: the printed
+ *    price, the same for every seller and every day, not the selling price that moves with each sale). Growth compares the
  *    chosen months with the same months a year earlier (or the months before), category by category, and Nykaa's
  *    total is the categories' growth weighted by their share of value (owner: "weights from our own data").
  *  - Rating flow (daily, since 13 Sep): how many new ratings each top-100 listing gained over the period
- *    (Nykaa's rating count, stars with or without text, rises about ten times faster than written reviews), × price.
+ *    (Nykaa's rating count, stars with or without text, rises about ten times faster than written reviews), × MRP.
  *  Neither is sales; both move with sales. Every figure carries what it rests on. */
 
 export const MAKEUP = new Set(["lipstick", "foundation", "lip_tint", "bb_cream", "blush", "lip_gloss"]);
@@ -72,12 +73,13 @@ export interface ValueInput {
 }
 
 export interface PoolProduct {
-  product_id: string; brand: string; name: string; category: string | null; price: number | null;
+  product_id: string; brand: string; name: string; category: string | null; /** MRP, selling price when none */ price: number | null;
   first: string | null; coverage: string; byMonth: Map<string, number>;
 }
 
 /** One product per review pool (sizes of one product share Nykaa's reviews), with its category, price and first
- *  review month. Price: today's shelf, then the brand catalogue, then the last day it was on a shelf. */
+ *  review month. Price = MRP (selling price when none): today's shelf, then the brand catalogue, then the last day it
+ *  was on a shelf. */
 export function poolProducts({ months, demand, shelf, catalog, products, daily }: ValueInput): PoolProduct[] {
   const dem = new Map(demand.map((d) => [d.product_id, d]));
   const shelfBy = new Map<string, ShelfRow>(); for (const r of shelf) if (!shelfBy.has(r.product_id) || r.subcategory !== STORE) shelfBy.set(r.product_id, r);
@@ -85,13 +87,13 @@ export function poolProducts({ months, demand, shelf, catalog, products, daily }
   const prodBy = new Map(products.map((p) => [p.product_id, p]));
   const lastPrice = new Map<string, number>();
   const lastCat = new Map<string, string>();
-  for (const d of daily) { const p = d.price ?? d.mrp; if (p) lastPrice.set(d.product_id, p); if (d.subcategory !== STORE) lastCat.set(d.product_id, d.subcategory); }
+  for (const d of daily) { const p = d.mrp ?? d.price; if (p) lastPrice.set(d.product_id, p); if (d.subcategory !== STORE) lastCat.set(d.product_id, d.subcategory); }
   const byProduct = new Map<string, ReviewMonth[]>(); for (const m of months) push(byProduct, m.product_id, m);
   const all: (PoolProduct & { pool: string; lifetime: number })[] = [];
   for (const [pid, ms] of byProduct) {
     const s = shelfBy.get(pid); const c = catBy.get(pid);
     const category = dem.get(pid)?.category ?? (s && s.subcategory !== STORE ? s.subcategory : null) ?? c?.subcategories?.[0] ?? lastCat.get(pid) ?? null;
-    const price = s?.price ?? s?.mrp ?? c?.price ?? c?.mrp ?? lastPrice.get(pid) ?? null;
+    const price = s?.mrp ?? s?.price ?? c?.mrp ?? c?.price ?? lastPrice.get(pid) ?? null;
     const coverage = ms.reduce((a, m) => (m.coverage_start > a ? m.coverage_start : a), "1900-01-01").slice(0, 10);
     const byMonth = new Map<string, number>();
     let earliest: string | null = null;
@@ -183,7 +185,7 @@ export interface FlowRow {
   product_id: string; subcategory: string; brand: string; origin: string; name: string; url: string | null;
   /** New ratings between the start and end of the period (on the shelf both days). */
   flow: number;
-  /** flow × price */
+  /** flow × MRP (selling price when a listing shows no MRP) */
   value: number;
   rankStart: number | null; rankEnd: number | null; price: number | null;
   /** The category started being tracked after the period began, so its period is shorter. */
@@ -191,7 +193,7 @@ export interface FlowRow {
   /** A combo or kit: Nykaa shows it with the ratings of the products inside it, so its flow and value are left at
    *  0 (plan v2: combos were 4% of listings but 31% of rating value). `rawFlow` keeps what it would have been. */
   combo: boolean; rawFlow: number;
-  /** Listings sharing this listing's rating count (1 = its own). The pool is counted once, at its median price. */
+  /** Listings sharing this listing's rating count (1 = its own). The pool is counted once, at its median MRP. */
   poolSize: number;
   /** Position on Nykaa's own page (rankEnd is the position among the category's own products). */
   nykaaRank: number;
@@ -269,7 +271,7 @@ function onOrAfter(days: string[], d: string) { return days.find((x) => x >= d) 
 /** New ratings each top-100 listing gained between two days, per category. Nykaa sometimes shows one rating count
  *  for a whole family of a brand's products (20 Nykaa sheet masks share 7.6M ratings; TONYMOLY's four Wonder toners
  *  share one count). Plan v4: such a pool counts ONCE across every list, credited to its best-placed listing, at the
- *  median price of the listings sharing it, and the row says how many share it (poolSize). */
+ *  median MRP of the listings sharing it, and the row says how many share it (poolSize). */
 export function ratingFlow(ix: DailyIndex, dims: Map<string, Dim>, start: string, end: string, includeStore = false, ratingEnd?: string): FlowRow[] {
   const endMap = ix.byDay.get(end); if (!endMap) return [];
   // ratings stop at `ratingEnd` when Nykaa froze its counts; ranks still run to `end`
@@ -289,14 +291,14 @@ export function ratingFlow(ix: DailyIndex, dims: Map<string, Dim>, start: string
   };
   // every listing sharing a pool, on any list (the Korean store too: its prices are real prices)
   const members = new Map<string, number[]>();
-  for (const [k, e] of endMap) { const p = poolKey(k, e); const price = e.price ?? e.mrp; if (p && price) push(members, p, price); }
+  for (const [k, e] of endMap) { const p = poolKey(k, e); const price = e.mrp ?? e.price; if (p && price) push(members, p, price); }
   const seenPool = new Set<string>();
   for (const [k, e] of entries) {
     const cat = e.subcategory;
     const { s, partial } = startOf(k, cat);
     const dim = dims.get(e.product_id);
     const brand = dim?.brand ?? "?";
-    let flow = 0; let poolSize = 1; let price = e.price ?? e.mrp;
+    let flow = 0; let poolSize = 1; let price = e.mrp ?? e.price; // value at MRP; the row still shows the selling price
     const combo = isCombo(dim?.name ?? "");
     const re = rEnd ? rEnd.get(k) : e;
     if (!noRatings && s && re && s.rating_count !== null && re.rating_count !== null) {
@@ -388,7 +390,7 @@ export function dailyFlow(ix: DailyIndex, dims: Map<string, Dim>, days: string[]
       if (r.rating_count >= 100) { if (seen.has(pool)) continue; seen.add(pool); }
       const key = keyOf(r, dim); if (!key) continue;
       let arr = out.get(key); if (!arr) { arr = days.map(() => 0); out.set(key, arr); }
-      arr[i] += Math.max(0, r.rating_count - p.rating_count) * (r.price ?? r.mrp ?? 0);
+      arr[i] += Math.max(0, r.rating_count - p.rating_count) * (r.mrp ?? r.price ?? 0);
     }
   });
   return out;
