@@ -36,6 +36,12 @@ CATEGORIES: list[Category] = [
     # Lip care (balms, tinted balms, lip masks, 674 products): added 5 Oct 2026 for the Dewy Tint Lip Balm's rivals.
     # Nykaa's own "Lip Balm" (8409) is a subset; this one also carries LANEIGE's lip balms and masks.
     Category("lip_care",         8408, "https://www.nykaa.com/skin/lip-care/c/8408", "skin"),
+    # Added 18 Oct 2026 (plan v4, owner OK): the makeup lists where Korean brands could compete beyond lip tints.
+    # Korean cushions sit in Foundation; these three hold BB & CC creams and skin tints, blush (incl. lip & cheek
+    # tints) and lip gloss. Kept out of the live site's views until round 4 goes live (migration 027).
+    Category("bb_cream",          232, "https://www.nykaa.com/makeup/face/bb-cc-cream/c/232", "makeup"),
+    Category("blush",             235, "https://www.nykaa.com/makeup/face/face-blush/c/235", "makeup"),
+    Category("lip_gloss",         250, "https://www.nykaa.com/makeup/lips/lip-gloss/c/250", "makeup"),
     # Nykaa's own Korean Beauty store: the shelf the K-beauty shopper browses. Not a
     # product category; excluded from cross-category shares in the dashboard.
     Category("kbeauty_store",   30710, "https://www.nykaa.com/korean-beauty/c/30710", "store"),
