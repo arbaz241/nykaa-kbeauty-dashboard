@@ -45,7 +45,7 @@ function OffersPage() {
       const checked = new Set(os.filter((o) => !win || o.scrape_date >= win.start).map((o) => o.scrape_date));
       const withOffer = new Set(os.filter((o) => o.offer_id !== "none" && (!win || o.scrape_date >= win.start)).map((o) => o.scrape_date));
       const cls = now.map((o) => ({ o, ...classifyOffer(o), depth: offerDepth(o) }));
-      return { brand, origin: m.originOf(brand), now: cls, own: cls.filter((c) => c.brandOwn), depth: Math.max(0, ...cls.filter((c) => c.brandOwn).map((c) => c.depth)), nights: withOffer.size, checked: checked.size };
+      return { brand, origin: m.originOf(brand), tonight: os.some((o) => o.scrape_date === today), now: cls, own: cls.filter((c) => c.brandOwn), depth: Math.max(0, ...cls.filter((c) => c.brandOwn).map((c) => c.depth)), nights: withOffer.size, checked: checked.size };
     }).sort((a, b) => Number(tiers.inSet(b.brand)) - Number(tiers.inSet(a.brand)) || b.own.length - a.own.length || a.brand.localeCompare(b.brand));
   }, [offers.data, today, win, m, tiers]);
 
@@ -147,8 +147,8 @@ function OffersPage() {
           ].filter(Boolean) as React.ReactNode[]}>
           {(() => { const os = (["kbeauty", "local", "global"] as const).map((o) => ({ o, v: disc.byOrigin[o].med })).sort((a, b) => a.v - b.v); const lo = os[0]; const hi = os[os.length - 1];
             const tie = os.filter((x) => Math.round(x.v * 100) === Math.round(lo.v * 100)).map((x) => ORIGIN_LABEL[x.o]).join(tr(" and ", "·"));
-            return tr(<>{tie} brands discount least ({pct(lo.v)} off the printed price) and {ORIGIN_LABEL[hi.o]} brands most ({pct(hi.v)}); {running.length} of the {brands.length} brands we check run an offer of their own ({kRunning.length} Korean).</>,
-              <>{tie} 브랜드가 가장 적게({pct(lo.v)}), {ORIGIN_LABEL[hi.o]} 브랜드가 가장 많이({pct(hi.v)}) 할인. 확인한 {brands.length}개 브랜드 중 {running.length}개가 자체 프로모션 진행 (K-뷰티 {kRunning.length}개).</>); })()}
+            return tr(<>{tie} brands discount least ({pct(lo.v)} off the printed price) and {ORIGIN_LABEL[hi.o]} brands most ({pct(hi.v)}); {running.length} of the {brands.filter((b) => b.tonight).length} brands checked on the latest night run an offer of their own ({kRunning.length} Korean).</>,
+              <>{tie} 브랜드가 가장 적게({pct(lo.v)}), {ORIGIN_LABEL[hi.o]} 브랜드가 가장 많이({pct(hi.v)}) 할인. 최근 확인한 {brands.filter((b) => b.tonight).length}개 브랜드 중 {running.length}개가 자체 프로모션 진행 (K-뷰티 {kRunning.length}개).</>); })()}
         </Verdict>
       </section>
 
@@ -221,9 +221,9 @@ function OffersPage() {
           </table>
         </Card>
         {shown.some((b) => !b.own.length) && <Card className="mt-3 px-5 py-4">
-          <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr(`No offer of their own tonight · ${shown.filter((b) => !b.own.length).length} brands`, `오늘 자체 프로모션 없음 · ${shown.filter((b) => !b.own.length).length}개 브랜드`)}</div>
+          <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr(`No offer of their own tonight · ${shown.filter((b) => !b.own.length && b.tonight).length} brands`, `오늘 자체 프로모션 없음 · ${shown.filter((b) => !b.own.length && b.tonight).length}개 브랜드`)}</div>
           <p className="mt-1 text-[12px] text-muted">{tr("Main brands first. Shown with any Nykaa-wide offer on their page tonight and the nights their page showed any offer.", "주요 브랜드 먼저. 오늘 페이지에 뜬 Nykaa 전체 프로모션과 프로모션이 있던 날 수 함께 표시.")}</p>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">{shown.filter((b) => !b.own.length).map((b) => {
+          <div className="mt-2.5 flex flex-wrap gap-1.5">{shown.filter((b) => !b.own.length && b.tonight).map((b) => {
             const wide = b.now.filter((c) => !c.brandOwn).map((c) => c.o.title).filter((t, i, a) => a.indexOf(t) === i).join(" · ");
             return (
               <span key={b.brand} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] ring-1 ring-line ${tiers.inSet(b.brand) ? "bg-accent-soft/40" : "bg-surface"}`} title={wide ? tr(`Nykaa-wide: ${wide}`, `Nykaa 전체: ${wide}`) : undefined}>
@@ -233,6 +233,7 @@ function OffersPage() {
                 <span className="tabular text-muted">{b.nights}/{b.checked}</span>
               </span>);
           })}</div>
+          {shown.some((b) => !b.tonight) && <p className="mt-2 text-[12px] text-ink-2">{tr(`Not checked on the latest night (seen on earlier nights only): ${shown.filter((b) => !b.tonight).map((b) => b.brand).join(", ")}.`, `최근 밤엔 확인 안 됨 (이전 밤에만 확인): ${shown.filter((b) => !b.tonight).map((b) => b.brand).join(", ")}.`)}</p>}
           <p className="mt-2 text-[11.5px] text-muted">{tr("Dot = origin (K-beauty, Indian, global, as in the table). n/m = nights its page showed any offer, of the nights checked since 17 Oct (same as the table's last column). Hover for the full Nykaa-wide offer.", "점 = 국적 (표와 같음). n/m = 10월 17일 이후 확인한 날 중 페이지에 프로모션이 있던 날 (표 마지막 열과 같음). 마우스를 올리면 Nykaa 전체 프로모션 전문.")}</p>
         </Card>}
       </ActionSection>
