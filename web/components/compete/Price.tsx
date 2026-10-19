@@ -1,13 +1,11 @@
 "use client";
 
-import CompareGrid, { type ExtraRow, type GridCol } from "@/components/CompareGrid";
+import type { ExtraRow } from "@/components/CompareGrid";
 import { DetailHead, Missing, Opens, Points } from "@/components/Detail";
-import { ActionSection } from "@/components/Report";
 import type { Criterion } from "@/lib/compete";
-import { shortTitle, type ProductFacts, type ProductOption } from "@/lib/competeData";
+import { shortTitle, type ProductFacts } from "@/lib/competeData";
 import { CATEGORY_LABEL, compact, inr } from "@/lib/format";
 import type { Bench } from "@/lib/price";
-import { ProductHead } from "./Overview";
 import { tr } from "@/lib/i18n";
 
 const r100 = (v: number) => `₹${Math.round(v).toLocaleString("en-IN")}`;
@@ -49,13 +47,10 @@ function sizesDetail(p: ProductFacts, std: number | null, perSheet = false) {
   };
 }
 
-export function PriceSection({ products, colors, bench, std, cat, optionsFor, onSwap }: {
-  products: ProductFacts[]; colors: Record<string, string>; bench: Bench | null; std: number | null; cat: string;
-  optionsFor: ((b: string) => ProductOption[]) | null; onSwap: (brand: string, pid: string) => void;
-}) {
+/** Price rows, headline and benchmark note for the side-by-side product table (components/compete/ProductTable). */
+export function pricePart({ products, bench, std, cat }: { products: ProductFacts[]; bench: Bench | null; std: number | null; cat: string }) {
   const a = products.find((p) => p.role === "anchor");
   const perSheet = bench?.unit === "sheet" || cat === "sheet_mask"; const unit = perSheet ? tr("sheet", "1매") : "100 ml/g";
-  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, head: <ProductHead p={p} color={colors[p.brand]} options={optionsFor?.(p.brand)} onSwap={(pid) => onSwap(p.brand, pid)} /> }));
   const criteria: Criterion<ProductFacts>[] = [
     { key: "mrp", label: tr("MRP", "정가"), help: tr("List price on Nykaa (selling price and discount underneath)", "Nykaa 정가 (아래는 판매가와 할인율)"), better: null, value: (p) => p.mrp ?? p.price, show: () => "", cell: (p) => <Mrp p={p} /> },
     { key: "per100", label: tr(`MRP per ${unit}`, `${unit}당 정가`), help: perSheet ? tr("MRP ÷ number of sheets in the pack", "정가 ÷ 매수") : tr("MRP ÷ pack size × 100, at the size closest to the category's usual size", "정가 ÷ 용량 × 100, 카테고리 표준 용량에 가장 가까운 용량 기준"), better: null,
@@ -67,7 +62,7 @@ export function PriceSection({ products, colors, bench, std, cat, optionsFor, on
       missing: (p) => (!bench ? tr("No K-beauty product in today's top 100", "오늘 상위 100위에 K-뷰티 제품 없음") : p.unit ? null : tr("No size to compare", "비교할 용량 없음")) },
   ];
   const extra: ExtraRow<ProductFacts>[] = [
-    { key: "more", label: tr("Sizes and offer", "용량·프로모션"), render: (p) => (
+    { key: "more", after: "vslead", label: tr("Sizes and offer", "용량·프로모션"), render: (p) => (
       <div className="space-y-1 text-[12px]">
         <Opens detail={sizesDetail(p, std, perSheet)}><span className="text-ink-2">{p.sizes.length > 1 ? tr(`${p.sizes.length} sizes`, `용량 ${p.sizes.length}종`) : p.sizes[0] ? tr(`1 size (${p.sizes[0].pack})`, `용량 1종 (${p.sizes[0].pack})`) : tr("Size not listed", "용량 표시 없음")}</span></Opens>
         <div className="leading-snug">{p.offer ? <Opens detail={{ kicker: tr(`${p.brand} · offer on the listing`, `${p.brand} · 상품 프로모션`), title: shortTitle(p.name, p.brand), body: <p>{p.offer}</p> }}><span className="text-good">{tr("Offer on listing", "프로모션 있음")}</span></Opens> : <span className="text-muted">{tr("No offer", "프로모션 없음")}</span>}</div>
@@ -80,12 +75,9 @@ export function PriceSection({ products, colors, bench, std, cat, optionsFor, on
     ? tr(`At ${r100(a.unit!)} per ${unit}, ${shortTitle(a.name, a.brand)} is ${Math.abs(pos) < 0.05 ? "in line with" : `${Math.round(Math.abs(pos) * 100)}% ${pos > 0 ? "above" : "below"}`} the K-beauty leader, ${lead}; ${cheaper} of ${products.length - 1} rivals cost less.`,
       `${unit}당 ${r100(a.unit!)}인 ${shortTitle(a.name, a.brand)}: K-뷰티 선두 제품 ${lead} ${Math.abs(pos) < 0.05 ? "수준 가격" : `대비 ${Math.round(Math.abs(pos) * 100)}% ${pos > 0 ? "비쌈" : "저렴"}`}. 경쟁 제품 ${products.length - 1}개 중 ${cheaper}개가 더 저렴.`)
     : a?.mrp ? tr(`${shortTitle(a.name, a.brand)} lists at ${inr(a.mrp)} MRP.`, `${shortTitle(a.name, a.brand)} 정가: ${inr(a.mrp)}.`) : tr(`Prices in ${CATEGORY_LABEL[cat]}.`, `${CATEGORY_LABEL[cat]} 가격.`);
-  return (
-    <ActionSection id="price" kicker={tr("Price · on MRP", "가격 · 정가 기준")} title={title}
-      note={bench ? tr(<>Benchmark: the K-beauty leader, <b>{lead}</b> ({compact(bench.leader.reviews)} reviews, the most of any K-beauty product in today&rsquo;s {CATEGORY_LABEL[cat]} top 100{a?.brand ? `, ${a.brand}'s own excluded` : ""}): MRP {inr(bench.leader.mrp)} for {bench.leader.size} = <b>{r100(bench.value)}</b> per {unit}. For context, the whole top 100{bench.median ? <> has a median of {r100(bench.median)} (range {r100(bench.min!)}–{r100(bench.max!)}, {bench.n} products)</> : " has too few comparable products for a median"}. Price is a position, so it is never shaded green or red.</>,
+  const note = (bench ? tr(<>Benchmark: the K-beauty leader, <b>{lead}</b> ({compact(bench.leader.reviews)} reviews, the most of any K-beauty product in today&rsquo;s {CATEGORY_LABEL[cat]} top 100{a?.brand ? `, ${a.brand}'s own excluded` : ""}): MRP {inr(bench.leader.mrp)} for {bench.leader.size} = <b>{r100(bench.value)}</b> per {unit}. For context, the whole top 100{bench.median ? <> has a median of {r100(bench.median)} (range {r100(bench.min!)}–{r100(bench.max!)}, {bench.n} products)</> : " has too few comparable products for a median"}. Price is a position, so it is never shaded green or red.</>,
         <>기준: K-뷰티 선두 제품 <b>{lead}</b> (리뷰 {compact(bench.leader.reviews)}건, 오늘 {CATEGORY_LABEL[cat]} 상위 100위 K-뷰티 제품 중 최다{a?.brand ? `, ${a.brand} 제품 제외` : ""}): {bench.leader.size} 정가 {inr(bench.leader.mrp)} = {unit}당 <b>{r100(bench.value)}</b>. 참고로 상위 100위 전체{bench.median ? <>의 중앙값은 {r100(bench.median)} (범위 {r100(bench.min!)}–{r100(bench.max!)}, 제품 {bench.n}개)</> : "는 비교 가능한 제품이 적어 중앙값 없음"}. 가격은 위치일 뿐이라 초록·빨강 표시 안 함.</>)
-        : tr("No K-beauty product in today's top 100 to benchmark against.", "오늘 상위 100위에 기준으로 삼을 K-뷰티 제품 없음.")}>
-      <CompareGrid cols={cols} items={products} criteria={criteria} extra={extra} labelWidth={150} />
-    </ActionSection>
+        : tr("No K-beauty product in today's top 100 to benchmark against.", "오늘 상위 100위에 기준으로 삼을 K-뷰티 제품 없음.")
   );
+  return { criteria, extra, title, note };
 }

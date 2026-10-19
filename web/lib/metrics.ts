@@ -106,7 +106,8 @@ export function brandInsights(scores: BrandScore[]): string[] {
   return out;
 }
 
-export interface DemandLine { key: string; label: string; brand: string; spark: (number | null)[]; last3: number | null; prev3: number | null; /** The same products' reviews now (the growth's numerator); last3 also counts launches since. */ same3?: number | null; growth: number | null; url?: string | null }
+export interface DemandLine { key: string; label: string; brand: string; spark: (number | null)[]; /** nothing read after the last spark month (lib/metrics openEnded) */ open?: boolean;
+  /** Reviews per month from the start of reliable history, without the six-month cover momentum needs: for month on month. */ monthly?: (number | null)[]; last3: number | null; prev3: number | null; /** The same products' reviews now (the growth's numerator); last3 also counts launches since. */ same3?: number | null; growth: number | null; url?: string | null }
 
 /** Monthly reviews over the last 12 complete months for one product or brand, using only months each product
  *  reliably covers. Momentum (last 3 vs prior 3) only from products that cover all 6 of those months. */
@@ -124,7 +125,9 @@ export function demandLines(months: ReviewMonth[], by: "brand" | "product"): Dem
     const spark = win.map((mo) => (covered.size && mo >= start ? byMonth.get(mo) ?? 0 : null));
     const s = (xs: (number | null)[]) => xs.reduce<number>((a, b) => a + (b ?? 0), 0);
     const last3 = covered.size ? s(spark.slice(-3)) : null; const prev3 = covered.size ? s(spark.slice(-6, -3)) : null;
-    out.push({ key: k, label: by === "brand" ? k : ms[0].name, brand: ms[0].brand, spark, last3, prev3, growth: last3 !== null && prev3 ? (last3 - prev3) / prev3 : null, url: ms[0].url });
+    const cov = ok.reduce((a, m) => (m.coverage_start > a ? m.coverage_start : a), "1900-01-01"); const all = new Map<string, number>(); ok.forEach((m) => all.set(m.month, (all.get(m.month) ?? 0) + m.reviews));
+    const monthly = by === "product" ? win.map((mo) => (ok.length && mo >= cov ? all.get(mo) ?? 0 : null)) : spark;
+    out.push({ key: k, label: by === "brand" ? k : ms[0].name, brand: ms[0].brand, spark, monthly, open: openEnded(ok.map((m) => [m.month, m.reviews] as [string, number]), win[win.length - 1]), last3, prev3, growth: last3 !== null && prev3 ? (last3 - prev3) / prev3 : null, url: ms[0].url });
   }
   return out.sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1));
 }

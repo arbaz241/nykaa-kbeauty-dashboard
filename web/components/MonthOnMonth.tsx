@@ -35,7 +35,7 @@ export function latestMoM(values: (number | null)[] | null | undefined, win: str
 
 const OPEN = () => tr("No review read after this month yet: we may have read the product before the month ended, so its count can still grow. Shown without a change.", "이 달 이후 읽은 리뷰가 아직 없음: 월말 전에 읽었을 수 있어 수치가 늘 수 있음. 증감 미표시.");
 const Pct = ({ s }: { s: MonthStep }) => s.open ? <span className="text-muted" title={OPEN()}>{tr("filling in?", "집계 중?")}</span> : s.mom === null ? <span className="text-muted">{tr("new", "신규")}</span>
-  : <span className={s.small ? "text-muted" : s.mom > 0.05 ? "text-good" : s.mom < -0.05 ? "text-bad" : "text-ink-2"} title={s.small ? tr(`under ${SMALL} reviews the month before`, `전월 리뷰 ${SMALL}건 미만`) : undefined}>{signed(s.mom)}{s.small ? "*" : ""}</span>;
+  : <span className={s.small ? "text-muted" : s.mom > 0.05 ? "text-good" : s.mom < -0.05 ? "text-bad" : "text-ink-2"} title={s.small ? tr(`under ${SMALL} reviews the month before`, `전월 리뷰 ${SMALL}건 미만`) : undefined}>{Math.abs(s.mom) < 0.005 ? "0%" : signed(s.mom)}{s.small ? "*" : ""}</span>;
 
 /** Sparkline of 12 months, then the last three months with month-on-month change. */
 export function MonthOnMonth({ values, win, color, open = false }: { values: (number | null)[]; win: string[]; color: string; open?: boolean }) {
@@ -67,4 +67,11 @@ export function MoMStrip({ values, win, open = false }: { values: (number | null
       {steps.map((s) => <span key={s.month}><span className="text-muted">{monthShort(s.month)}</span> <b className="font-medium">{s.n}</b> <Pct s={s} /></span>)}
     </div>
   );
+}
+
+/** The latest complete month against the one before, in one short line ("Sept +18% m/m"), for lists. */
+export function MoMInline({ values, win, open = false }: { values: (number | null)[]; win: string[]; open?: boolean }) {
+  const s = monthSteps(values, win, 1, open)[0];
+  if (!s) return null;
+  return <span className="block text-[10.5px] text-muted" title={momHelp()}>{monthShort(s.month)} {s.n} · <Pct s={s} />{tr(" m/m", " 전월비")}</span>;
 }

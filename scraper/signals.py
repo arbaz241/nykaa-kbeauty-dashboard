@@ -48,7 +48,8 @@ class RateLimited(RuntimeError):
 async def _fetch_json(page: Page, url: str, retries: int = 5) -> tuple[int, str]:
     """In-page fetch with back-off on 429 Too Many Requests (15s, 30s, 45s…)."""
     for attempt in range(retries + 1):
-        status, body = await page.evaluate("async (u) => { const r = await fetch(u,{credentials:'include'}); return [r.status, await r.text()]; }", url)
+        # a request Nykaa never answers would otherwise hang the run until the job's time limit (local crawl, 20 Oct 2026)
+        status, body = await page.evaluate("async (u) => { const r = await fetch(u,{credentials:'include', signal: AbortSignal.timeout(45000)}); return [r.status, await r.text()]; }", url)
         if status != 429:
             return status, body
         if attempt == retries:

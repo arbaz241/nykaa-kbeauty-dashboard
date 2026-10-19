@@ -13,6 +13,7 @@ import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import { Missing, Opens, Points, useDetail } from "@/components/Detail";
 import Shell from "@/components/Shell";
 import Sparkline from "@/components/Sparkline";
+import { MoMInline } from "@/components/MonthOnMonth";
 import { Basis, Def, TieredList } from "@/components/Tiered";
 import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ORIGIN_LABEL, norm } from "@/lib/brands";
@@ -278,7 +279,7 @@ function DemandPage() {
                           <button key={p.key} onClick={() => openProduct(p.key, p.label, p.brand, p.url)} className="grid w-full grid-cols-[40px_1fr_auto] items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-surface">
                             <Thumb src={imgFor(p.key)} />
                             <span className="min-w-0 text-[12.5px] leading-snug">{shortName(p.label, p.brand)}{s ? <span className="ml-2 text-[11px] text-muted">{tr(`#${s.rank} on shelf`, `진열 ${s.rank}위`)}</span> : null}<span className="mt-0.5 block"><Sparkline values={p.spark} color={c} width={120} height={20} /></span></span>
-                            <span className="text-right text-[12.5px]"><b className="tabular">{p.last3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(p.last3)}</b><span className="block"><Change g={p.growth} vol={p.last3} market={mkt} /></span></span>
+                            <span className="text-right text-[12.5px]"><b className="tabular">{p.last3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(p.last3)}</b><span className="block"><Change g={p.growth} vol={p.last3} market={mkt} /></span><MoMInline values={p.monthly ?? p.spark} win={win} open={p.open} /></span>
                           </button>); })}</div>
                       </>) })} className={`grid w-full grid-cols-[minmax(170px,1.4fr)_110px_1fr_120px_100px] items-center border-b border-line px-4 py-2 text-left transition hover:bg-sunken/50 ${isA(b.brand) ? "bg-accent-soft/50" : ""}`}>
                         <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: colors[b.brand] ?? "#d9d7cf" }} /><span className={`text-[13.5px] ${isA(b.brand) ? "font-semibold" : "font-medium"}`}>{b.brand} <span className="text-muted">›</span></span><span className="text-[11px] text-muted">{tiers.inSet(b.brand) ? ORIGIN_LABEL[origin.get(b.brand) ?? "unknown"] : tr("not a main brand", "주요 브랜드 외")}</span></span>
@@ -301,7 +302,7 @@ function DemandPage() {
                       <span className="text-[11.5px] text-muted tabular">{i + 1}</span>
                       <Thumb src={imgFor(p.key)} />
                       <span className="min-w-0"><span className="block text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-2">{p.brand}</span><span className="block truncate text-[12.5px] leading-snug">{shortName(p.label, p.brand)}</span></span>
-                      <span className="text-right text-[12.5px] tabular"><b>{compact(p.last3)}</b><span className={`block text-[11px] ${p.growth === null ? "text-muted" : mkt !== null && p.growth >= mkt ? "text-good" : "text-bad"}`}>{p.growth === null ? (p.prev3 ? tr("partial history", "이력 일부") : tr(`new: no ${dw.prior}`, `신규: ${dw.prior} 없음`)) : signed(p.growth)}</span></span>
+                      <span className="text-right text-[12.5px] tabular"><b>{compact(p.last3)}</b><span className={`block text-[11px] ${p.growth === null ? "text-muted" : mkt !== null && p.growth >= mkt ? "text-good" : "text-bad"}`}>{p.growth === null ? (p.prev3 === null ? tr(`history doesn't reach ${dw.prior}`, `이력이 ${dw.prior}까지 안 닿음`) : tr(`new: no ${dw.prior}`, `신규: ${dw.prior} 없음`)) : signed(p.growth)}</span><MoMInline values={p.monthly ?? p.spark} win={win} open={p.open} /></span>
                     </button>
                   )} />
                 </Card>

@@ -1,15 +1,14 @@
 "use client";
 
-import CompareGrid, { Chip, type ExtraRow, type GridCol } from "@/components/CompareGrid";
+import { Chip, type ExtraRow } from "@/components/CompareGrid";
 import { DetailHead, Level, Missing, Opens, Points, type DetailContent } from "@/components/Detail";
-import { ActionSection } from "@/components/Report";
 import { MonthOnMonth, latestMoM, momHelp } from "@/components/MonthOnMonth";
 import { monthsWindow } from "@/lib/metrics";
 import { shortTitle, type ProductFacts } from "@/lib/competeData";
 import { CATEGORY_LABEL, signed } from "@/lib/format";
 import type { ThemeCount } from "@/lib/reviewThemes";
 import { VERDICT } from "@/lib/usp";
-import { BUYER_CRITERIA, DEMAND_CRITERIA, ProductHead, VIS_CRITERIA } from "./Overview";
+import { BUYER_CRITERIA, DEMAND_CRITERIA, VIS_CRITERIA } from "./Overview";
 import { monthShort, tr } from "@/lib/i18n";
 import { tx } from "@/lib/dict";
 
@@ -67,21 +66,21 @@ const themeChips = (xs: ThemeCount[], tone: "good" | "bad") => xs.slice(0, 4).ma
   <Chip key={x.key} tone={tone}><span className={x.mild === x.n && tone === "bad" ? "opacity-70" : ""}>{x.label} {pc(x.share)}{tone === "bad" && x.mild === x.n ? tr(" · mild", " · 가벼움") : ""}</span></Chip>
 ));
 
-export function Buyers({ products, colors, loading }: { products: ProductFacts[]; colors: Record<string, string>; loading: boolean }) {
+/** Buyer rows, headline and method note for the side-by-side product table. */
+export function buyersPart({ products, loading }: { products: ProductFacts[]; loading: boolean }) {
   const a = products.find((p) => p.role === "anchor");
-  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, head: <ProductHead p={p} color={colors[p.brand]} /> }));
   const few = (p: ProductFacts) => (p.themes && p.themes.n < FEW ? tr(` (only ${p.themes.n} reviews)`, ` (리뷰 ${p.themes.n}건뿐)`) : "");
   const extra: ExtraRow<ProductFacts>[] = [
     { key: "split", after: "rating", label: tr("Star split", "별점 분포"), help: tr("Share of all star ratings", "전체 별점 중 비중"), has: (p) => !!p.split, missing: () => tr("Not shown on Nykaa", "Nykaa에 표시 없음"), render: (p) => <StarSplit split={p.split!} /> },
-    { key: "praise", label: tr("Praised for", "칭찬받는 점"), help: tr("Themes counted in the review text (our count, same method for every product); click for numbers and quotes", "리뷰 본문에서 집계한 주제 (모든 제품에 같은 방법). 누르면 수치·인용문 표시"),
+    { key: "praise", after: "rating", label: tr("Praised for", "칭찬받는 점"), help: tr("Themes counted in the review text (our count, same method for every product); click for numbers and quotes", "리뷰 본문에서 집계한 주제 (모든 제품에 같은 방법). 누르면 수치·인용문 표시"),
       has: (p) => !!p.themes?.n, missing: () => (loading ? tr("Loading…", "불러오는 중…") : tr("No reviews collected", "수집된 리뷰 없음")),
       render: (p) => p.themes!.praise.length ? <Opens detail={themesDetail(p, "praise")}><span className="flex flex-wrap gap-1">{themeChips(p.themes!.praise, "good")}</span>{few(p) && <span className="block text-[11px] text-muted">{few(p)}</span>}</Opens>
         : <Missing>{tr(`No praise theme in ${p.themes!.n} reviews`, `리뷰 ${p.themes!.n}건에 칭찬 주제 없음`)}</Missing> },
-    { key: "complaints", label: tr("Complaints", "불만"), help: tr("Complaint themes: all from 1–3★ reviews, plus mild ones raised inside 4–5★ reviews (lighter); click for the method and quotes", "불만 주제: 1–3★ 리뷰 전체 + 4–5★ 리뷰 속 가벼운 불만(흐리게 표시). 누르면 방법·인용문 표시"),
+    { key: "complaints", after: "rating", label: tr("Complaints", "불만"), help: tr("Complaint themes: all from 1–3★ reviews, plus mild ones raised inside 4–5★ reviews (lighter); click for the method and quotes", "불만 주제: 1–3★ 리뷰 전체 + 4–5★ 리뷰 속 가벼운 불만(흐리게 표시). 누르면 방법·인용문 표시"),
       has: (p) => !!p.themes?.n, missing: () => (loading ? tr("Loading…", "불러오는 중…") : tr("No reviews collected", "수집된 리뷰 없음")),
       render: (p) => p.themes!.complaints.length ? <Opens detail={themesDetail(p, "complaint")}><span className="flex flex-wrap gap-1">{themeChips(p.themes!.complaints, "bad")}</span></Opens>
         : <Opens detail={themesDetail(p, "complaint")}><Missing>{tr(`No complaint theme in ${p.themes!.n} reviews`, `리뷰 ${p.themes!.n}건에 불만 주제 없음`)}</Missing></Opens> },
-    { key: "nykaa", label: tr("Nykaa's tags", "Nykaa 태그"), help: tr("Tags reviewers pick on Nykaa (% of tagged reviews) and Nykaa's own summary phrases. Not every product gets them, and tagged reviews are mostly positive, so they are shown apart from our count", "리뷰어가 Nykaa에서 고르는 태그(태그 단 리뷰 중 %)와 Nykaa 요약 문구. 모든 제품에 있진 않고, 태그 단 리뷰는 대부분 긍정적이라 우리 집계와 따로 표시"),
+    { key: "nykaa", after: "rating", label: tr("Nykaa's tags", "Nykaa 태그"), help: tr("Tags reviewers pick on Nykaa (% of tagged reviews) and Nykaa's own summary phrases. Not every product gets them, and tagged reviews are mostly positive, so they are shown apart from our count", "리뷰어가 Nykaa에서 고르는 태그(태그 단 리뷰 중 %)와 Nykaa 요약 문구. 모든 제품에 있진 않고, 태그 단 리뷰는 대부분 긍정적이라 우리 집계와 따로 표시"),
       has: (p) => !!p.themes?.tagged || p.phrases.length > 0, missing: () => (loading ? tr("Loading…", "불러오는 중…") : tr("Nykaa shows no tags for this product", "Nykaa에 이 제품 태그 없음")),
       render: (p) => (
         <div className="space-y-1">
@@ -92,9 +91,9 @@ export function Buyers({ products, colors, loading }: { products: ProductFacts[]
             {!!p.themes?.tagged && <><DetailHead>{tr(`Reviewer tags (${p.themes.tagged} tagged reviews)`, `리뷰어 태그 (태그 단 리뷰 ${p.themes.tagged}건)`)}</DetailHead><Points items={p.themes.tags.map((t) => `${tx(t.label)}: ${pc(t.share)}${t.negative ? tr(` (${t.negative} negative)`, ` (부정 ${t.negative})`) : ""}`)} /></>}
           </> }}><span className="text-[11.5px] text-ink-2">{tr(`${p.phrases.length} Nykaa phrases`, `Nykaa 문구 ${p.phrases.length}개`)}</span></Opens>}
         </div>) },
-    { key: "echo", label: tr("Buyers repeat it", "구매자 공감"), help: tr("Share of the product's claims that its reviewers say back: 60%+ strong, 30–59% moderate, under 30% weak", "리뷰어가 따라 말하는 소구점 비율: 60% 이상 강함, 30–59% 보통, 30% 미만 약함"), has: (p) => !!p.usp, missing: (p) => (p.role === "rival" ? tr("Not in an analysed group", "분석 그룹에 없음") : tr("Not analysed", "분석 안 됨")),
+    { key: "echo", after: "rating", label: tr("Buyers repeat it", "구매자 공감"), help: tr("Share of the product's claims that its reviewers say back: 60%+ strong, 30–59% moderate, under 30% weak", "리뷰어가 따라 말하는 소구점 비율: 60% 이상 강함, 30–59% 보통, 30% 미만 약함"), has: (p) => !!p.usp, missing: (p) => (p.role === "rival" ? tr("Not in an analysed group", "분석 그룹에 없음") : tr("Not analysed", "분석 안 됨")),
       render: (p) => <Level level={p.echo.level} reasons={p.echo.reasons} none={p.echo.none} title={tr("Buyers repeat its claims", "구매자의 소구점 공감")} kicker={`${p.brand} · ${shortTitle(p.name, p.brand)}`} /> },
-    { key: "ai", label: tr("Paid review analysis", "AI 리뷰 분석"), help: tr("The AI read of each claim against the reviews, with what buyers value unprompted and recurring complaints", "주장별로 리뷰와 대조한 AI 분석. 구매자가 스스로 꼽는 장점과 반복 불만 포함"),
+    { key: "ai", after: "rating", label: tr("Paid review analysis", "AI 리뷰 분석"), help: tr("The AI read of each claim against the reviews, with what buyers value unprompted and recurring complaints", "주장별로 리뷰와 대조한 AI 분석. 구매자가 스스로 꼽는 장점과 반복 불만 포함"),
       has: (p) => !!p.usp, missing: (p) => (p.role === "rival" ? tr("Not in an analysed group", "분석 그룹에 없음") : tr("Not analysed", "분석 안 됨")),
       render: (p) => { const r = p.usp!.analysis.review_check; return (
         <Opens detail={aiReadDetail(p)}><span className="block text-[12px] leading-snug">
@@ -106,21 +105,16 @@ export function Buyers({ products, colors, loading }: { products: ProductFacts[]
     ? tr(`Buyers praise ${shortTitle(a.name, a.brand)} most for “${praise.label.toLowerCase()}” (${pc(praise.share)} of reviews)${comp ? `; the top complaint is “${comp.label.toLowerCase()}” (${pc(comp.share)})` : "; no complaint theme stands out"}.`,
       `${shortTitle(a.name, a.brand)} 구매자 최다 칭찬: “${praise.label}”(리뷰의 ${pc(praise.share)})${comp ? `, 최다 불만: “${comp.label}”(${pc(comp.share)})` : ", 두드러진 불만 없음"}.`)
     : tr("What reviewers say, product by product.", "제품별 리뷰 반응.");
-  return (
-    <ActionSection id="buyers" kicker={tr("What buyers say · reviews", "구매자 반응 · 리뷰")} title={title}
-      note={tr("Three layers: our count of themes in the review text (the same for every product), Nykaa's own tags where it shows them, and the paid AI review read one click away. Percentages are of all stored recent reviews, so short reviews (“good product”) lower them evenly for everyone.", "세 겹으로 확인: 리뷰 본문 주제 집계(모든 제품에 같은 방법), Nykaa 태그, 한 번 누르면 나오는 AI 리뷰 분석. 비율은 저장된 최근 리뷰 전체 기준이라 “good product” 같은 짧은 리뷰가 모든 제품의 비율을 똑같이 낮춤.")}>
-      <CompareGrid cols={cols} items={products} criteria={BUYER_CRITERIA} extra={extra} labelWidth={150} />
-    </ActionSection>
-  );
+  const note = tr("Three layers: our count of themes in the review text (the same for every product), Nykaa's own tags where it shows them, and the paid AI review read one click away. Percentages are of all stored recent reviews, so short reviews (“good product”) lower them evenly for everyone.", "세 겹으로 확인: 리뷰 본문 주제 집계(모든 제품에 같은 방법), Nykaa 태그, 한 번 누르면 나오는 AI 리뷰 분석. 비율은 저장된 최근 리뷰 전체 기준이라 “good product” 같은 짧은 리뷰가 모든 제품의 비율을 똑같이 낮춤.");
+  return { criteria: BUYER_CRITERIA, extra, title, note };
 }
 
 /* ---------------------------------------------------------------- §6 shelf, search and demand */
 
-/** Shelf, search and demand in one table (owner 20 Oct 2026: one place, less space): where the product sits and how
+/** Shelf, search and demand rows (owner 20 Oct 2026: one place, less space): where the product sits and how
  *  much it sells, with written reviews month on month. */
-export function ShelfAndDemand({ products, colors, cat }: { products: ProductFacts[]; colors: Record<string, string>; cat: string }) {
+export function shelfPart({ products, colors, cat }: { products: ProductFacts[]; colors: Record<string, string>; cat: string }) {
   const a = products.find((p) => p.role === "anchor"); const win = monthsWindow(12);
-  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, head: <ProductHead p={p} color={colors[p.brand]} /> }));
   const SHOT = (s: string | null) => (s === "pack_shot" ? tr("pack shot", "제품 단독 컷") : s === "flat_lay" ? tr("flat lay", "플랫레이") : (s ?? "").replaceAll("_", " "));
   const extra: ExtraRow<ProductFacts>[] = [
     { key: "thumb", after: "search", label: tr("Thumbnail style", "썸네일 스타일"), help: tr("How the main image reads in the grid (click a product image for the full read)", "목록 화면에서 대표 이미지가 보이는 방식 (제품 이미지를 누르면 전체 분석)"), has: (p) => !!p.thumb?.shot_type,
@@ -132,15 +126,10 @@ export function ShelfAndDemand({ products, colors, cat }: { products: ProductFac
   const higher = a ? products.filter((p) => p !== a && p.rank && (!a.rank || p.rank < a.rank)).length : 0;
   const top = [...products].filter((p) => p.recent !== null).sort((x, y) => y.recent! - x.recent!)[0];
   const mom0 = a ? latestMoM(a.spark, win, a.sparkOpen) : null; const mom = mom0 && !mom0.small ? mom0 : null;
-  const title = a ? tr(`${a.rank ? `#${a.rank} in ${CATEGORY_LABEL[cat]} today` : `Not in today's ${CATEGORY_LABEL[cat]} top 100`}, ${higher} of ${products.length - 1} rivals higher${a.recent !== null ? `; ${a.recent} reviews in 3 months${top && top !== a ? ` (${top.brand} leads with ${top.recent})` : ", the most in the group"}` : ""}${mom ? `; ${monthShort(mom.month)} ${signed(mom.mom)} on the month before` : ""}.`,
-      `${a.rank ? `오늘 ${CATEGORY_LABEL[cat]} ${a.rank}위` : `오늘 ${CATEGORY_LABEL[cat]} 100위 밖`}, 경쟁 제품 ${products.length - 1}개 중 ${higher}개가 더 높음${a.recent !== null ? `. 3개월 리뷰 ${a.recent}건${top && top !== a ? ` (선두 ${top.brand} ${top.recent}건)` : ", 그룹 내 최다"}` : ""}${mom ? `. ${monthShort(mom.month)} 전월 대비 ${signed(mom.mom)}` : ""}.`)
-    : tr("Shelf, search and demand.", "진열·검색·수요.");
-  return (
-    <ActionSection id="visibility" kicker={tr("Shelf, search and demand", "진열·검색·수요")} title={title}
-      note={tr("Green where Innisfree beats that rival, red where it trails, grey on par (within 3 places or 5%). Demand = written reviews: Nykaa does not publish sales, and new reviews per month track them closely.", "초록 = Innisfree가 그 경쟁 제품보다 앞섬, 빨강 = 뒤짐, 회색 = 비슷 (3계단 또는 5% 이내). 수요 = 작성 리뷰: Nykaa는 판매량을 공개하지 않고, 월별 신규 리뷰가 판매를 잘 따라감.")}>
-      <span id="demand" className="block scroll-mt-32" />
-      <CompareGrid cols={cols} items={products} criteria={[...VIS_CRITERIA, ...DEMAND_CRITERIA]} extra={extra} colors={products.map((p) => colors[p.brand])} labelWidth={150}
-        groups={{ rank: tr("Shelf and search", "진열·검색"), demand: tr("Demand · written reviews", "수요 · 작성 리뷰") }} />
-    </ActionSection>
-  );
+  const shelfTitle = a ? tr(`${a.rank ? `#${a.rank} in ${CATEGORY_LABEL[cat]} today` : `Not in today's ${CATEGORY_LABEL[cat]} top 100`}; ${higher} of ${products.length - 1} rivals sit higher${a.search ? `, and it shows in ${a.search} K-beauty search${a.search === 1 ? "" : "es"}` : ", and it shows in no tracked K-beauty search"}.`,
+      `${a.rank ? `오늘 ${CATEGORY_LABEL[cat]} ${a.rank}위` : `오늘 ${CATEGORY_LABEL[cat]} 100위 밖`}. 경쟁 제품 ${products.length - 1}개 중 ${higher}개가 더 높음. ${a.search ? `K-뷰티 검색어 ${a.search}개에서 노출` : "추적 중인 K-뷰티 검색어엔 노출 안 됨"}.`) : null;
+  const demandTitle = a && a.recent !== null ? tr(`${shortTitle(a.name, a.brand)} drew ${a.recent} reviews in 3 months${top && top !== a ? `; ${top.brand} leads with ${top.recent}` : ", the most in the group"}${mom ? `; ${monthShort(mom.month)} ${signed(mom.mom)} on the month before` : ""}.`,
+      `${shortTitle(a.name, a.brand)}: 3개월 리뷰 ${a.recent}건${top && top !== a ? `. 선두: ${top.brand}(${top.recent}건)` : ". 그룹 내 최다"}${mom ? `. ${monthShort(mom.month)} 전월 대비 ${signed(mom.mom)}` : ""}.`) : null;
+  const note = tr("Green where Innisfree beats that rival, red where it trails, grey on par (within 3 places or 5%); LEAD marks a clear best. Demand = written reviews: Nykaa does not publish sales, and new reviews per month track them closely.", "초록 = Innisfree가 그 경쟁 제품보다 앞섬, 빨강 = 뒤짐, 회색 = 비슷 (3계단 또는 5% 이내). ‘선두’ = 확실한 1위. 수요 = 작성 리뷰: Nykaa는 판매량을 공개하지 않고, 월별 신규 리뷰가 판매를 잘 따라감.");
+  return { criteria: [...VIS_CRITERIA, ...DEMAND_CRITERIA], extra, shelfTitle, demandTitle, note };
 }

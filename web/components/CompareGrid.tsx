@@ -6,6 +6,7 @@ import { Missing } from "./Detail";
 import { tr } from "@/lib/i18n";
 
 export interface GridCol { key: string; head: React.ReactNode; anchor?: boolean }
+export interface GridGroup { label: string; title?: React.ReactNode; id?: string }
 export interface ExtraRow<T> { label: React.ReactNode; help?: string; render: (x: T) => React.ReactNode; has?: (x: T) => boolean;
   /** why a cell has no value (shown instead of a dash) */
   missing?: (x: T) => string;
@@ -18,8 +19,8 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
   cols: GridCol[]; items: (T | null)[]; criteria: Criterion<T>[]; extra?: ExtraRow<T>[];
   /** bar colour per column */
   colors?: string[]; labelWidth?: number;
-  /** optional section labels: criterion key -> heading shown above it */
-  groups?: Record<string, string>;
+  /** optional section labels: criterion key -> heading shown above it (with an optional headline and anchor) */
+  groups?: Record<string, string | GridGroup>;
 }) {
   const ai = cols.findIndex((c) => c.anchor);
   const anchor = ai >= 0 ? items[ai] : null;
@@ -57,7 +58,11 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
           const max = vals.length ? Math.max(...vals.map(Math.abs)) : 0;
           return (
             <Fragment key={cr.key}>
-              {groups?.[cr.key] && <div className="border-b border-line bg-page/40 px-4 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted">{groups[cr.key]}</div>}
+              {groups?.[cr.key] && (() => { const g = groups[cr.key]; const G = typeof g === "string" ? { label: g } : g; return (
+                <div id={G.id} className="scroll-mt-32 border-b border-line bg-page/40 px-4 pb-1.5 pt-3">
+                  <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted">{G.label}</div>
+                  {G.title && <div className="mt-0.5 max-w-[900px] text-[14px] font-medium leading-snug text-ink">{G.title}</div>}
+                </div>); })()}
               <div className="grid items-center border-b border-line last:border-0" style={grid}>
                 <div className="px-4 py-2.5 text-[12.5px] text-ink-2" title={cr.help}>{cr.label}</div>
                 {items.map((x, i) => {

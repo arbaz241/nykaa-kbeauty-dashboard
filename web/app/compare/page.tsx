@@ -4,9 +4,8 @@ import MethodNotes from "@/components/MethodNotes";
 import { useEffect, useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import { Summary } from "@/components/compete/Overview";
-import { PriceSection } from "@/components/compete/Price";
+import { ProductTable } from "@/components/compete/ProductTable";
 import { Message } from "@/components/compete/Proposition";
-import { Buyers, ShelfAndDemand } from "@/components/compete/Reception";
 import { Brands, PriceBasket, WhereCompete } from "@/components/compete/Brands";
 import RivalPicker, { loadEdits, saveEdits, MAX_PRODUCTS, type RivalEdit } from "@/components/compete/RivalPicker";
 import { useMarket } from "@/lib/useMarket";
@@ -40,9 +39,10 @@ const NAV = (): NavItem[] => [
   { id: "basket", label: tr("Price basket", "가격 바스켓") },
   { id: "summary", label: tr("Product verdict", "제품 결론") },
   { id: "price", label: tr("Price", "가격") },
-  { id: "message", label: tr("Message", "메시지") },
   { id: "buyers", label: tr("What buyers say", "구매자 반응") },
-  { id: "visibility", label: tr("Shelf, search, demand", "진열·검색·수요") },
+  { id: "visibility", label: tr("Shelf and search", "진열·검색") },
+  { id: "demand", label: tr("Demand", "수요") },
+  { id: "message", label: tr("Message", "메시지") },
 ];
 const PartHead = ({ id, n, title, sub }: { id: string; n: number; title: string; sub: React.ReactNode }) => (
   <div id={id} className="mt-10 scroll-mt-32 border-t-2 border-ink pt-4">
@@ -188,17 +188,16 @@ function CompetitivePage() {
             onPickCat={(c) => { setCat(c); setHeroPick(null); setTimeout(() => document.getElementById("part-products")?.scrollIntoView({ behavior: "smooth" }), 50); }} />
           <PriceBasket facts={bfacts} anchor={anchor} />
 
-          <PartHead id="part-products" n={2} title={tr(`Product to product · ${CATEGORY_LABEL[cat]}`, `제품 대 제품 · ${CATEGORY_LABEL[cat]}`)} sub={tr(<>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} against its rival products</> : <>Each brand&rsquo;s best-ranked product in {CATEGORY_LABEL[cat]}</>}: the verdict, then price, message, what buyers say, visibility and demand. Drop a rival or add any product with the bar below.</>, <>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품</> : <>{CATEGORY_LABEL[cat]} 브랜드별 최고 순위 제품</>}: 결론, 가격, 메시지, 구매자 반응, 노출, 수요 순. 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
+          <PartHead id="part-products" n={2} title={tr(`Product to product · ${CATEGORY_LABEL[cat]}`, `제품 대 제품 · ${CATEGORY_LABEL[cat]}`)} sub={tr(<>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} against its rival products</> : <>Each brand&rsquo;s best-ranked product in {CATEGORY_LABEL[cat]}</>}: the verdict, then price, what buyers say, shelf and demand side by side, then the message. Drop a rival or add any product with the bar below.</>, <>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품</> : <>{CATEGORY_LABEL[cat]} 브랜드별 최고 순위 제품</>}: 결론, 가격·구매자 반응·진열·수요 비교표, 그다음 메시지 순. 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
           <RivalPicker cat={cat} anchorBrand={anchor} edited={!!edit} rows={rows} catalog={cat0} flow={market.flow}
             current={products.map((p) => ({ pid: p.pid, brand: p.brand, role: p.role === "anchor" || p.pid === productIds[0]?.pid ? "anchor" : p.role, name: p.name }))}
             onRemove={(pid) => changeEdit((e) => ({ removed: e.added.some((a) => a.pid === pid) ? e.removed : [...e.removed, pid], added: e.added.filter((a) => a.pid !== pid) }))}
             onAdd={(pid, brand) => changeEdit((e) => ({ removed: e.removed.filter((x) => x !== pid), added: [...e.added, { pid, brand }] }))}
             onReset={() => changeEdit(() => null)} />
           <Summary hero={hero} products={products} bench={bench} cat={cat} />
-          <PriceSection products={products} colors={colors} bench={bench} std={stdMl} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
+          <ProductTable products={products} colors={colors} bench={bench} std={stdMl} cat={cat} loading={reviews.isLoading}
+            optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
           <Message hero={hero} products={products} colors={colors} />
-          <Buyers products={products} colors={colors} loading={reviews.isLoading} />
-          <ShelfAndDemand products={products} colors={colors} cat={cat} />
         </>
       )}
       <MethodNotes parts={{
