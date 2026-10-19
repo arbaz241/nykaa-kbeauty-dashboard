@@ -3,11 +3,12 @@
 import BrandPicker from "@/components/BrandPicker";
 import CompareGrid, { type ExtraRow, type GridCol } from "@/components/CompareGrid";
 import PresenceMatrix from "@/components/PresenceMatrix";
-import { ActionSection, Finding } from "@/components/Report";
-import Sparkline from "@/components/Sparkline";
+import { ActionSection } from "@/components/Report";
+import { MonthOnMonth, momHelp } from "@/components/MonthOnMonth";
+import { monthsWindow } from "@/lib/metrics";
 import { Card } from "@/components/ui";
 import { Missing, Points, useDetail } from "@/components/Detail";
-import { ORIGIN_LABEL, norm } from "@/lib/brands";
+import { ORIGIN_LABEL } from "@/lib/brands";
 import { demandWindow } from "@/lib/analysis";
 import { standings, strongestWeakest, type Criterion } from "@/lib/compete";
 import { productOptions, shelfCat, shortTitle, type BrandFacts } from "@/lib/competeData";
@@ -76,11 +77,6 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
   const title = a ? tr(`${strong.length ? `Innisfree beats most of these brands on ${list(strong)}` : "Innisfree leads these brands on no measure"}${weak.length ? ` and trails on ${list(weak)}` : ""}; its core basket costs more than ${cheaper} of ${priced.length} of them.`,
       `${strong.length ? `Innisfree는 ${list(strong)}에서 이 브랜드들 대부분을 앞서고` : "Innisfree가 이 브랜드들보다 앞서는 지표는 없고"}${weak.length ? `, ${list(weak)}에서는 뒤처짐` : ""}. 핵심 바스켓 가격은 ${priced.length}개 브랜드 중 ${cheaper}개보다 비쌈.`) : tr("Brand vs brand.", "브랜드 대 브랜드.");
 
-  const on = facts.filter((f) => f.slots > 0);
-  const widest = [...on].sort((x, y) => y.slots - x.slots);
-  const byPrice = [...facts].filter((f) => f.basket.overall !== null).sort((x, y) => x.basket.overall! - y.basket.overall!);
-  const mom = facts.filter((f) => f.growth !== null && (f.last3 ?? 0) >= 30).sort((x, y) => y.growth! - x.growth!);
-  const srch = [...facts].sort((x, y) => y.searchTerms - x.searchTerms);
   const focus = focusSet.filter((b) => known.includes(b));
   const all = [...new Set(rows.map((r) => r.brand))].map((b) => ({ brand: b, slots: rows.filter((r) => r.brand === b).length })).sort((x, y) => y.slots - x.slots);
 
@@ -91,7 +87,7 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
     </div>
   ) }));
   const extra: ExtraRow<BrandFacts>[] = [
-    { after: "momentum", label: tr("12-month trend", "12개월 추이"), help: tr("Monthly reviews over the last 12 complete months", "최근 완결된 12개월의 월별 리뷰 수"), has: (f) => f.spark.some((v) => v !== null), missing: () => tr("Not in review tracking", "리뷰 추적 대상 아님"), render: (f) => <Sparkline values={f.spark} color={colors[f.brand]} width={140} height={30} /> },
+    { after: "momentum", label: tr("By month · month on month", "월별 · 전월 대비"), help: momHelp(), has: (f) => f.spark.some((v) => v !== null), missing: () => tr("Not in review tracking", "리뷰 추적 대상 아님"), render: (f) => <MonthOnMonth values={f.spark} win={monthsWindow(12)} color={colors[f.brand]} /> },
   ];
 
   return (
@@ -104,14 +100,6 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
         </div>
         <BrandPicker focus={focus} all={all} selected={brands} colors={colors} onToggle={onToggle} max={6} />
       </Card>
-      {on.length >= 2 && (
-        <div className="mb-4 grid gap-3 md:grid-cols-2">
-          <Finding label={tr("Shelf presence", "진열 존재감")}>{tr(<><b>{widest[0].brand}</b> has the widest presence: {widest[0].slots} top-100 listings across {widest[0].categories.length} categories, against {widest[widest.length - 1].slots} for {widest[widest.length - 1].brand}.</>, <><b>{widest[0].brand}</b>: 존재감이 가장 넓음. 카테고리 {widest[0].categories.length}개에 걸쳐 상위 100위 제품 {widest[0].slots}개 ({widest[widest.length - 1].brand}는 {widest[widest.length - 1].slots}개).</>)}</Finding>
-          {byPrice.length >= 2 && <Finding label={tr("Price (core basket)", "가격 (핵심 바스켓)")}>{tr(<><b>{byPrice[0].brand}</b> is the most affordable at {inr(byPrice[0].basket.overall)}; <b>{byPrice[byPrice.length - 1].brand}</b> the most premium at {inr(byPrice[byPrice.length - 1].basket.overall)}.</>, <>가장 저렴한 곳: <b>{byPrice[0].brand}</b>({inr(byPrice[0].basket.overall)}), 가장 고가: <b>{byPrice[byPrice.length - 1].brand}</b>({inr(byPrice[byPrice.length - 1].basket.overall)}).</>)}</Finding>}
-          {mom.length >= 2 && <Finding label={tr("Demand momentum", "수요 모멘텀")} tone={norm(mom[0].brand) === norm(anchor) ? "good" : undefined}>{tr(<>Momentum favours <b>{mom[0].brand}</b> ({signed(mom[0].growth)} reviews, {DW().recent} vs {DW().prior}); <b>{mom[mom.length - 1].brand}</b> is weakest ({signed(mom[mom.length - 1].growth)}).</>, <>모멘텀이 가장 좋은 곳: <b>{mom[0].brand}</b>(리뷰 {signed(mom[0].growth)}, {DW().recent} vs {DW().prior}), 가장 약한 곳: <b>{mom[mom.length - 1].brand}</b>({signed(mom[mom.length - 1].growth)}).</>)}</Finding>}
-          {srch[0]?.searchTerms > 0 && <Finding label={tr("Search", "검색")}>{tr(<><b>{srch[0].brand}</b> shows up in the most K-beauty searches: top 10 unpaid for {srch[0].searchTerms} tracked terms{a ? `, against ${a.searchTerms} for Innisfree` : ""}.</>, <>K-뷰티 검색 노출이 가장 많은 곳: <b>{srch[0].brand}</b>— 추적 검색어 {srch[0].searchTerms}개에서 비광고 상위 10위{a ? ` (Innisfree는 ${a.searchTerms}개)` : ""}.</>)}</Finding>}
-        </div>
-      )}
       <CompareGrid cols={cols} items={facts} criteria={criteria} extra={extra} groups={GROUPS()} colors={facts.map((f) => colors[f.brand])} labelWidth={160} />
       <p className="mt-2 text-[11.5px] text-muted">{tr("Shelf, rating and paid figures are from today’s top-100 listings; prices from each brand’s full Nykaa range where tracked. Hover a row name for its definition.", "진열·평점·광고 수치는 오늘 상위 100위 제품 기준, 가격은 추적 브랜드의 Nykaa 전체 라인업 기준. 행 이름에 마우스를 올리면 정의 표시.")}</p>
     </ActionSection>
@@ -177,28 +165,24 @@ export function PriceBasket({ facts, anchor }: { facts: BrandFacts[]; anchor: st
   };
   const gap = (f: BrandFacts) => (f.basket.source === "shelf" ? tr("Crawl pending", "수집 대기") : tr("Not sold", "미판매"));
   return (
-    <ActionSection id="basket" kicker={tr("Price · like for like, on MRP", "가격 · 정가 기준 동일 조건 비교")} title={title} note={tr(`Median full-size MRP in each core category (${basketLabel()}). "×" compares with Innisfree on the categories both sell; click a price for how it was built.`, `핵심 카테고리별 정규 용량 정가 중앙값 (${basketLabel()}). "×" = 둘 다 판매하는 카테고리에서 Innisfree 대비 값, 가격을 누르면 계산 방법 표시.`)}>
+    <ActionSection id="basket" kicker={tr("Price · like for like, on MRP", "가격 · 정가 기준 동일 조건 비교")} title={title} note={tr(`What the scorecard's core basket is made of: median full-size MRP in each core category (${basketLabel()}). "×" compares with Innisfree on the categories both sell; click a price for how it was built.`, `스코어카드 핵심 바스켓의 구성: 핵심 카테고리별 정규 용량 정가 중앙값 (${basketLabel()}). "×" = 둘 다 판매하는 카테고리에서 Innisfree 대비 값, 가격을 누르면 계산 방법 표시.`)}>
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-[12.5px] tabular">
           <thead>
             <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.08em] text-muted">
               <th className="px-4 py-2.5 font-semibold">{tr("Brand", "브랜드")}</th>
-              <th className="px-3 py-2.5 font-semibold">{tr("Basket", "바스켓")}</th>
               {PRICE_BASKET.map((c) => <th key={c} className="px-3 py-2.5 font-semibold">{CATEGORY_LABEL[c]}</th>)}
-              <th className="px-3 py-2.5 font-semibold">{tr("Avg discount", "평균 할인율")}</th>
             </tr>
           </thead>
           <tbody>
             {facts.map((f) => (
               <tr key={f.brand} className={`border-b border-line last:border-0 ${f.brand === anchor ? "bg-page/70" : ""}`}>
                 <td className="px-4 py-2 font-medium">{f.brand}</td>
-                <td className="px-3 py-2">{f.basket.overall ? <><b>{inr(f.basket.overall)}</b>{f.basket.vsAnchor && f.brand !== anchor ? <span className="block text-[10.5px] text-muted">{tr(`${f.basket.vsAnchor.toFixed(2)}× Innisfree`, `Innisfree의 ${f.basket.vsAnchor.toFixed(2)}배`)}</span> : null}</> : <Missing>{gap(f)}</Missing>}</td>
                 {PRICE_BASKET.map((c) => { const v = f.basket.byCategory[c]; const av = a?.basket.byCategory[c]; return (
                   <td key={c} className="px-3 py-2">{v ? <button onClick={() => open(cellDetail(f, c))} className="text-left hover:underline">
                     <b>{inr(v.price)}</b>{av && f.brand !== anchor && <span className={`ml-1 text-[10.5px] ${v.price > av.price * 1.05 ? "text-bad" : v.price < av.price * 0.95 ? "text-good" : "text-muted"}`}>{(v.price / av.price).toFixed(2)}×</span>}
                     {v.perHundred ? <span className="block text-[10.5px] text-muted">₹{Math.round(v.perHundred).toLocaleString("en-IN")}/100 ml</span> : null}</button> : <Missing>{gap(f)}</Missing>}</td>
                 ); })}
-                <td className="px-3 py-2">{f.avgDiscount === null ? <Missing>{tr("No top-100 listing", "상위 100위 제품 없음")}</Missing> : `${Math.round(f.avgDiscount)}%`}</td>
               </tr>
             ))}
           </tbody>

@@ -7,6 +7,7 @@ import { monthsWindow } from "@/lib/metrics";
 import { VERDICT, useUspProducts } from "@/lib/usp";
 import { LEVEL_WORD } from "./Detail";
 import LineChart from "./LineChart";
+import { MoMStrip, openEnded } from "./MonthOnMonth";
 import { push } from "@/lib/group";
 import { dayMonth, dayMonthYear, monthYY, tr } from "@/lib/i18n";
 import { tx, txs } from "@/lib/dict";
@@ -87,7 +88,7 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
           {error && <p className="mt-6 text-[13px] text-bad">{tr("Could not load history", "이력 불러오기 실패")}: {String(error.message)}</p>}
 
           <Block title={tr("Demand: reviews per month", "월별 작성 리뷰 수")} note={tr("Last 12 complete months. Months before the product's reliable history are blank.", "최근 완결된 12개월. 신뢰할 수 있는 이력 이전 달은 빈칸.")}>
-            {monthly.some((v) => v !== null) ? <LineChart labels={win.map((m) => monthYY(m))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: monthly }]} height={200} />
+            {monthly.some((v) => v !== null) ? <><LineChart labels={win.map((m) => monthYY(m))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: monthly }]} height={200} /><MoMStrip values={monthly} win={win} open={openEnded((data?.months ?? []).map((r) => [r.month, r.reviews] as [string, number]), win[win.length - 1])} /></>
               : <p className="text-[13px] text-muted">{data ? tr("This product is not in the review-history set (tracked for the focus brands' leading products and the most visible competitors).", "리뷰 이력 수집 대상이 아닌 제품 (주요 브랜드 대표 제품과 노출이 많은 경쟁 제품만 추적).") : tr("Loading…", "불러오는 중…")}</p>}
           </Block>
 

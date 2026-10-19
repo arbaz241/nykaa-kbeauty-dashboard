@@ -7,6 +7,7 @@ import AuthGate from "@/components/AuthGate";
 import Shell from "@/components/Shell";
 import PeriodBar from "@/components/PeriodBar";
 import LineChart from "@/components/LineChart";
+import { MoMStrip } from "@/components/MonthOnMonth";
 import Sparkline from "@/components/Sparkline";
 import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
@@ -176,7 +177,7 @@ function Brand() {
       <ActionSection id="demand" kicker={tr("Written reviews, 12-month trend", "작성 리뷰, 12개월 추세")} title={trend && trend.change !== null ? tr(`Reviews ${signed(trend.change)} vs a year earlier (${trend.recentLabel})`, `리뷰 1년 전 대비 ${signed(trend.change)} (${trend.recentLabel})`) : tr("Written reviews per month", "월별 작성 리뷰")}
         note={tr(`Written reviews per month on the brand's tracked products, last 24 complete months. The brand's own trend, not sales; Nykaa's beauty sales grew ${signed(nykaa.value)} in ${nykaa.label}.`, `브랜드 추적 제품의 월별 작성 리뷰, 최근 완결된 24개월. 브랜드 자체 추세일 뿐 매출 아님. Nykaa 뷰티 매출 ${nykaa.label} ${signed(nykaa.value)}.`)}>
         <Card className="p-5">
-          {trend && trend.values.some((v) => v !== null) ? <LineChart labels={trend.axis.map((a) => monthYY(a))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: trend.values }]} height={220} />
+          {trend && trend.values.some((v) => v !== null) ? <><LineChart labels={trend.axis.map((a) => monthYY(a))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: trend.values }]} height={220} /><MoMStrip values={trend.values} win={trend.axis} /></>
             : <p className="text-[13px] text-muted">{tr("None of the brand's products is in the review-history set.", "브랜드 제품 중 리뷰 이력 수집 대상 없음.")}</p>}
         </Card>
       </ActionSection>

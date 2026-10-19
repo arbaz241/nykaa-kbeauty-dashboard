@@ -3,14 +3,14 @@
 import CompareGrid, { Chip, type ExtraRow, type GridCol } from "@/components/CompareGrid";
 import { DetailHead, Level, Missing, Opens, Points, type DetailContent } from "@/components/Detail";
 import { ActionSection } from "@/components/Report";
-import Sparkline from "@/components/Sparkline";
+import { MonthOnMonth, latestMoM, momHelp } from "@/components/MonthOnMonth";
+import { monthsWindow } from "@/lib/metrics";
 import { shortTitle, type ProductFacts } from "@/lib/competeData";
-import { CATEGORY_LABEL } from "@/lib/format";
+import { CATEGORY_LABEL, signed } from "@/lib/format";
 import type { ThemeCount } from "@/lib/reviewThemes";
 import { VERDICT } from "@/lib/usp";
 import { BUYER_CRITERIA, DEMAND_CRITERIA, ProductHead, VIS_CRITERIA } from "./Overview";
-import { demandWindow } from "@/lib/analysis";
-import { tr } from "@/lib/i18n";
+import { monthShort, tr } from "@/lib/i18n";
 import { tx } from "@/lib/dict";
 
 const pc = (x: number) => `${Math.max(1, Math.round(x * 100))}%`;
@@ -114,43 +114,33 @@ export function Buyers({ products, colors, loading }: { products: ProductFacts[]
   );
 }
 
-/* ---------------------------------------------------------------- §6 visibility, §7 demand */
+/* ---------------------------------------------------------------- §6 shelf, search and demand */
 
-export function Visibility({ products, colors, cat }: { products: ProductFacts[]; colors: Record<string, string>; cat: string }) {
-  const a = products.find((p) => p.role === "anchor");
+/** Shelf, search and demand in one table (owner 20 Oct 2026: one place, less space): where the product sits and how
+ *  much it sells, with written reviews month on month. */
+export function ShelfAndDemand({ products, colors, cat }: { products: ProductFacts[]; colors: Record<string, string>; cat: string }) {
+  const a = products.find((p) => p.role === "anchor"); const win = monthsWindow(12);
   const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, head: <ProductHead p={p} color={colors[p.brand]} /> }));
   const SHOT = (s: string | null) => (s === "pack_shot" ? tr("pack shot", "제품 단독 컷") : s === "flat_lay" ? tr("flat lay", "플랫레이") : (s ?? "").replaceAll("_", " "));
   const extra: ExtraRow<ProductFacts>[] = [
-    { key: "thumb", label: tr("Thumbnail style", "썸네일 스타일"), help: tr("How the main image reads in the grid (click a product image for the full read)", "목록 화면에서 대표 이미지가 보이는 방식 (제품 이미지를 누르면 전체 분석)"), has: (p) => !!p.thumb?.shot_type,
+    { key: "thumb", after: "search", label: tr("Thumbnail style", "썸네일 스타일"), help: tr("How the main image reads in the grid (click a product image for the full read)", "목록 화면에서 대표 이미지가 보이는 방식 (제품 이미지를 누르면 전체 분석)"), has: (p) => !!p.thumb?.shot_type,
       missing: () => tr("Image not analysed yet", "이미지 미분석"),
       render: (p) => <div className="flex flex-wrap gap-1"><Chip>{SHOT(p.thumb!.shot_type)}</Chip><Chip>{p.thumb!.text_density === "heavy" ? tr("text-heavy", "문구 많음") : p.thumb!.text_density === "light" ? tr("light text", "문구 적음") : tr("no text", "문구 없음")}</Chip>{p.thumb!.model_present && <Chip>{tr("shows a person", "인물 있음")}</Chip>}</div> },
+    { key: "spark", after: "momentum", label: tr("By month · month on month", "월별 · 전월 대비"), help: momHelp(), has: (p) => !!p.spark?.some((v) => v !== null),
+      missing: () => tr("No review history tracked", "추적 중인 리뷰 이력 없음"), render: (p) => <MonthOnMonth values={p.spark!} win={win} open={p.sparkOpen} color={colors[p.brand] ?? "#8a8880"} /> },
   ];
   const higher = a ? products.filter((p) => p !== a && p.rank && (!a.rank || p.rank < a.rank)).length : 0;
-  const title = a ? tr(`${a.rank ? `#${a.rank} in ${CATEGORY_LABEL[cat]} today` : `Not in today's ${CATEGORY_LABEL[cat]} top 100`}; ${higher} of ${products.length - 1} rivals sit higher${a.search ? `, and it shows in ${a.search} K-beauty search${a.search === 1 ? "" : "es"}` : ", and it shows in no tracked K-beauty search"}.`,
-      `${a.rank ? `오늘 ${CATEGORY_LABEL[cat]} ${a.rank}위` : `오늘 ${CATEGORY_LABEL[cat]} 100위 밖`}. 경쟁 제품 ${products.length - 1}개 중 ${higher}개가 더 높음. ${a.search ? `K-뷰티 검색어 ${a.search}개에서 노출` : "추적 중인 K-뷰티 검색어엔 노출 안 됨"}.`) : tr("Shelf position and search.", "진열 순위와 검색.");
-  return (
-    <ActionSection id="visibility" kicker={tr("Visibility · shelf and search", "노출 · 진열과 검색")} title={title} note={tr("Green where Innisfree beats that rival, red where it trails, grey on par (within 3 places or 5%). LEAD marks a clear best.", "초록 = Innisfree가 그 경쟁 제품보다 앞섬, 빨강 = 뒤짐, 회색 = 비슷 (3계단 또는 5% 이내). ‘선두’ = 확실한 1위.")}>
-      <CompareGrid cols={cols} items={products} criteria={VIS_CRITERIA} extra={extra} colors={products.map((p) => colors[p.brand])} labelWidth={150} />
-    </ActionSection>
-  );
-}
-
-export function Demand({ products, colors }: { products: ProductFacts[]; colors: Record<string, string> }) {
-  const a = products.find((p) => p.role === "anchor");
-  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, head: <ProductHead p={p} color={colors[p.brand]} /> }));
-  const extra: ExtraRow<ProductFacts>[] = [
-    { key: "spark", after: "momentum", label: tr("12-month trend", "12개월 추이"), help: tr("Reviews per month over the last 12 complete months", "최근 완결된 12개월의 월별 리뷰 수"), has: (p) => !!p.spark?.some((v) => v !== null),
-      missing: () => tr("No review history tracked", "추적 중인 리뷰 이력 없음"), render: (p) => <Sparkline values={p.spark!} color={colors[p.brand] ?? "#8a8880"} width={140} height={30} /> },
-  ];
   const top = [...products].filter((p) => p.recent !== null).sort((x, y) => y.recent! - x.recent!)[0];
-  const prior = demandWindow().prior;
-  const title = a?.recent != null
-    ? tr(`${shortTitle(a.name, a.brand)} drew ${a.recent} reviews in 3 months${a.momentum !== null ? ` (${a.momentum >= 0 ? "+" : ""}${Math.round(a.momentum * 100)}% vs ${prior})` : ""}${top && top !== a ? `; ${top.brand} leads with ${top.recent}` : "; the most in the group"}.`,
-      `${shortTitle(a.name, a.brand)}: 3개월 리뷰 ${a.recent}건${a.momentum !== null ? ` (${prior} 대비 ${a.momentum >= 0 ? "+" : ""}${Math.round(a.momentum * 100)}%)` : ""}${top && top !== a ? `. 선두: ${top.brand}(${top.recent}건)` : ". 그룹 내 최다"}.`)
-    : tr("Recent reviews, a stand-in for sales.", "최근 리뷰 수 (판매의 대리 지표).");
+  const mom0 = a ? latestMoM(a.spark, win, a.sparkOpen) : null; const mom = mom0 && !mom0.small ? mom0 : null;
+  const title = a ? tr(`${a.rank ? `#${a.rank} in ${CATEGORY_LABEL[cat]} today` : `Not in today's ${CATEGORY_LABEL[cat]} top 100`}, ${higher} of ${products.length - 1} rivals higher${a.recent !== null ? `; ${a.recent} reviews in 3 months${top && top !== a ? ` (${top.brand} leads with ${top.recent})` : ", the most in the group"}` : ""}${mom ? `; ${monthShort(mom.month)} ${signed(mom.mom)} on the month before` : ""}.`,
+      `${a.rank ? `오늘 ${CATEGORY_LABEL[cat]} ${a.rank}위` : `오늘 ${CATEGORY_LABEL[cat]} 100위 밖`}, 경쟁 제품 ${products.length - 1}개 중 ${higher}개가 더 높음${a.recent !== null ? `. 3개월 리뷰 ${a.recent}건${top && top !== a ? ` (선두 ${top.brand} ${top.recent}건)` : ", 그룹 내 최다"}` : ""}${mom ? `. ${monthShort(mom.month)} 전월 대비 ${signed(mom.mom)}` : ""}.`)
+    : tr("Shelf, search and demand.", "진열·검색·수요.");
   return (
-    <ActionSection id="demand" kicker={tr("Demand · reviews as a sales signal", "수요 · 판매 신호로 본 리뷰")} title={title} note={tr("Nykaa does not publish sales; new reviews per month track them closely. Products outside the review-history set are marked.", "Nykaa는 판매량을 공개하지 않고, 월별 신규 리뷰가 판매를 잘 따라감. 리뷰 이력 수집 대상이 아닌 제품은 따로 표시.")}>
-      <CompareGrid cols={cols} items={products} criteria={DEMAND_CRITERIA} extra={extra} colors={products.map((p) => colors[p.brand])} labelWidth={150} />
+    <ActionSection id="visibility" kicker={tr("Shelf, search and demand", "진열·검색·수요")} title={title}
+      note={tr("Green where Innisfree beats that rival, red where it trails, grey on par (within 3 places or 5%). Demand = written reviews: Nykaa does not publish sales, and new reviews per month track them closely.", "초록 = Innisfree가 그 경쟁 제품보다 앞섬, 빨강 = 뒤짐, 회색 = 비슷 (3계단 또는 5% 이내). 수요 = 작성 리뷰: Nykaa는 판매량을 공개하지 않고, 월별 신규 리뷰가 판매를 잘 따라감.")}>
+      <span id="demand" className="block scroll-mt-32" />
+      <CompareGrid cols={cols} items={products} criteria={[...VIS_CRITERIA, ...DEMAND_CRITERIA]} extra={extra} colors={products.map((p) => colors[p.brand])} labelWidth={150}
+        groups={{ rank: tr("Shelf and search", "진열·검색"), demand: tr("Demand · written reviews", "수요 · 작성 리뷰") }} />
     </ActionSection>
   );
 }

@@ -122,7 +122,7 @@ function AllView({ m, tiers, allBrands, latestStat, stats, onPick, span }: { m: 
           <>브랜드: Nykaa 브랜드 필터{latestStat ? ` (${dayMonth(latestStat)})` : ""}. 여러 카테고리에서 파는 브랜드는 합계에서 한 번만. 점유율: <Def k="ratingFlow">구매 점유율</Def> ({dayMonth(span.start)}–{dayMonth(span.end)}), 단일 제품. &ldquo;열기&rdquo;를 누르면 해당 카테고리로 이동.</>)}>
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-[13px]">
-            <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">{tr("Category", "카테고리")}</th><th className="px-2">{tr("Brands selling", "판매 브랜드")}</th><th className="px-2">{tr("Leading brand", "선두 브랜드")}</th><th className="px-2">{tr("Top 5 brands", "상위 5개")}</th><th className="px-2">{tr("Best-selling product", "최다 판매 제품")}</th><th className="px-2">{tr("Korean brands' slice", "K-뷰티 브랜드 점유율")}</th><th className="px-4" /></tr></thead>
+            <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">{tr("Category", "카테고리")}</th><th className="px-2">{tr("Brands selling", "판매 브랜드")}</th><th className="px-2">{tr("Leading brand", "선두 브랜드")}</th><th className="px-2">{tr("Top 5 brands", "상위 5개")}</th><th className="px-2">{tr("Best-selling product", "최다 판매 제품")}</th><th className="px-4" /></tr></thead>
             <tbody>{rows.map((r) => (
               <tr key={r.c} className="border-b border-line/60 align-top">
                 <td className="px-4 py-2.5 font-medium">{catName(r.c)}</td>
@@ -130,7 +130,6 @@ function AllView({ m, tiers, allBrands, latestStat, stats, onPick, span }: { m: 
                 <td className="px-2 py-2.5">{r.leader ? <><b className="font-medium">{r.leader.key}</b> <span className="tabular text-ink-2">{pct(r.leaderShare, 0)}</span></> : <Missing>{tr("no buying counted", "집계 없음")}</Missing>}</td>
                 <td className="px-2 py-2.5 tabular">{r.top5 !== null ? pct(r.top5, 0) : "–"}</td>
                 <td className="max-w-[300px] px-2 py-2.5">{r.top ? <>{r.top.brand} {shortName(r.top.name, r.top.brand)} <span className="tabular text-muted">{pct(r.topShare, 1)}</span></> : "–"}</td>
-                <td className="px-2 py-2.5 tabular">{r.tracked ? pct(r.k, 0) : "–"}</td>
                 <td className="px-4 py-2.5 text-right"><button onClick={() => { onPick(r.c); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-full px-2.5 py-0.5 text-[12px] font-medium text-accent-strong ring-1 ring-line hover:bg-sunken">{tr("Open ›", "열기 ›")}</button></td>
               </tr>))}</tbody>
           </table>

@@ -281,7 +281,7 @@ function BriefPage() {
         </div>
       </ActionSection>
 
-      <MethodNotes parts={{
+      <MethodNotes full parts={{
         sources: [
           tr(<>Nykaa&rsquo;s figures: FSN E-Commerce Ventures&rsquo; investor presentations, call transcripts and quarterly updates, linked on each row. Nothing from news is used for Nykaa&rsquo;s own figures.</>, <>Nykaa 수치: FSN E-Commerce Ventures 투자자 자료, 컨퍼런스콜 녹취록, 분기 업데이트(행마다 링크). Nykaa 자체 수치에 뉴스는 쓰지 않음.</>),
           tr(`Our data: Nykaa's top 100 in ${listCount} lists every night, Nykaa's brand filter for each list, Nykaa's homepage and brand offers (from 17 Oct).`, `우리 데이터: 매일 밤 Nykaa ${listCount}개 목록 상위 100위, 목록별 Nykaa 브랜드 필터, Nykaa 홈페이지와 브랜드 프로모션(10월 17일부터).`),

@@ -7,6 +7,7 @@ import AuthGate from "@/components/AuthGate";
 import Shell from "@/components/Shell";
 import PeriodBar from "@/components/PeriodBar";
 import LineChart, { type Marker } from "@/components/LineChart";
+import { MoMStrip, openEnded } from "@/components/MonthOnMonth";
 import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import { Basis, Def } from "@/components/Tiered";
@@ -68,7 +69,7 @@ function Product() {
   const moves = useMemo(() => (ctx ? cats.map((c) => listingMove(ctx, c, id)).filter((x): x is ListingMove => !!x) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cats, id, m.win, m.ix, events.data, runs, offers.data]);
-  const poolMine = useMemo(() => m.pool.filter((p) => p.product_id === id), [m.pool, id]);
+  const poolMine = useMemo(() => m.pool.filter((p) => p.product_id === id || !!p.members?.includes(id)), [m.pool, id]);
   const trend = useMemo(() => (m.latest && poolMine.length ? reviewTrend(poolMine, m.latest) : null), [poolMine, m.latest]);
   const hero = (comps.data ?? []).find((g) => g.anchor_product_id === id || g.products.includes(id));
   const trail = useTrail(id && name !== id ? shortName(name, brand) : null);
@@ -200,7 +201,7 @@ function Product() {
       <ActionSection id="demand" kicker={tr("Written reviews, 12-month trend", "작성 리뷰, 12개월 추세")} title={trend && trend.change !== null ? tr(`Reviews ${signed(trend.change)} vs a year earlier (${trend.recentLabel})`, `리뷰 1년 전 대비 ${signed(trend.change)} (${trend.recentLabel})`) : tr("Written reviews per month", "월별 작성 리뷰")}
         note={tr(`Written reviews dated by Nykaa, last 24 complete months. This is the product's own trend, not a sales figure; for scale, Nykaa's beauty sales grew ${signed(nykaa.value)} in ${nykaa.label}.`, `Nykaa가 날짜를 붙인 작성 리뷰, 최근 완결된 24개월. 제품 자체 추세일 뿐 매출 아님. 참고: Nykaa 뷰티 매출 ${nykaa.label} ${signed(nykaa.value)}.`)}>
         <Card className="p-5">
-          {trend && trend.values.some((v) => v !== null) ? <LineChart labels={trend.axis.map((a) => monthYY(a))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: trend.values }]} height={220} />
+          {trend && trend.values.some((v) => v !== null) ? <><LineChart labels={trend.axis.map((a) => monthYY(a))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: trend.values }]} height={220} /><MoMStrip values={trend.values} win={trend.axis} open={poolMine.every((p) => openEnded(p.byMonth, trend.axis[trend.axis.length - 1]))} /></>
             : <p className="text-[13px] text-muted">{tr("This product is not in the review-history set (we follow the focus brands' ranges and the most visible competitors).", "리뷰 이력 수집 대상이 아닌 제품 (주요 브랜드 라인업과 노출이 많은 경쟁 제품만 추적).")}</p>}
         </Card>
       </ActionSection>

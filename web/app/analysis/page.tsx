@@ -33,7 +33,7 @@ import { ScopeLine } from "@/components/Scope";
 // plan v3: the anchor first, against its Korean rivals only; Nykaa-wide events live on Offers & events
 const NAV = (anchor: string): NavItem[] => [
   { id: "summary", label: tr(`${anchor} in one line`, `${anchor} 요약`) }, { id: "fights", label: tr("Category by category", "카테고리별 대결") }, { id: "rivals", label: tr("Rivals scorecard", "경쟁사 스코어카드") },
-  { id: "others", label: tr("Other Korean brands", "기타 K-뷰티 브랜드") }, { id: "kmarket", label: tr("K-beauty on Nykaa", "Nykaa의 K-뷰티") }, { id: "standing", label: tr("Seen vs bought", "노출 vs 구매") },
+  { id: "standing", label: tr("Seen vs bought", "노출 vs 구매") },
   { id: "changes", label: tr("Rivals' moves", "경쟁사 동향") }, { id: "heroes", label: tr("Hero products", "히어로 제품") }, { id: "gaps", label: tr("Range gaps", "라인업 공백") }, { id: "next", label: tr("Next steps", "다음 단계") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
 const THEMES = (): { id: string; label: string; test: (f: Finding) => boolean }[] => [

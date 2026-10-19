@@ -157,3 +157,10 @@ export function aspectSummary(rows: { aspects: ReviewAspect[] | null }[]): Aspec
   }
   return [...by.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
 }
+
+/** True when nothing was read after the latest complete month: we may have read the product's reviews before that
+ *  month ended, so its count can still grow (the read date isn't on the dashboard; see migration 032). */
+export function openEnded(byMonth: Iterable<[string, number]>, lastMonth: string) {
+  for (const [m, n] of byMonth) if (m.slice(0, 10) > lastMonth && n > 0) return false;
+  return true;
+}

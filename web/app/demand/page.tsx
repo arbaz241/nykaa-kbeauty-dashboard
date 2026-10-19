@@ -72,17 +72,6 @@ function Thumb({ src }: { src: string | null }) {
   );
 }
 
-function Kpi({ label, value, sub, basis, href, tone }: { label: string; value: React.ReactNode; sub?: React.ReactNode; basis?: React.ReactNode; href: string; tone?: "good" | "bad" }) {
-  return (
-    <a href={href} className="lift block rounded-[16px] bg-surface px-4 py-3.5 shadow-card ring-1 ring-line">
-      <div className="text-[11.5px] font-medium text-muted">{label}</div>
-      <div className={`mt-1 font-display text-[20px] font-semibold leading-tight tracking-tight tabular ${tone === "good" ? "text-good" : tone === "bad" ? "text-bad" : ""}`}>{value}</div>
-      {sub && <div className="mt-1 text-[12px] leading-snug text-ink-2">{sub}</div>}
-      {basis && <Basis className="mt-1">{basis}</Basis>}
-    </a>
-  );
-}
-
 /** Suggestion history for the "new this week" read (the latest-day view cannot show what changed). */
 function useSuggestionHistory() {
   return useSWR("suggestion_history", () => fetchAll<Suggestion>("web_suggestion_history"), { revalidateOnFocus: false });
@@ -140,7 +129,6 @@ function DemandPage() {
   const anchorRank = setRanked.findIndex((b) => isA(b.brand)) + 1;
   const demTot = brands.reduce((a, b) => a + (b.last3 ?? 0), 0);
   const topProducts = products.filter((p) => p.last3 !== null);
-  const topFocusProduct = topProducts.find((p) => tiers.inSet(p.brand));
   const imgFor = (pid: string) => (shelf.data ?? []).find((r) => r.product_id === pid)?.image_url ?? (catalog.data ?? []).find((r) => r.product_id === pid)?.best_image ?? null;
   const shelfFor = (pid: string) => (shelf.data ?? []).find((r) => r.product_id === pid);
   const openProduct = (pid: string, label: string, brand: string, url?: string | null) => {
@@ -241,16 +229,7 @@ function DemandPage() {
               <><b className="text-on-brand">검색:</b> 키워드 {keywords.length}개 중 {absent}개에서 비광고 상위 10위 밖. 오늘 비광고 상위 5위 자리 {anchorS?.top5 ?? 0}개.</>,
               <><b className="text-on-brand">광고:</b> 오늘 광고 자리 {totalAds}개 중 {anchorS?.ads ?? 0}개. 주요 브랜드 {pct(focusAds / Math.max(1, totalAds), 0)}, 선두 {topAdv?.brand ?? "없음"}({topAdv?.ads ?? 0}개).</>,
             ]) as React.ReactNode[]).filter(Boolean)} foot={soWhat && <><b>{tr("So what:", "시사점:")}</b> {soWhat}</>}>{verdict}</Verdict>}
-            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              <Kpi href="#demand" label={tr(`${A} reviews, last 3 months`, `${A} 최근 3개월 리뷰`)} value={anchorD?.last3 != null ? compact(anchorD.last3) : <Missing>{tr("not tracked", "추적 안 됨")}</Missing>}
-                sub={anchorD ? <>{tr("Growth", "성장률")} <b className={anchorD.growth !== null && mkt !== null && anchorD.growth >= mkt ? "text-good" : "text-bad"}>{signed(anchorD.growth)}</b> {tr(<>vs <TrackedLink /> {signed(mkt)}</>, <>(<TrackedLink /> {signed(mkt)})</>)}</> : undefined} basis={period} />
-              <Kpi href="#demand" label={tr("Fastest-rising main brand, written reviews", "작성 리뷰가 가장 빠르게 는 주요 브랜드")} value={up?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="good" sub={up ? tr(<>{signed(up.growth)}: {compact(up.prev3)} → {compact(up.same3 ?? up.last3)} reviews</>, <>{signed(up.growth)}: 리뷰 {compact(up.prev3)} → {compact(up.same3 ?? up.last3)}건</>) : undefined} basis={period} />
-              <Kpi href="#demand" label={tr("Sharpest decline, main brands", "가장 크게 하락한 주요 브랜드")} value={dn?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="bad" sub={dn ? tr(<>{signed(dn.growth)}: {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)} reviews</>, <>{signed(dn.growth)}: 리뷰 {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)}건</>) : undefined} basis={period} />
-              <Kpi href="#demand" label={tr("Top main-brand product by written reviews", "작성 리뷰 1위 주요 브랜드 제품")} value={topFocusProduct?.brand ?? <Missing>{tr("none tracked", "추적 제품 없음")}</Missing>} sub={topFocusProduct ? tr(`${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · ${compact(topFocusProduct.last3)} reviews`, `${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · 리뷰 ${compact(topFocusProduct.last3)}건`) : undefined} basis={tr("reviews, last 3 complete months", "최근 완결된 3개월 리뷰")} />
-              <Kpi href="#search" label={tr(`${A}: search keywords reached`, `${A}: 노출된 검색어`)} value={tr(`${keywords.length - absent} of ${keywords.length}`, `${keywords.length}개 중 ${keywords.length - absent}개`)} sub={tr(`${anchorS?.top5 ?? 0} unpaid top-5 places today`, `오늘 비광고 상위 5위 ${anchorS?.top5 ?? 0}자리`)} basis={tr("unpaid top 10, today", "오늘 비광고 상위 10")} />
-              <Kpi href="#ads" label={tr(`${A} ad slots today`, `${A} 오늘 광고 자리`)} value={tr(`${anchorS?.ads ?? 0} of ${totalAds}`, `${totalAds}개 중 ${anchorS?.ads ?? 0}개`)} sub={tr(`main brands hold ${pct(focusAds / Math.max(1, totalAds), 0)}`, `주요 브랜드 비중 ${pct(focusAds / Math.max(1, totalAds), 0)}`)} basis={tr(`first 20 results of ${keywords.length} keywords`, `키워드 ${keywords.length}개의 첫 20개 결과`)} />
-            </div>
-            {outliers.length > 0 && <p className="mt-2 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the main brands:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.same3 ?? o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.same3 ?? o.last3)}건`)})</span>)}.</p>}
+            {outliers.length > 0 && <p className="mt-3 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the main brands:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.same3 ?? o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.same3 ?? o.last3)}건`)})</span>)}.</p>}
           </section>
 
           <p className="mt-6 text-[13px] text-muted">{tr(<>Rank moves and their reasons now sit with the products: in <Link href="/categories/" className="underline underline-offset-2">Categories</Link> for each category, and on every brand and product page.</>, <>순위 변화와 이유는 이제 제품 옆에서 확인: <Link href="/categories/" className="underline underline-offset-2">카테고리</Link>별, 각 브랜드·제품 페이지.</>)}</p>

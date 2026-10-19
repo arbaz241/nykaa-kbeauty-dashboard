@@ -37,7 +37,7 @@ function TrackedPanel() {
       const b = brands.get(p.brand) ?? { brand: p.brand, origin: originOf(p.brand), products: 0, counted: 0, recent: 0, base: 0 };
       b.products++;
       const base = p.coverage <= w.base[0] ? sum(p.byMonth, w.base) : 0;
-      if (base > 0) { b.counted++; b.base += base; b.recent += sum(p.byMonth, w.recent); countedIds.add(p.product_id); }
+      if (base > 0) { b.counted++; b.base += base; b.recent += sum(p.byMonth, w.recent); for (const id of p.members ?? [p.product_id]) countedIds.add(id); }
       brands.set(p.brand, b);
     }
     const all = [...brands.values()];

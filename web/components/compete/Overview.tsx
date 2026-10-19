@@ -176,15 +176,6 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
             <div className="flex flex-wrap gap-1.5">{weak.length ? weak.map((s) => chip(s, false)) : <span className="text-[12px] text-muted">{tr("No measure where it trails most rivals", "대부분의 경쟁 제품에 뒤지는 지표 없음")}</span>}</div></div>
         </div>
       </Card>
-      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {dims.map((d) => (
-          <a key={d.id} href={d.href} className="lift relative block overflow-hidden rounded-[16px] bg-surface px-5 py-4 shadow-card ring-1 ring-line">
-            <span className={`absolute left-0 top-0 h-full w-1 ${d.tone === "good" ? "bg-good" : d.tone === "bad" ? "bg-bad" : "bg-line-2"}`} />
-            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.1em] text-muted"><span>{d.label}</span><span className="font-normal normal-case tracking-normal">{tr("see ↓", "보기 ↓")}</span></div>
-            <div className="mt-1.5 text-[13.5px] leading-snug">{d.point}</div>
-          </a>
-        ))}
-      </div>
     </section>
   );
 }

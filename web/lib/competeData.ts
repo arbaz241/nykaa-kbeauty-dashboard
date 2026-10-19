@@ -2,6 +2,7 @@
  *  shape per product and per brand (docs/restructure-v2-plan.md §2 inventory). Pure functions, no fetching. */
 
 import { norm } from "./brands";
+import { openEnded } from "./metrics";
 import { PER_SHEET, clause, inr, packMl, packPieces, sheetCount, shortName } from "./format";
 import type { Variant } from "./data";
 import { reviewThemes, themeFor, type ReviewLite, type ReviewThemes } from "./reviewThemes";
@@ -34,6 +35,8 @@ export interface ProductFacts {
   /** Other listings Nykaa shows the same set of ratings and reviews for (other sizes, or a whole range) (lib/pools). */
   sharedWith: string[];
   recent: number | null; momentum: number | null; spark: (number | null)[] | null; search: number;
+  /** Nothing read after the spark's last month: that month may still be filling in (components/MonthOnMonth). */
+  sparkOpen: boolean;
   whatItIs: string | null; claims: string[]; concerns: string[]; ingredients: string[]; skinTypes: string[];
   formulation: string | null; madeIn: string | null; since: string | null; phrases: ReviewPhrase[];
   usp?: UspProduct; thumb?: Thumbnail; aspects?: AspectStat[];
@@ -90,7 +93,7 @@ export interface Sources {
   usp: Map<string, UspProduct>; aspects?: Map<string, AspectStat[]>; reviews?: Map<string, ReviewLite[]>; variants?: Map<string, Variant[]>; stdMl: number | null; lastPrices?: Map<string, { price: number | null; mrp: number | null; scrape_date: string }>;
   hero: UspComparison | null;
   /** Each product's review pool, counted as on every other tab (lib/analysis demandRows): growth only with complete history. */
-  pooled?: Map<string, { recent: number; prior: number; complete: boolean }>;
+  pooled?: Map<string, { product_id: string; recent: number; prior: number; complete: boolean }>;
 }
 
 /** Names of the other tracked listings that carry this product's set of Nykaa ratings. */
@@ -126,7 +129,8 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
     sharedWith: sharedWith(pid, sh ?? c, s),
     reviewsTotal: sh?.detail_review_count ?? c?.detail_review_count ?? null, split: sh?.review_splitup ?? c?.review_splitup ?? null,
     recent: s.pooled?.get(pid)?.recent ?? d?.recent ?? null,
-    momentum: s.pooled?.has(pid) ? (s.pooled.get(pid)!.complete && s.pooled.get(pid)!.prior > 0 ? s.pooled.get(pid)!.recent / s.pooled.get(pid)!.prior - 1 : null) : d?.momentum ?? null, spark: productSpark(s.months.get(pid) ?? [], s.win), search: s.search.get(pid) ?? 0,
+    momentum: s.pooled?.has(pid) ? (s.pooled.get(pid)!.complete && s.pooled.get(pid)!.prior > 0 ? s.pooled.get(pid)!.recent / s.pooled.get(pid)!.prior - 1 : null) : d?.momentum ?? null, spark: productSpark(s.months.get(s.pooled?.get(pid)?.product_id ?? pid) ?? s.months.get(pid) ?? [], s.win),
+    sparkOpen: openEnded((s.months.get(s.pooled?.get(pid)?.product_id ?? pid) ?? s.months.get(pid) ?? []).map((m) => [m.month, m.reviews] as [string, number]), s.win[s.win.length - 1]), search: s.search.get(pid) ?? 0,
     // Nykaa's own page wording, shown in Korean when the site is (lib/dict); the logic below reads the English source
     whatItIs: tx(sh?.usp_summary ?? c?.usp_summary ?? null), claims: txs(sh?.usp_points ?? c?.usp_points), concerns: txs(sh?.concerns ?? c?.concerns),
     ingredients: txs(sh?.key_ingredients ?? c?.key_ingredients), skinTypes: txs(sh?.skin_types ?? c?.skin_types),

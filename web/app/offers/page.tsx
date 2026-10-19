@@ -210,7 +210,7 @@ function OffersPage() {
               <th className="px-4 py-2.5">{tr("Brand", "브랜드")}</th><th className="px-2 py-2.5">{tr("Brand offers tonight", "오늘 브랜드 프로모션")}</th><th className="px-2 py-2.5">{tr("Nykaa-wide", "Nykaa 전체")}</th>
               <th className="px-2 py-2.5">{tr("Deepest", "최대")}</th><th className="px-2 py-2.5">{tr("Nights with an offer", "프로모션 일수")}</th>
             </tr></thead>
-            <tbody>{shown.map((b) => (
+            <tbody>{shown.filter((b) => b.own.length).map((b) => (
               <tr key={b.brand} className={`border-b border-line/60 align-top last:border-0 ${tiers.inSet(b.brand) ? "bg-accent-soft/30" : ""}`}>
                 <td className="px-4 py-2.5 font-medium">{b.brand}<div><span className="rounded px-1.5 py-px text-[10px] font-semibold uppercase" style={{ background: ORIGIN_COLOR[b.origin]?.soft, color: ORIGIN_COLOR[b.origin]?.ink }}>{ORIGIN_LABEL[b.origin]}</span></div></td>
                 <td className="px-2 py-2.5">{b.own.length ? <ul className="space-y-1">{b.own.map((c) => <li key={c.o.offer_id}><span className={`mr-1.5 rounded px-1.5 py-px text-[10px] font-semibold uppercase ${KIND_CHIP[c.kind]}`}>{OFFER_KIND_LABEL()[c.kind]}</span>{c.o.description || c.o.title}</li>)}</ul> : <span className="text-muted">{tr("none", "없음")}</span>}</td>
@@ -220,6 +220,21 @@ function OffersPage() {
               </tr>))}</tbody>
           </table>
         </Card>
+        {shown.some((b) => !b.own.length) && <Card className="mt-3 px-5 py-4">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr(`No offer of their own tonight · ${shown.filter((b) => !b.own.length).length} brands`, `오늘 자체 프로모션 없음 · ${shown.filter((b) => !b.own.length).length}개 브랜드`)}</div>
+          <p className="mt-1 text-[12px] text-muted">{tr("Main brands first. Shown with any Nykaa-wide offer on their page tonight and the nights their page showed any offer.", "주요 브랜드 먼저. 오늘 페이지에 뜬 Nykaa 전체 프로모션과 프로모션이 있던 날 수 함께 표시.")}</p>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">{shown.filter((b) => !b.own.length).map((b) => {
+            const wide = b.now.filter((c) => !c.brandOwn).map((c) => c.o.title).filter((t, i, a) => a.indexOf(t) === i).join(" · ");
+            return (
+              <span key={b.brand} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] ring-1 ring-line ${tiers.inSet(b.brand) ? "bg-accent-soft/40" : "bg-surface"}`} title={wide ? tr(`Nykaa-wide: ${wide}`, `Nykaa 전체: ${wide}`) : undefined}>
+                <span className="h-2 w-2 rounded-full" style={{ background: ORIGIN_COLOR[b.origin]?.ink }} aria-label={ORIGIN_LABEL[b.origin]} />
+                <b className="font-medium">{b.brand}</b>
+                {wide && <span className="text-ink-2">{wide.length > 34 ? wide.slice(0, 32) + "…" : wide}</span>}
+                <span className="tabular text-muted">{b.nights}/{b.checked}</span>
+              </span>);
+          })}</div>
+          <p className="mt-2 text-[11.5px] text-muted">{tr("Dot = origin (K-beauty, Indian, global, as in the table). n/m = nights its page showed any offer, of the nights checked since 17 Oct (same as the table's last column). Hover for the full Nykaa-wide offer.", "점 = 국적 (표와 같음). n/m = 10월 17일 이후 확인한 날 중 페이지에 프로모션이 있던 날 (표 마지막 열과 같음). 마우스를 올리면 Nykaa 전체 프로모션 전문.")}</p>
+        </Card>}
       </ActionSection>
 
       {tagSeries && (

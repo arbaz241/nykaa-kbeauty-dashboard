@@ -75,6 +75,8 @@ export interface ValueInput {
 export interface PoolProduct {
   product_id: string; brand: string; name: string; category: string | null; /** MRP, selling price when none */ price: number | null;
   first: string | null; coverage: string; byMonth: Map<string, number>;
+  /** Every listing whose reviews this one stands for (other sizes Nykaa pools with it), itself included. */
+  members?: string[];
 }
 
 /** One product per review pool (sizes of one product share Nykaa's reviews), with its category, price and first
@@ -109,7 +111,9 @@ export function poolProducts({ months, demand, shelf, catalog, products, daily }
   }
   const best = new Map<string, (typeof all)[number]>();
   for (const r of all) { const c = best.get(r.pool); if (!c || r.lifetime > c.lifetime || (!c.category && r.category)) best.set(r.pool, r); }
-  return [...best.values()];
+  const members = new Map<string, string[]>(); for (const d of demand) { const k = d.pool_id || d.product_id; push(members, k, d.product_id); }
+  for (const r of all) push(members, r.pool, r.product_id);
+  return [...best.values()].map((r) => ({ ...r, members: [...new Set(members.get(r.pool) ?? [r.product_id])] }));
 }
 
 export interface GrowthResult {

@@ -6,13 +6,13 @@ import AuthGate from "@/components/AuthGate";
 import { Summary } from "@/components/compete/Overview";
 import { PriceSection } from "@/components/compete/Price";
 import { Message } from "@/components/compete/Proposition";
-import { Buyers, Demand, Visibility } from "@/components/compete/Reception";
+import { Buyers, ShelfAndDemand } from "@/components/compete/Reception";
 import { Brands, PriceBasket, WhereCompete } from "@/components/compete/Brands";
 import RivalPicker, { loadEdits, saveEdits, MAX_PRODUCTS, type RivalEdit } from "@/components/compete/RivalPicker";
 import { useMarket } from "@/lib/useMarket";
 import { SectionNav, type NavItem } from "@/components/Report";
 import Shell from "@/components/Shell";
-import { Card, Loading, PageHead, Verdict } from "@/components/ui";
+import { Card, Loading, PageHead } from "@/components/ui";
 import { ANCHOR_BRAND, SLOT_COLORS, resolveBrand } from "@/lib/brands";
 import { HERO_ORDER, brandFacts, productFacts, productOptions, searchCounts, shelfCat, shortTitle, standardSize, type Sources } from "@/lib/competeData";
 import { useReviewsFor, useVariants, useAssortment, useCatalog, useDemand, useLastPrices, useMovement, useReviewMonths, useSearch, useShelf, useThumbnails } from "@/lib/data";
@@ -42,8 +42,7 @@ const NAV = (): NavItem[] => [
   { id: "price", label: tr("Price", "가격") },
   { id: "message", label: tr("Message", "메시지") },
   { id: "buyers", label: tr("What buyers say", "구매자 반응") },
-  { id: "visibility", label: tr("Visibility", "노출") },
-  { id: "demand", label: tr("Demand", "수요") },
+  { id: "visibility", label: tr("Shelf, search, demand", "진열·검색·수요") },
 ];
 const PartHead = ({ id, n, title, sub }: { id: string; n: number; title: string; sub: React.ReactNode }) => (
   <div id={id} className="mt-10 scroll-mt-32 border-t-2 border-ink pt-4">
@@ -199,8 +198,7 @@ function CompetitivePage() {
           <PriceSection products={products} colors={colors} bench={bench} std={stdMl} cat={cat} optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
           <Message hero={hero} products={products} colors={colors} />
           <Buyers products={products} colors={colors} loading={reviews.isLoading} />
-          <Visibility products={products} colors={colors} cat={cat} />
-          <Demand products={products} colors={colors} />
+          <ShelfAndDemand products={products} colors={colors} cat={cat} />
         </>
       )}
       <MethodNotes parts={{
