@@ -90,7 +90,7 @@ REVIEW_TEXT_MAX_MINUTES = float(os.getenv("REVIEW_TEXT_MAX_MINUTES", "8"))
 # Owner 19 Oct 2026: follow review history for every list's top 30 too, so growth reads the whole market and not
 # only Innisfree's rivals. A second pass after the main one, with its own clock: ~290 products were new on 19 Oct
 # (about a week of nights at 15 min); after that the nightly refresh of them takes a few minutes.
-REVIEW_WIDE_TOP = int(os.getenv("REVIEW_WIDE_TOP", "30"))
+REVIEW_WIDE_TOP = int(os.getenv("REVIEW_WIDE_TOP", "100"))  # same 15-min cap; the run works down every list's top 100, best rank first
 REVIEW_WIDE_MAX_MINUTES = float(os.getenv("REVIEW_WIDE_MAX_MINUTES", "15"))
 REVIEW_TEXT_MAX_PRODUCTS_PER_RUN = int(os.getenv("REVIEW_TEXT_MAX_PRODUCTS_PER_RUN", "10"))  # text-only catch-up for products crawled before text capture existed
 ASSORTMENT_WEEKDAY = int(os.getenv("ASSORTMENT_WEEKDAY", "0"))   # Monday: refresh brand assortment weekly

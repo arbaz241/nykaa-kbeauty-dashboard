@@ -53,8 +53,8 @@ function TrackedPanel() {
   const { w, groups } = data;
   return (
     <div className="space-y-4 text-[13px] leading-relaxed">
-      <p>{tr(<>The products whose full history of written reviews we read from Nykaa, each review with its date: <b>{data.products} products from {data.brands} brands</b> (sizes that share one set of reviews count once). They were picked from Innisfree, the main brands and their rivals; every list&rsquo;s top 30 is being added from 19 Oct.</>,
-        <>Nykaa에서 작성 리뷰 전체 이력(리뷰마다 작성일 포함)을 읽는 제품: <b>{data.brands}개 브랜드, {data.products}개 제품</b> (같은 리뷰를 공유하는 용량은 1개로 집계). Innisfree·주요 브랜드·경쟁 브랜드에서 선정, 10월 19일부터 목록별 상위 30위 추가 중.</>)}</p>
+      <p>{tr(<>The products whose written reviews we read from Nykaa, each review with its date: <b>{data.products} products from {data.brands} brands</b> (sizes that share one set of reviews count once). They started with Innisfree, the main brands and their rivals; every list&rsquo;s top 100 is being added, biggest sellers first. Nykaa shows only a product&rsquo;s latest 40 pages of reviews, so a fast seller&rsquo;s oldest months are cut off.</>,
+        <>Nykaa에서 작성 리뷰(리뷰마다 작성일 포함)를 읽는 제품: <b>{data.brands}개 브랜드, {data.products}개 제품</b> (같은 리뷰를 공유하는 용량은 1개로 집계). Innisfree·주요 브랜드·경쟁 브랜드로 시작, 목록별 상위 100위를 많이 팔리는 순으로 추가 중. Nykaa는 제품당 최근 리뷰 40페이지만 보여 줘서 많이 팔리는 제품은 오래된 달이 잘림.</>)}</p>
       <div className="rounded-xl bg-sunken px-4 py-3">
         <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">{tr("Their growth", "성장률")}</div>
         <div className="mt-1"><b className="text-[18px] tabular">{signed(data.growth)}</b> {tr(`written reviews in ${w.recentLabel} vs ${w.baseLabel}, counting the ${data.counted} products that already had reviews a year earlier.`, `${w.recentLabel} 작성 리뷰 vs ${w.baseLabel}, 1년 전에도 리뷰가 있던 ${data.counted}개 제품 기준.`)}</div>
