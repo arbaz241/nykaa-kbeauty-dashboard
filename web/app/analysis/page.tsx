@@ -127,7 +127,28 @@ function Analysis() {
   const relevant = (f: Finding) => !f.brand || same(f.brand, anchor) || tiers.inSet(f.brand);
   const weight = (f: Finding) => f.weight * (f.brand && same(f.brand, anchor) ? 1.6 : !f.brand ? 1.1 : tiers.inSet(f.brand) ? 1.3 : 0.5) * (f.category && anchorCats.has(f.category) ? 1.2 : 1);
   const ranked = [...findings].sort((a, b) => weight(b) - weight(a));
-  const top5 = ranked.filter(relevant).slice(0, 5);
+  // one card per brand when one rule fires on several of its products (owner 20 Oct 2026: say it once): the anchor's
+  // out-of-stock products were 4 of the top 5, and one rival's price cuts can fill two more
+  const rel = ranked.filter(relevant);
+  const name = (f: Finding) => shortName(f.product?.name ?? "", f.brand ?? "");
+  const groups = new Map<string, Finding[]>();
+  for (const f of rel) { const rule = f.id.split("-")[0]; if ((rule === "oos" || rule === "price") && f.brand) push(groups, `${rule}|${norm(f.brand)}`, f); }
+  const merged = new Map<Finding, Finding>(); const absorbed = new Set<Finding>();
+  for (const [k, fs] of groups) {
+    if (fs.length < 2) continue;
+    const rule = k.split("|")[0]; const b = fs[0].brand!;
+    merged.set(fs[0], { ...fs[0], id: `${k}-group`,
+      headline: rule === "oos"
+        ? tr(`${b} is out of stock on ${fs.length} products: ${fs.map(name).join("; ")}`, `${b} 제품 ${fs.length}개 품절: ${fs.map(name).join("; ")}`)
+        : tr(`${b} cut prices on ${fs.length} products: ${fs.map((f) => `${name(f)} (${f.category ? cat(f.category) : ""}, ${f.evidence.find((e) => e.label === tr("Was", "이전"))?.value ?? ""} → ${f.evidence.find((e) => e.label === tr("Now", "현재"))?.value ?? ""})`).join("; ")}`,
+          `${b} 제품 ${fs.length}개 가격 인하: ${fs.map((f) => `${name(f)} (${f.category ? cat(f.category) : ""}, ${f.evidence.find((e) => e.label === tr("Was", "이전"))?.value ?? ""} → ${f.evidence.find((e) => e.label === tr("Now", "현재"))?.value ?? ""})`).join("; ")}`),
+      ...(rule === "price" && !same(b, anchor) ? { soWhat: tr(`${anchor}'s products in ${[...new Set(fs.map((f) => cat(f.category)))].join(", ").toLowerCase()} now look relatively more expensive.`, `${[...new Set(fs.map((f) => cat(f.category)))].join(", ")}에서 ${anchor} 제품이 상대적으로 비싸 보이게 됨.`) } : {}),
+      evidence: fs.map((f) => ({ label: name(f), value: f.evidence.map((e) => `${e.label} ${e.value}`).join(" · ") })) });
+    fs.slice(1).forEach((f) => absorbed.add(f));
+  }
+  const listed = rel.filter((f) => !absorbed.has(f)).map((f) => merged.get(f) ?? f);
+  const top5 = listed.slice(0, 5);
+  const shownN = top5.reduce((a, f) => a + (groups.get(f.id.replace(/-group$/, ""))?.length ?? 1), 0);
   const inScope = (f: Finding) => (scope === "all" || relevant(f)) && (catFilter === "all" || f.category === catFilter);
   const findingCats = [...new Set(findings.map((f) => f.category).filter((c): c is string => !!c))].sort();
 
@@ -267,7 +288,7 @@ function Analysis() {
         </div>
       </ActionSection>
 
-      <ActionSection id="changes" kicker={tr("What changed · today's findings", "변화 · 오늘의 발견")} title={top5.length ? tr(`${top5.length} moves matter most today; ${findings.length - top5.length} more are grouped below.`, `오늘 가장 중요한 변화 ${top5.length}건. 나머지 ${findings.length - top5.length}건은 아래에 유형별로 정리.`) : tr("Nothing involving the brands that matter crossed a threshold today.", "오늘은 K-뷰티 경쟁사 관련 기준을 넘은 변화 없음.")}
+      <ActionSection id="changes" kicker={tr("What changed · today's findings", "변화 · 오늘의 발견")} title={top5.length ? tr(`${top5.length} moves matter most today; ${findings.length - shownN} more are grouped below.`, `오늘 가장 중요한 변화 ${top5.length}건. 나머지 ${findings.length - shownN}건은 아래에 유형별로 정리.`) : tr("Nothing involving the brands that matter crossed a threshold today.", "오늘은 K-뷰티 경쟁사 관련 기준을 넘은 변화 없음.")}
         note={tr("Ranked by impact on the anchor: its own products first, then the K-beauty rivals, then its categories. Each rule states its threshold; click a finding for the numbers.", "기준 브랜드에 미치는 영향 순 (자사 제품 → K-뷰티 경쟁사 → 자사 카테고리). 규칙마다 기준값이 있고, 항목을 누르면 수치 표시.")}>
         <div className="grid gap-2.5">
           {top5.map((f) => (
@@ -417,7 +438,9 @@ function scoreTitle(anchor: string, rows: ScoreRow[]) {
 }
 
 function Scoreboard({ rows, setRows, anchor, tiers, board, win }: { rows: ScoreRow[]; setRows: ScoreRow[]; anchor: string; tiers: ReturnType<typeof useTiers>; board: NonNullable<ReturnType<typeof scoreboard>>; win: string }) {
-  const sorted = [...rows].sort((a, b) => (same(a.brand, anchor) ? -1 : same(b.brand, anchor) ? 1 : b.demand - a.demand));
+  // the K-beauty tab compares with the Korean rivals: Innisfree and its rivals first, the other focus brands one click away
+  const inRivals = (b: string) => setRows.some((r) => same(r.brand, b));
+  const sorted = [...rows].sort((a, b) => (same(a.brand, anchor) ? -1 : same(b.brand, anchor) ? 1 : Number(inRivals(b.brand)) - Number(inRivals(a.brand)) || b.demand - a.demand));
   const max = { shelf: Math.max(...setRows.map((r) => r.shelf), 1e-9), search: Math.max(...setRows.map((r) => r.search), 1e-9), demand: Math.max(...setRows.map((r) => r.demand), 1e-9) };
   const med = { shelf: median(setRows.map((r) => r.shelf)), search: median(setRows.map((r) => r.search)), demand: median(setRows.map((r) => r.demand)) };
   const cols = "grid-cols-[minmax(130px,1fr)_minmax(150px,1.3fr)_minmax(150px,1.3fr)_minmax(150px,1.3fr)_110px]";
@@ -439,8 +462,8 @@ function Scoreboard({ rows, setRows, anchor, tiers, board, win }: { rows: ScoreR
           <span><Def k="demand">{tr("Share of reviews", "리뷰 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{win}</span></span>
           <span><Def k="growth">{tr("Written-review growth", "작성 리뷰 성장률")}</Def><span className="block font-normal normal-case tracking-normal">{tr(<>vs <TrackedLink /> {signed(board.market.growth)}</>, <><TrackedLink /> {signed(board.market.growth)}</>)}</span></span>
         </div>
-        <TieredList rows={sorted} brandOf={(r) => r.brand} tiers={tiers} top={9} render={(r) => {
-          const hl = same(r.brand, anchor); const out = !tiers.inSet(r.brand);
+        <TieredList rows={sorted} brandOf={(r) => r.brand} tiers={tiers} top={setRows.length} render={(r) => {
+          const hl = same(r.brand, anchor); const out = !hl && !inRivals(r.brand);
           return (
             <div key={r.brand} className={`grid ${cols} items-center border-b border-line px-4 py-2 ${hl ? "bg-accent-soft/50" : ""}`}>
               <span className="text-[13px]"><span className={hl ? "font-semibold" : "font-medium"}>{r.brand}</span>{out && <span className="ml-1.5 rounded bg-sunken px-1 text-[10px] text-muted ring-1 ring-line">{tr("not in rival set", "K-뷰티 경쟁사 외")}</span>}</span>
