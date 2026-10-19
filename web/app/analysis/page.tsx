@@ -1,5 +1,6 @@
 "use client";
 
+import { TrackedLink } from "@/components/TrackedProducts";
 import MethodNotes, { BUYING_METHOD } from "@/components/MethodNotes";
 import { useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
@@ -163,12 +164,12 @@ function Analysis() {
   const verdictPoints = me ? tr([
     <><b className="text-on-brand">Products in Nykaa&rsquo;s top 100s:</b> {me.shelfSlots} of {board.shelfTotal.toLocaleString("en-IN")} ({pct(me.shelf)}); {lead("shelf")?.brand} leads the rival set with {lead("shelf")?.shelfSlots}. {me.slotsChange !== null && <>{me.slotsChange === 0 ? "No change from" : `${Math.abs(me.slotsChange)} ${me.slotsChange > 0 ? "more" : "fewer"} than`} 14 days ago, counted on the {board.likeForLikeCats} categories tracked throughout.</>}</>,
     <><b className="text-on-brand">Search results:</b> {pct(me.search)} of unpaid top-10 results across today&rsquo;s keywords; {lead("search")?.brand} leads with {pct(lead("search")?.search ?? 0)}.{kw.total ? ` Absent from the top 10 on ${kw.absent} of ${kw.total} keywords.` : ""}</>,
-    <><b className="text-on-brand">Written reviews:</b> {pct(me.demand)} of tracked reviews in {win.recent}; {lead("demand")?.brand} leads with {pct(lead("demand")?.demand ?? 0)}. Growth {signed(me.growth)} vs all tracked {signed(mkt)} ({win.recent} vs {win.prior}).</>,
+    <><b className="text-on-brand">Written reviews:</b> {pct(me.demand)} of tracked reviews in {win.recent}; {lead("demand")?.brand} leads with {pct(lead("demand")?.demand ?? 0)}. Growth {signed(me.growth)} vs <TrackedLink /> {signed(mkt)} ({win.recent} vs {win.prior}).</>,
     <><b className="text-on-brand">Range and stock:</b> {gapCells.length ? `${gapCells.length} price band${gapCells.length === 1 ? "" : "s"} where K-beauty rivals sell 3+ products and ${anchor} none` : "no price band left open to the K-beauty rivals"}; {oos.length ? `${oos.length} product${oos.length === 1 ? "" : "s"} out of stock today` : "nothing out of stock today"}.</>,
   ], [
     <><b className="text-on-brand">Nykaa 상위 100위 제품:</b> {board.shelfTotal.toLocaleString("en-IN")}개 중 {me.shelfSlots}개({pct(me.shelf)}). K-뷰티 경쟁사 중 선두: {lead("shelf")?.brand}({lead("shelf")?.shelfSlots}개). {me.slotsChange !== null && <>14일 전 대비 {me.slotsChange === 0 ? "변화 없음" : `${me.slotsChange > 0 ? "+" : ""}${me.slotsChange}개`} (기간 내내 추적한 카테고리 {board.likeForLikeCats}개 기준).</>}</>,
     <><b className="text-on-brand">검색:</b> 오늘 키워드 전체의 비광고 상위 10개 결과 중 {pct(me.search)}. 선두: {lead("search")?.brand}({pct(lead("search")?.search ?? 0)}).{kw.total ? ` 키워드 ${kw.total}개 중 ${kw.absent}개에서 상위 10위 밖.` : ""}</>,
-    <><b className="text-on-brand">작성 리뷰:</b> {win.recent} 추적 리뷰 중 {pct(me.demand)}. 선두: {lead("demand")?.brand}({pct(lead("demand")?.demand ?? 0)}). 성장률 {signed(me.growth)}, 시장 {signed(mkt)} ({win.recent} vs {win.prior}).</>,
+    <><b className="text-on-brand">작성 리뷰:</b> {win.recent} 추적 리뷰 중 {pct(me.demand)}. 선두: {lead("demand")?.brand}({pct(lead("demand")?.demand ?? 0)}). 성장률 {signed(me.growth)}, <TrackedLink /> {signed(mkt)} ({win.recent} vs {win.prior}).</>,
     <><b className="text-on-brand">라인업·재고:</b> {gapCells.length ? `K-뷰티 경쟁사는 3개 이상 파는데 ${anchor} 제품은 없는 가격대 ${gapCells.length}곳` : "K-뷰티 경쟁사에 내준 가격대 없음"}. {oos.length ? `오늘 품절 제품 ${oos.length}개` : "오늘 품절 제품 없음"}.</>,
   ]) : [];
 
@@ -244,8 +245,8 @@ function Analysis() {
       </ActionSection>
 
       <ActionSection id="portfolio" kicker={tr("By category · where it wins and loses", "카테고리별 · 강점과 약점")} title={opps.length ? tr(`${opps.length} growing categor${opps.length === 1 ? "y is" : "ies are"} where ${anchor} does worse than its usual share: ${opps.slice(0, 3).map((c) => cat(c.category).toLowerCase()).join(", ")}.`, `성장 카테고리 ${opps.length}곳에서 ${josa(anchor, "이/가")} 평소 점유율보다 약함: ${opps.slice(0, 3).map((c) => cat(c.category)).join(", ")}.`) : tr(`No growing category where ${anchor} under-indexes.`, `${josa(anchor, "이/가")} 평소보다 약한 성장 카테고리 없음.`)}
-        note={tr(<>Each category is placed by how fast its buying grows (up) and by {anchor}&rsquo;s slice of it (across). The dashed lines are the growth of all tracked products ({signed(mkt)}) and {anchor}&rsquo;s usual share ({pct(cmap.usual)}). Hollow bubbles have too little data to classify. Bubble size = reviews in {win.recent}.</>,
-          <>세로축 = 카테고리 구매 성장 속도, 가로축 = 그 안에서 {anchor}의 점유율. 점선 = 추적 전체 성장률({signed(mkt)})과 {anchor}의 평소 점유율({pct(cmap.usual)}). 속이 빈 원 = 데이터 부족으로 미분류. 원 크기 = {win.recent} 리뷰 수.</>)}>
+        note={tr(<>Each category is placed by how fast its buying grows (up) and by {anchor}&rsquo;s slice of it (across). The dashed lines are the growth of <TrackedLink /> ({signed(mkt)}) and {anchor}&rsquo;s usual share ({pct(cmap.usual)}). Hollow bubbles have too little data to classify. Bubble size = reviews in {win.recent}.</>,
+          <>세로축 = 카테고리 구매 성장 속도, 가로축 = 그 안에서 {anchor}의 점유율. 점선 = <TrackedLink /> 성장률({signed(mkt)})과 {anchor}의 평소 점유율({pct(cmap.usual)}). 속이 빈 원 = 데이터 부족으로 미분류. 원 크기 = {win.recent} 리뷰 수.</>)}>
         <div className="grid gap-4">
           <Card className="p-4"><OpportunityMap cells={cmap.cells} usual={cmap.usual} market={mkt} anchor={anchor} onPick={(c) => detail(catDetail(c))} /></Card>
           <Card className="overflow-x-auto">
@@ -436,7 +437,7 @@ function Scoreboard({ rows, setRows, anchor, tiers, board, win }: { rows: ScoreR
           <span><Def k="shelf">{tr("Share of top-100 products", "상위 100위 제품 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr("products today · change in 14 days", "오늘 제품 수 · 14일 변화")}</span></span>
           <span><Def k="search">{tr("Share of top-10 search", "상위 10위 검색 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr("unpaid results today · change in 7 days", "오늘 비광고 결과 · 7일 변화")}</span></span>
           <span><Def k="demand">{tr("Share of reviews", "리뷰 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{win}</span></span>
-          <span><Def k="growth">{tr("Written-review growth", "작성 리뷰 성장률")}</Def><span className="block font-normal normal-case tracking-normal">{tr(`vs all tracked ${signed(board.market.growth)}`, `추적 전체 ${signed(board.market.growth)}`)}</span></span>
+          <span><Def k="growth">{tr("Written-review growth", "작성 리뷰 성장률")}</Def><span className="block font-normal normal-case tracking-normal">{tr(<>vs <TrackedLink /> {signed(board.market.growth)}</>, <><TrackedLink /> {signed(board.market.growth)}</>)}</span></span>
         </div>
         <TieredList rows={sorted} brandOf={(r) => r.brand} tiers={tiers} top={9} render={(r) => {
           const hl = same(r.brand, anchor); const out = !tiers.inSet(r.brand);

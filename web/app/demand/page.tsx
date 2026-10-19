@@ -1,5 +1,6 @@
 "use client";
 
+import { TrackedLink } from "@/components/TrackedProducts";
 import MethodNotes from "@/components/MethodNotes";
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -242,7 +243,7 @@ function DemandPage() {
             ]) as React.ReactNode[]).filter(Boolean)} foot={soWhat && <><b>{tr("So what:", "시사점:")}</b> {soWhat}</>}>{verdict}</Verdict>}
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <Kpi href="#demand" label={tr(`${A} reviews, last 3 months`, `${A} 최근 3개월 리뷰`)} value={anchorD?.last3 != null ? compact(anchorD.last3) : <Missing>{tr("not tracked", "추적 안 됨")}</Missing>}
-                sub={anchorD ? <>{tr("Growth", "성장률")} <b className={anchorD.growth !== null && mkt !== null && anchorD.growth >= mkt ? "text-good" : "text-bad"}>{signed(anchorD.growth)}</b> {tr(`vs all tracked ${signed(mkt)}`, `(추적 전체 ${signed(mkt)})`)}</> : undefined} basis={period} />
+                sub={anchorD ? <>{tr("Growth", "성장률")} <b className={anchorD.growth !== null && mkt !== null && anchorD.growth >= mkt ? "text-good" : "text-bad"}>{signed(anchorD.growth)}</b> {tr(<>vs <TrackedLink /> {signed(mkt)}</>, <>(<TrackedLink /> {signed(mkt)})</>)}</> : undefined} basis={period} />
               <Kpi href="#demand" label={tr("Fastest-rising main brand, written reviews", "작성 리뷰가 가장 빠르게 는 주요 브랜드")} value={up?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="good" sub={up ? tr(<>{signed(up.growth)}: {compact(up.prev3)} → {compact(up.same3 ?? up.last3)} reviews</>, <>{signed(up.growth)}: 리뷰 {compact(up.prev3)} → {compact(up.same3 ?? up.last3)}건</>) : undefined} basis={period} />
               <Kpi href="#demand" label={tr("Sharpest decline, main brands", "가장 크게 하락한 주요 브랜드")} value={dn?.brand ?? <Missing>{tr("too little history", "이력 부족")}</Missing>} tone="bad" sub={dn ? tr(<>{signed(dn.growth)}: {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)} reviews</>, <>{signed(dn.growth)}: 리뷰 {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)}건</>) : undefined} basis={period} />
               <Kpi href="#demand" label={tr("Top main-brand product by written reviews", "작성 리뷰 1위 주요 브랜드 제품")} value={topFocusProduct?.brand ?? <Missing>{tr("none tracked", "추적 제품 없음")}</Missing>} sub={topFocusProduct ? tr(`${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · ${compact(topFocusProduct.last3)} reviews`, `${shortName(topFocusProduct.label, topFocusProduct.brand).split(/,| - /)[0]} · 리뷰 ${compact(topFocusProduct.last3)}건`) : undefined} basis={tr("reviews, last 3 complete months", "최근 완결된 3개월 리뷰")} />
@@ -281,7 +282,7 @@ function DemandPage() {
                   </div>
                   {market && (
                     <div className="grid grid-cols-[minmax(170px,1.4fr)_110px_1fr_120px_100px] items-center border-b border-line bg-sunken/50 px-4 py-2">
-                      <span className="text-[13px] font-semibold">{tr("All tracked brands", "추적 전체 브랜드")} <span className="text-[11px] font-normal text-muted">{tr("all tracked", "추적 전체")}</span></span>
+                      <span className="text-[13px] font-semibold">{tr("All tracked brands", "추적 전체 브랜드")} <span className="text-[11px] font-normal text-muted"><TrackedLink>{tr("which products?", "어떤 제품?")}</TrackedLink></span></span>
                       <Sparkline values={market.spark} color="#8a8880" width={96} height={24} />
                       <b className="text-[13px] tabular">{compact(market.last3)}</b>
                       <span className="text-right text-[12.5px] text-ink-2 tabular">{`${compact(market.prev3)} → ${compact(market.same3 ?? market.last3)}`}</span>
@@ -310,7 +311,7 @@ function DemandPage() {
                     );
                   }} />
                 </div></Card>
-                <Basis className="mt-1.5">{tr(`Change = reviews ${period}. Green = growing faster than all tracked products (${signed(mkt)}), red = slower. “Small base” = under 30 reviews in 3 months.`, `변화 = ${period} 리뷰. 초록 = 추적 전체(${signed(mkt)})보다 빠른 성장, 빨강 = 느린 성장. “표본 적음” = 3개월 리뷰 30건 미만.`)}</Basis>
+                <Basis className="mt-1.5">{tr(<>Change = reviews {period}. Green = growing faster than <TrackedLink /> ({signed(mkt)}), red = slower. “Small base” = under 30 reviews in 3 months.</>, <>변화 = {period} 리뷰. 초록 = <TrackedLink />({signed(mkt)})보다 빠른 성장, 빨강 = 느린 성장. “표본 적음” = 3개월 리뷰 30건 미만.</>)}</Basis>
               </div>
               <div className="min-w-0">
                 <div className="mb-2 text-[14px] font-semibold">{tr("Top products by written reviews", "작성 리뷰 상위 제품")} <span className="text-[12px] font-normal text-muted">· {tr("main brands; search for others", "주요 브랜드. 다른 브랜드는 검색")}</span></div>

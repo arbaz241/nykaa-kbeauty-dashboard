@@ -44,7 +44,7 @@ export const GLOSSARY = {
   marketGrowth: metric({
     name: ["Growth of all tracked products", "추적 전체 성장률"],
     plain: ["The same review measure across every tracked product: the bar a brand or category in our data has to beat. It is not the market's growth; that is Nykaa's own reported figure on the Brief.", "추적 중인 전체 제품에 같은 리뷰 계산을 적용한 값. 우리 데이터 안의 기준선일 뿐 시장 성장률 아님. 시장 성장률은 브리핑의 Nykaa 발표 수치."],
-    formula: ["All tracked reviews in the last 3 complete months ÷ the same months a year earlier, minus 1 (products on sale in both). The Overview weights the same comparison by price.", "최근 3개월 전체 리뷰 수 ÷ 전년 같은 기간 리뷰 수 − 1 (두 기간 모두 판매된 제품). 개요 탭은 같은 비교를 가격으로 가중."],
+    formula: ["All tracked reviews in the last 3 complete months ÷ the same months a year earlier, minus 1 (products that already had reviews a year earlier). The products are listed under “all tracked products” wherever the comparison appears.", "최근 3개월 전체 리뷰 수 ÷ 전년 같은 기간 리뷰 수 − 1 (1년 전에도 리뷰가 있던 제품). 비교가 나오는 곳의 ‘추적 전체 제품’을 누르면 제품 목록 표시."],
     source: ["Same review history as demand growth.", "수요 성장률과 같은 리뷰 이력."],
     window: ["Jul–Sep 2026 vs Jul–Sep 2025.", "2026년 7–9월 vs 2025년 7–9월."],
   }),

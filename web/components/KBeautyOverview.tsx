@@ -1,5 +1,6 @@
 "use client";
 
+import { TrackedLink } from "@/components/TrackedProducts";
 import { Fragment, useMemo, useState } from "react";
 import { Card, Stat } from "./ui";
 import { ActionSection } from "./Report";
@@ -186,8 +187,8 @@ export default function KBeautyOverview({ tiers, anchor }: { tiers: Tiers; ancho
       <KFightsSection anchor={anchor} rivals={rivals} />
 
       <ActionSection id="rivals" kicker={tr("K-beauty rivals scorecard", "K-뷰티 경쟁사 스코어카드")} title={tr(`${anchor} and its ${rivals.length} Korean rivals, side by side`, `${anchor}와 K-뷰티 경쟁사 ${rivals.length}곳 비교`)}
-        note={tr(<>Strongest category: where the brand takes the biggest share of that category&rsquo;s <Def k="ratingFlow">buying</Def> (all brands = 100%). Products in the top 100: today, across all tracked categories; the change counts the {both.size} categories tracked since {dayMonth(win.start)}. Best seller: the brand&rsquo;s product with the most buying. Reviews: the brand&rsquo;s tracked products, latest 3 months vs a year earlier, green when faster than all tracked products ({signed(allTracked)}, same rule). External: headlines from outside Nykaa.</>,
-          <>가장 강한 카테고리: 전체 브랜드 <Def k="ratingFlow">구매</Def> 중 점유율이 가장 큰 곳. 상위 100위 제품: 오늘 기준, 전체 추적 카테고리. 변화 = {dayMonth(win.start)}부터 추적한 {both.size}개 카테고리 기준. 베스트셀러: 구매가 가장 많은 제품. 리뷰: 최근 3개월 vs 1년 전, 추적 제품 전체({signed(allTracked)}, 같은 기준)보다 빠르면 초록. 외부: 인도 관련 헤드라인.</>)}>
+        note={tr(<>Strongest category: where the brand takes the biggest share of that category&rsquo;s <Def k="ratingFlow">buying</Def> (all brands = 100%). Products in the top 100: today, across all tracked categories; the change counts the {both.size} categories tracked since {dayMonth(win.start)}. Best seller: the brand&rsquo;s product with the most buying. Reviews: the brand&rsquo;s tracked products, latest 3 months vs a year earlier, green when faster than <TrackedLink /> ({signed(allTracked)}, same rule). External: headlines from outside Nykaa.</>,
+          <>가장 강한 카테고리: 전체 브랜드 <Def k="ratingFlow">구매</Def> 중 점유율이 가장 큰 곳. 상위 100위 제품: 오늘 기준, 전체 추적 카테고리. 변화 = {dayMonth(win.start)}부터 추적한 {both.size}개 카테고리 기준. 베스트셀러: 구매가 가장 많은 제품. 리뷰: 최근 3개월 vs 1년 전, <TrackedLink />({signed(allTracked)}, 같은 기준)보다 빠르면 초록. 외부: 인도 관련 헤드라인.</>)}>
         {table(set, "r:")}
       </ActionSection>
 
