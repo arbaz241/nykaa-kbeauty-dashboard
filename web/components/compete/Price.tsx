@@ -48,7 +48,9 @@ function sizesDetail(p: ProductFacts, std: number | null, perSheet = false) {
 }
 
 /** Price rows, headline and benchmark note for the side-by-side product table (components/compete/ProductTable). */
-export function pricePart({ products, bench, std, cat }: { products: ProductFacts[]; bench: Bench | null; std: number | null; cat: string }) {
+export function pricePart({ products, bench, std, cat, leaderName }: { products: ProductFacts[]; bench: Bench | null; std: number | null; cat: string; leaderName?: string | null }) {
+  // the top-selling Korean product exists but Nykaa lists no size for it: say so, never "no K-beauty product"
+  const noBench = leaderName ? tr(`No size listed for the K-beauty leader (${leaderName})`, `K-뷰티 선두 제품(${leaderName}) 용량 미표기`) : tr("No K-beauty product with buying in this top 100", "이 상위 100위에 판매 집계된 K-뷰티 제품 없음");
   const a = products.find((p) => p.role === "anchor");
   const perSheet = bench?.unit === "sheet" || cat === "sheet_mask"; const unit = perSheet ? tr("sheet", "1매") : "100 ml/g";
   const criteria: Criterion<ProductFacts>[] = [
@@ -56,10 +58,10 @@ export function pricePart({ products, bench, std, cat }: { products: ProductFact
     { key: "per100", label: tr(`MRP per ${unit}`, `${unit}당 정가`), help: perSheet ? tr("MRP ÷ number of sheets in the pack", "정가 ÷ 매수") : tr("MRP ÷ pack size × 100, at the size closest to the category's usual size", "정가 ÷ 용량 × 100, 카테고리 표준 용량에 가장 가까운 용량 기준"), better: null,
       value: (p) => p.unit ?? p.perPiece, show: (p) => (p.unit ? r100(p.unit) : p.perPiece ? tr(`${r100(p.perPiece)} / piece`, `개당 ${r100(p.perPiece)}`) : ""),
       sub: (p) => p.unitNote, missing: (p) => (p.unit ?? p.perPiece ? null : p.per100Why ?? tr("No size to compare", "비교할 용량 없음")) },
-    { key: "vslead", label: tr("vs K-beauty leader", "K-뷰티 선두 대비"), help: tr("MRP per unit against the K-beauty leader: the K-beauty product with the most buying in this category's top 100", "K-뷰티 선두 제품(이 카테고리 상위 100위에서 구매가 가장 많은 K-뷰티 제품) 대비 단위당 정가"), better: null,
+    { key: "vslead", label: tr("vs K-beauty leader", "K-뷰티 선두 대비"), help: tr("MRP per unit against the K-beauty leader: the K-beauty product with the most buying in this category's top 100", "K-뷰티 선두 제품(이 카테고리 상위 100위에서 판매가 가장 많은 K-뷰티 제품) 대비 단위당 정가"), better: null,
       value: (p) => (p.unit && bench ? p.unit / bench.value - 1 : null),
       show: (p) => (p.pid === bench?.leader.product_id ? tr("The leader", "선두 제품") : (() => { const d = p.unit! / bench!.value - 1; return Math.abs(d) < 0.05 ? tr("In line", "비슷함") : tr(`${Math.round(Math.abs(d) * 100)}% ${d > 0 ? "above" : "below"}`, `${Math.round(Math.abs(d) * 100)}% ${d > 0 ? "비쌈" : "저렴"}`); })()),
-      missing: (p) => (!bench ? tr("No K-beauty product in today's top 100", "오늘 상위 100위에 K-뷰티 제품 없음") : p.unit ? null : tr("No size to compare", "비교할 용량 없음")) },
+      missing: (p) => (!bench ? noBench : p.unit ? null : tr("No size to compare", "비교할 용량 없음")) },
   ];
   const extra: ExtraRow<ProductFacts>[] = [
     { key: "more", after: "vslead", label: tr("Sizes and offer", "용량·프로모션"), render: (p) => (
@@ -76,8 +78,8 @@ export function pricePart({ products, bench, std, cat }: { products: ProductFact
       `${unit}당 ${r100(a.unit!)}인 ${shortTitle(a.name, a.brand)}: K-뷰티 선두 제품 ${lead} ${Math.abs(pos) < 0.05 ? "수준 가격" : `대비 ${Math.round(Math.abs(pos) * 100)}% ${pos > 0 ? "비쌈" : "저렴"}`}. 경쟁 제품 ${products.length - 1}개 중 ${cheaper}개가 더 저렴.`)
     : a?.mrp ? tr(`${shortTitle(a.name, a.brand)} lists at ${inr(a.mrp)} MRP.`, `${shortTitle(a.name, a.brand)} 정가: ${inr(a.mrp)}.`) : tr(`Prices in ${CATEGORY_LABEL[cat]}.`, `${CATEGORY_LABEL[cat]} 가격.`);
   const note = (bench ? tr(<>Benchmark: the K-beauty leader, <b>{lead}</b> ({bench.leader.buying !== null ? "the most buying" : `${compact(bench.leader.reviews)} reviews, the most`} of any K-beauty product in the {CATEGORY_LABEL[cat]} top 100{a?.brand ? `, ${a.brand}'s own excluded` : ""}): MRP {inr(bench.leader.mrp)} for {bench.leader.size} = <b>{r100(bench.value)}</b> per {unit}. For context, the whole top 100{bench.median ? <> has a median of {r100(bench.median)} (range {r100(bench.min!)}–{r100(bench.max!)}, {bench.n} products)</> : " has too few comparable products for a median"}. Price is a position, so it is never shaded green or red.</>,
-        <>기준: K-뷰티 선두 제품 <b>{lead}</b> ({bench.leader.buying !== null ? "구매" : `리뷰 ${compact(bench.leader.reviews)}건`}, {CATEGORY_LABEL[cat]} 상위 100위 K-뷰티 제품 중 최다{a?.brand ? `, ${a.brand} 제품 제외` : ""}): {bench.leader.size} 정가 {inr(bench.leader.mrp)} = {unit}당 <b>{r100(bench.value)}</b>. 참고로 상위 100위 전체{bench.median ? <>의 중앙값은 {r100(bench.median)} (범위 {r100(bench.min!)}–{r100(bench.max!)}, 제품 {bench.n}개)</> : "는 비교 가능한 제품이 적어 중앙값 없음"}. 가격은 위치일 뿐이라 초록·빨강 표시 안 함.</>)
-        : tr("No K-beauty product in today's top 100 to benchmark against.", "오늘 상위 100위에 기준으로 삼을 K-뷰티 제품 없음.")
+        <>기준: K-뷰티 선두 제품 <b>{lead}</b> ({bench.leader.buying !== null ? "판매" : `리뷰 ${compact(bench.leader.reviews)}건`}, {CATEGORY_LABEL[cat]} 상위 100위 K-뷰티 제품 중 최다{a?.brand ? `, ${a.brand} 제품 제외` : ""}): {bench.leader.size} 정가 {inr(bench.leader.mrp)} = {unit}당 <b>{r100(bench.value)}</b>. 참고로 상위 100위 전체{bench.median ? <>의 중앙값은 {r100(bench.median)} (범위 {r100(bench.min!)}–{r100(bench.max!)}, 제품 {bench.n}개)</> : "는 비교 가능한 제품이 적어 중앙값 없음"}. 가격은 위치일 뿐이라 초록·빨강 표시 안 함.</>)
+        : `${noBench}.`
   );
   return { criteria, extra, title, note };
 }

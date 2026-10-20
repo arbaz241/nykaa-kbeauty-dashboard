@@ -36,7 +36,7 @@ export function BrandSelect({ value, onChange, tiers, all, label = tr("Seen from
           {q ? (
             <div className="mt-2 max-h-[300px] overflow-y-auto">
               {[...tiers.focus, tiers.pinned].filter((b) => norm(b).includes(norm(q))).concat(others).map((b) => <Opt key={b} b={b} on={b === value} onPick={pick} tag={tiers.inSet(b) ? undefined : tr("scorecard depth", "간이 평가")} />)}
-              {!others.length && ![...tiers.focus, tiers.pinned].some((b) => norm(b).includes(norm(q))) && <p className="px-2 py-2 text-[12.5px] text-muted">{tr("No brand on today’s shelves matches.", "오늘 진열 목록에 일치하는 브랜드 없음.")}</p>}
+              {!others.length && ![...tiers.focus, tiers.pinned].some((b) => norm(b).includes(norm(q))) && <p className="px-2 py-2 text-[12.5px] text-muted">{tr("No brand on today’s shelves matches.", "오늘 랭킹 목록에 일치하는 브랜드 없음.")}</p>}
             </div>
           ) : (
             <div className="mt-2 max-h-[340px] overflow-y-auto">

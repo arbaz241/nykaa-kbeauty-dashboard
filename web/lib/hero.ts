@@ -80,7 +80,7 @@ export function heroProducts(
     const reach = ratingCount ? Math.min(Math.log10(ratingCount) / 5, 1) : 0;
 
     const factors = [
-      { label: tr("Shelf position", "진열 순위"), value: visibility },
+      { label: tr("Shelf position", "랭킹 순위"), value: visibility },
       { label: tr("Recent demand", "최근 수요"), value: demandScore },
       { label: tr("Rating", "평점"), value: ratingScore },
       { label: tr("Buyer base", "구매자 규모"), value: reach },
@@ -90,7 +90,7 @@ export function heroProducts(
     // The edge is whichever factor is furthest above the category's own middle.
     const gaps: { factor: HeroScore["edge"] extends null ? never : NonNullable<HeroScore["edge"]>["factor"]; gap: number; label: string; detail: string }[] = [];
     if (rank !== null && medRank > 0) {
-      gaps.push({ factor: "visibility", gap: (medRank - rank) / Math.max(medRank, 1), label: tr("Shelf position", "진열 순위"),
+      gaps.push({ factor: "visibility", gap: (medRank - rank) / Math.max(medRank, 1), label: tr("Shelf position", "랭킹 순위"),
         detail: tr(`rank ${rank} where the category's middle product sits at ${Math.round(medRank)}`, `${rank}위 (카테고리 중앙값 제품은 ${Math.round(medRank)}위)`) });
     }
     if (recent > 0 && medDemand > 0) {

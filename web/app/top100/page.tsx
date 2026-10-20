@@ -120,8 +120,8 @@ function TopPage() {
   const asOf = rows[0] ? dayMonth(rows[0].scrape_date) : undefined;
   return (
     <Shell active="Top 100" asOf={asOf}>
-      <PageHead eyebrow={tr("Top 100", "상위 100위")} title={tr("Every list's top 100, as Nykaa shows it", "목록별 상위 100위, Nykaa 순서 그대로")} sub={tr("Each tracked list's top 100 on Nykaa, in the order the Nykaa app shows them tonight, with who holds it by origin. Who is winning on buying is on the Market tab.", "추적 중인 목록별 Nykaa 상위 100위. 오늘 밤 Nykaa 앱 순서 그대로, 브랜드 국적별 점유 포함. 구매 기준 승자는 시장 탭.")} />
-      {!shelf.data ? <Loading what={tr("the shelves", "진열 데이터")} /> : (
+      <PageHead eyebrow={tr("Top 100", "상위 100위")} title={tr("Every list's top 100, as Nykaa shows it", "목록별 상위 100위 (Nykaa 노출 순서)")} sub={tr("Each tracked list's top 100 on Nykaa, in the order the Nykaa app shows them tonight, with who holds it by origin. Who is winning on buying is on the Market tab.", "추적 중인 목록별 Nykaa 상위 100위. 오늘 밤 Nykaa 앱 순서 그대로, 브랜드 국적별 점유 포함. 판매 기준 승자는 시장 탭.")} />
+      {!shelf.data ? <Loading what={tr("the shelves", "랭킹 데이터")} /> : (
         <>
           <div className="mt-7 flex flex-wrap gap-2">
             {CATEGORIES.map((c) => (
@@ -132,7 +132,7 @@ function TopPage() {
 
           <div className="mt-6 flex flex-wrap items-baseline justify-between gap-2">
             <div>
-              <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · {tr("who holds the top 100", "상위 100위 점유")}{noAds ? tr(", sponsored slots removed", ", 광고 자리 제외") : ""}{ownOnly ? tr(", other categories' listings removed", ", 다른 카테고리 제품 제외") : ""}</div>
+              <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · {tr("who holds the top 100", "상위 100위 점유")}{noAds ? tr(", sponsored slots removed", ", 광고 구좌 제외") : ""}{ownOnly ? tr(", other categories' listings removed", ", 다른 카테고리 제품 제외") : ""}</div>
               <h2 className="mt-2 font-display text-[22px] font-semibold leading-snug tracking-[-0.015em] md:text-[25px]">{(() => {
                 const by = ORIGIN_CARDS().map((o) => ({ o, n: summaryRows.filter((r) => r.origin === o.key).length })).sort((a, b) => b.n - a.n);
                 const best = summaryRows.find((r) => r.origin === "kbeauty");
@@ -184,7 +184,7 @@ function TopPage() {
           <Card className="mt-5">
             <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search brand or product", "브랜드 또는 제품 검색")} className="w-64 rounded-xl border border-line bg-page px-3.5 py-2 text-[13px] outline-none focus:border-accent-strong" />
-              <button onClick={() => setNoAds(!noAds)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${noAds ? "bg-[#fbecea] text-bad ring-bad/40" : "text-ink-2 ring-line hover:bg-sunken"}`}>⊘ {tr("Hide sponsored slots", "광고 자리 숨기기")}</button>
+              <button onClick={() => setNoAds(!noAds)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${noAds ? "bg-[#fbecea] text-bad ring-bad/40" : "text-ink-2 ring-line hover:bg-sunken"}`}>⊘ {tr("Hide sponsored slots", "광고 구좌 숨기기")}</button>
               {elsewhere > 0 && <button onClick={() => setOwnOnly(!ownOnly)} title={tr("Nykaa files these products under another category; the Market tab counts them there", "Nykaa가 다른 카테고리로 분류한 제품. 시장 탭은 그 카테고리에서 집계")} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${ownOnly ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>{tr(`Hide ${elsewhere} filed under another category`, `다른 카테고리 ${elsewhere}개 숨기기`)}</button>}
               <Chips value={origin} onChange={setOrigin} options={[["all", tr("All origins", "전체 국적")], ["kbeauty", tr("K-beauty", "K-뷰티")], ["local", tr("Indian", "인도")], ["global", tr("Global", "글로벌")]]} />
               <Chips value={badge} onChange={setBadge} options={[["all", tr("All", "전체")], ["bestseller", tr("Bestseller", "베스트셀러")], ["new", tr("New", "신상품")], ["paid", tr("Sponsored", "광고")]]} />
@@ -228,7 +228,7 @@ function TopPage() {
                         <td className="px-2 py-2.5 text-right font-medium tabular">{r.mrp ? inr(r.mrp) : inr(r.price)}</td>
                         <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.price && r.mrp && r.price < r.mrp ? inr(r.price) : <span className="text-[11px] text-muted">{tr("same", "동일")}</span>}</td>
                         <td className="px-2 py-2.5 text-right tabular">{r.discount_pct ? <span className="text-good">{Math.round(r.discount_pct)}%</span> : <span className="text-[11px] text-muted">{tr("none", "없음")}</span>}</td>
-                        <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.pack_size ?? (packMl(r.name) ? <span title={tr("Read from the product name; Nykaa's listing leaves the size out", "상품명에서 읽음, Nykaa 목록에 용량 표기 없음")}>{packMl(r.name)} ml/g*</span> : <Missing>{tr("not on Nykaa's list", "Nykaa 목록에 없음")}</Missing>)}</td>
+                        <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.pack_size ?? (packMl(r.name) ? <span title={tr("Read from the product name; Nykaa's listing leaves the size out", "상품명 기준 용량 (Nykaa 목록에 미표기)")}>{packMl(r.name)} ml/g*</span> : <Missing>{tr("not on Nykaa's list", "Nykaa 목록에 없음")}</Missing>)}</td>
                         <td className="whitespace-nowrap px-2 py-2.5 text-right tabular text-ink-2">{(() => { const u = unit(r); return u ? <>₹{Math.round(u.v).toLocaleString("en-IN")}<span className="text-[10.5px] text-muted">/{u.per}{u.est ? "*" : ""}</span></> : <Missing>{tr("no size", "용량 없음")}</Missing>; })()}</td>
                         <td className="px-2 py-2.5 text-right tabular">{r.rating_count ? r.rating_count.toLocaleString("en-US") : <Missing>{tr("none yet", "아직 없음")}</Missing>}</td>
                         <td className="px-4 py-2.5 text-right"><Stars v={r.rating} /></td>

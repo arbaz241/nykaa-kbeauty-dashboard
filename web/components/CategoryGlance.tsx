@@ -63,7 +63,7 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
       {part === "all" && <>      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{CATEGORY_LABEL[cat]} · {tr("at a glance", "한눈에")}</div>
-          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × MRP, single products only.`, `구매·순위 변동: ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 구매 = 신규 평가 × 정가(MRP), 단일 제품만.`)}</p>
+          <p className="mt-1 max-w-[760px] text-[13px] text-muted">{tr(`Buying and moves over the ${spanLabel(m.period.days)} (${dayMonth(win.start)}–${dayMonth(win.end)}); buying is new ratings × MRP, single products only.`, `판매·순위 변동: ${spanLabel(m.period.days)} 기준(${dayMonth(win.start)}–${dayMonth(win.end)}). 판매 = 신규 평가 × 정가(MRP), 단일 제품만.`)}</p>
         </div>
         <PeriodBar />
       </div></>}
@@ -81,14 +81,14 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
           <Basis>{tr(`${rows.filter((r) => r.origin === "kbeauty").length} of ${rows.length} products today`, `오늘 제품 ${rows.length}개 중 ${rows.filter((r) => r.origin === "kbeauty").length}개`)}</Basis>
         </Card>
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted"><Def k="ratingFlow">{tr("Best seller's share of all buying", "베스트셀러의 전체 구매 점유율")}</Def></div>
+          <div className="text-[12.5px] text-muted"><Def k="ratingFlow">{tr("Best seller's share of all buying", "베스트셀러의 전체 판매 점유율")}</Def></div>
           {topSeller ? <>
             <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(topSeller.value / tot, 1)}</div>
             <Basis><b className="font-medium text-ink">{topSeller.brand}</b> {shortName(topSeller.name, topSeller.brand)}</Basis>
           </> : <div className="mt-1 font-display text-[28px] font-semibold">–</div>}
         </Card>
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted">{tr("Top 5 brands' share of all buying", "상위 5개 브랜드의 전체 구매 점유율")}</div>
+          <div className="text-[12.5px] text-muted">{tr("Top 5 brands' share of all buying", "상위 5개 브랜드의 전체 판매 점유율")}</div>
           <div className="mt-1 font-display text-[28px] font-semibold tabular">{pct(top5)}</div>
           <Basis>{brands.slice(0, 5).map((b, i) => <span key={b.key}>{i ? " · " : ""}<b className="font-medium text-ink">{b.key}</b> {pct(b.value / tot)}</span>)}</Basis>
         </Card>
@@ -98,8 +98,8 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
         <MoveList title={fresh ? tr("Fell most", "가장 많이 내린 제품") : tr(`Fell most, ${dayMonth(from)} → ${dayMonth(win.end)}`, `가장 많이 내린 제품, ${dayMonth(from)} → ${dayMonth(win.end)}`)} items={fallers} spark={spark} empty={fresh ? tooNew : tr("Nothing fell 5+ places.", "5계단 이상 내린 제품 없음.")} />
         <MoveList title={tr("New in the top 100 this period", "이번 기간 상위 100위 신규 진입")} items={entrants} spark={spark} empty={fresh ? tooNew : tr("No new entries in this period.", "이 기간 신규 진입 없음.")} />
       </div>
-      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof. Days in a sponsored or pinned spot are left out of the three-day middles.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유 = 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁), 증거는 아님. 광고·고정 자리였던 날은 중앙값에서 제외.")}
-        {boughtMoves.length ? tr(` Left out: ${boughtMoves.length} product${boughtMoves.length === 1 ? "" : "s"} in a sponsored or pinned spot on most days, whose rank was bought (${boughtMoves.slice(0, 3).map((x) => x.brand).join(", ")}${boughtMoves.length > 3 ? "…" : ""}).`, ` 제외: 대부분의 날 광고·고정 자리였던 제품 ${boughtMoves.length}개 (순위를 구매, ${boughtMoves.slice(0, 3).map((x) => x.brand).join(", ")}${boughtMoves.length > 3 ? "…" : ""}).`) : ""}</p></>}
+      <p className="mt-2 text-[12px] text-muted">{tr("Moves: the middle of the first three days to the middle of the last three. Reasons are what changed on the same dates (price, paid slot, offer, stock, homepage, sale, ratings, rivals); none is proof. Days in a sponsored or pinned spot are left out of the three-day middles.", "변화: 처음 3일 중앙값 → 마지막 3일 중앙값. 이유 = 같은 날짜에 달라진 것(가격, 광고, 프로모션, 재고, 홈페이지, 세일, 평가, 경쟁), 증거는 아님. 광고·고정 구좌였던 날은 중앙값에서 제외.")}
+        {boughtMoves.length ? tr(` Left out: ${boughtMoves.length} product${boughtMoves.length === 1 ? "" : "s"} in a sponsored or pinned spot on most days, whose rank was bought (${boughtMoves.slice(0, 3).map((x) => x.brand).join(", ")}${boughtMoves.length > 3 ? "…" : ""}).`, ` 제외: 대부분의 날 광고·고정 구좌였던 제품 ${boughtMoves.length}개 (순위를 구매, ${boughtMoves.slice(0, 3).map((x) => x.brand).join(", ")}${boughtMoves.length > 3 ? "…" : ""}).`) : ""}</p></>}
     </section>
   );
 }

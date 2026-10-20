@@ -44,28 +44,28 @@ function criteriaFor(cat: string, anchor: string, buy: BuyingShare): Criterion<B
     { key: "listings", label: tr("Top-100 listings", "상위 100위 제품 수"), help: tr("Product slots in the top 100 of all tracked categories today", "오늘 추적 중인 전체 카테고리 상위 100위 안의 제품 수"), better: "high", value: (f) => f.slots, show: (f) => String(f.slots), sub: (f) => tr(`${f.categories.length} categories`, `카테고리 ${f.categories.length}개`), bar: true,
       up: tr("More top-100 listings than", "상위 100위 제품이 더 많음"), down: tr("Fewer top-100 listings than", "상위 100위 제품이 더 적음") },
     { key: "top20", label: tr("In the top 20", "상위 20위 안"), help: tr("Slots in the first 20 positions, where most clicks happen", "클릭이 가장 많이 일어나는 상위 20위 안의 제품 수"), better: "high", value: (f) => f.top20, show: (f) => String(f.top20), bar: true },
-    { key: "rank", label: tr("Best shelf position", "최고 진열 순위"), help: tr("Highest position of any of its products today", "오늘 이 브랜드 제품 중 가장 높은 순위"), better: "low", value: (f) => f.bestRank, show: (f) => `#${f.bestRank}`,
+    { key: "rank", label: tr("Best shelf position", "최고 랭킹 순위"), help: tr("Highest position of any of its products today", "오늘 이 브랜드 제품 중 가장 높은 순위"), better: "low", value: (f) => f.bestRank, show: (f) => `#${f.bestRank}`,
       sub: (f) => (f.medianRank ? tr(`typical #${Math.round(f.medianRank)}`, `보통 #${Math.round(f.medianRank)}`) : null), missing: (f) => (f.bestRank ? null : tr("Not in any top 100 today", "오늘 어느 상위 100위에도 없음")) },
-    { key: "paid", label: tr("Paid placements", "광고 노출 비중"), help: tr("Share of its top-100 slots that are ads or featured", "상위 100위 제품 중 광고·추천 자리 비중"), better: null, value: (f) => f.paidShare, show: (f) => pct(f.paidShare), bar: true,
+    { key: "paid", label: tr("Paid placements", "광고 노출 비중"), help: tr("Share of its top-100 slots that are ads or featured", "상위 100위 제품 중 광고·추천 구좌 비중"), better: null, value: (f) => f.paidShare, show: (f) => pct(f.paidShare), bar: true,
       missing: (f) => (f.paidShare === null ? notOnShelf() : null) },
     { key: "rating", label: tr("Star rating", "별점"), help: tr("Average star rating of its top-100 products", "상위 100위 제품의 평균 별점"), better: "high", value: (f) => f.rating, show: (f) => `★ ${f.rating!.toFixed(2)}`,
       missing: (f) => (f.rating ? null : tr("No rated product in today's top 100", "오늘 상위 100위에 평가된 제품 없음")) },
     { key: "ratings", label: tr("Ratings, all time", "누적 평가 수"), help: tr("Total star ratings on its top-100 products; sizes that share one set of ratings on Nykaa count once", "상위 100위 제품의 별점 평가 합계. Nykaa에서 평가를 공유하는 용량별 제품은 한 번만 집계"), better: "high", value: (f) => f.ratings, show: (f) => compact(f.ratings), bar: true },
     // owner 20 Oct 2026: shares must hold up. Buying is measured on every top-100 product alike; review counts depend on
     // how many of a brand's products we follow, so they are context (no ahead/behind colour, no LEAD)
-    { key: "buying", label: tr("Share of buying, all top 100s", "구매 점유율, 상위 100위 전체"), help: tr(`The brand's new ratings × MRP over all brands' in every tracked top 100, ${buy.span}`, `상위 100위 전체에서 브랜드 신규 평가 × 정가 ÷ 전체 브랜드, ${buy.span}`), better: "high",
-      value: (f) => buy.of(f.brand), show: (f) => pct(buy.of(f.brand)!, 1), sub: () => buy.span, bar: true, missing: (f) => (buy.of(f.brand) ? null : tr("No buying counted in the top 100s", "상위 100위 구매 집계 없음")) },
+    { key: "buying", label: tr("Share of buying, all top 100s", "판매 점유율, 상위 100위 전체"), help: tr(`The brand's new ratings × MRP over all brands' in every tracked top 100, ${buy.span}`, `상위 100위 전체에서 브랜드 신규 평가 × 정가 ÷ 전체 브랜드, ${buy.span}`), better: "high",
+      value: (f) => buy.of(f.brand), show: (f) => pct(buy.of(f.brand)!, 1), sub: () => buy.span, bar: true, missing: (f) => (buy.of(f.brand) ? null : tr("No buying counted in the top 100s", "상위 100위 판매 집계 없음")) },
     { key: "demand", label: tr("Reviews, last 3 months", "최근 3개월 리뷰"), help: tr("Dated reviews on its tracked products in the last 3 complete months (one count per product, sizes pooled). Depends on how many of its products we follow, so it is not coloured", "최근 완결된 3개월 동안 추적 제품에 작성된 리뷰 (제품당 한 번, 용량 합산). 추적 제품 수에 따라 달라지므로 색 표시 없음"), better: null, value: (f) => f.last3, show: (f) => compact(f.last3),
       sub: (f) => tr(`${DW().recent} · ${f.demandProducts} products`, `${DW().recent} · 제품 ${f.demandProducts}개`), bar: true, missing: (f) => (f.last3 === null ? notTracked() : null) },
     { key: "momentum", label: tr("Review growth", "리뷰 성장률"), help: tr(`Reviews ${DW().recent} against ${DW().prior}, products with complete history only`, `${DW().recent} 리뷰 vs ${DW().prior} 리뷰. 이력이 완전한 제품만`), better: "high", value: (f) => f.growth, show: (f) => signed(f.growth), sub: () => tr(`vs ${DW().prior}`, `${DW().prior} 대비`),
       missing: (f) => (f.growth === null ? (f.last3 === null ? notTracked() : tr("Too new to compare", "비교하기엔 너무 새 제품")) : null) },
-    { key: "search", label: tr("K-beauty searches", "K-뷰티 검색"), help: tr("Tracked Korean-beauty searches where it shows in the first 10 unpaid results", "비광고 상위 10개 결과에 나오는 추적 K-뷰티 검색어 수"), better: "high", value: (f) => f.searchTerms,
+    { key: "search", label: tr("K-beauty searches", "K-뷰티 검색"), help: tr("Tracked Korean-beauty searches where it shows in the first 10 unpaid results", "자연 검색 상위 10개 결과에 나오는 추적 K-뷰티 검색어 수"), better: "high", value: (f) => f.searchTerms,
       show: (f) => (f.searchTerms ? String(f.searchTerms) : tr("In none", "없음")), sub: (f) => (f.bestSearch ? tr(`best #${f.bestSearch}`, `최고 #${f.bestSearch}`) : null), bar: true },
     { key: "range", label: tr("Products on Nykaa", "Nykaa 판매 제품 수"), help: tr("All products the brand lists on Nykaa", "브랜드가 Nykaa에 올린 전체 제품"), better: null, value: (f) => f.range, show: (f) => String(f.range),
       sub: (f) => (f.conversion !== null ? tr(`${pct(f.conversion)} reach a top 100`, `${pct(f.conversion)}가 상위 100위 진입`) : null), missing: (f) => (f.range === null ? tr("Range not counted for this brand", "이 브랜드는 라인업 미집계") : null) },
   ];
 }
-const GROUPS = () => ({ price: tr("Price and promotion", "가격·프로모션"), listings: tr("Shelf visibility", "진열 노출"), rating: tr("Buyer response", "구매자 반응"), buying: tr("Demand (sales signal)", "수요 (판매 신호)"), search: tr("Search", "검색"), range: tr("Range", "라인업") });
+const GROUPS = () => ({ price: tr("Price and promotion", "가격·프로모션"), listings: tr("Shelf visibility", "랭킹 노출"), rating: tr("Buyer response", "구매자 반응"), buying: tr("Demand (sales signal)", "수요 (판매 신호)"), search: tr("Search", "검색"), range: tr("Range", "라인업") });
 
 /* ---------------------------------------------------------------- §7 brands */
 
@@ -97,12 +97,12 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isDefa
   ) }));
   const extra: ExtraRow<BrandFacts>[] = [
     { after: "momentum", label: tr("By month · month on month", "월별 · 전월 대비"), help: momHelp(), has: (f) => f.spark.some((v) => v !== null), missing: () => tr("Not in review tracking", "리뷰 추적 대상 아님"), render: (f) => <MonthOnMonthButton values={f.spark} win={monthsWindow(12)} color={colors[f.brand]}
-      kicker={tr(`${f.brand} · written reviews by month`, `${f.brand} · 월별 작성 리뷰`)} title={tr(`${f.brand}: the last 12 months`, `${f.brand}: 최근 12개월`)} products={productsOf(f.brand)} /> },
+      kicker={tr(`${f.brand} · written reviews by month`, `${f.brand} · 월별 리뷰`)} title={tr(`${f.brand}: the last 12 months`, `${f.brand}: 최근 12개월`)} products={productsOf(f.brand)} /> },
   ];
 
   return (
     <ActionSection id="brands" kicker={tr("Brand scorecard · Innisfree vs the main rival brands", "브랜드 스코어카드 · Innisfree vs 주요 경쟁 브랜드")} title={title}
-      note={isDefault ? tr("Opens on the main brands with the most top-100 places in Innisfree's categories (3 Korean, 1 Indian, 1 global). Change the set below; the brand names stay pinned at the top as you scroll the table.", "기본값: Innisfree 카테고리에서 상위 100위 자리가 가장 많은 주요 브랜드 (K-뷰티 3, 인도 1, 글로벌 1). 아래에서 변경 가능, 표를 내려도 브랜드 이름은 위에 고정.") : tr("Your brand set. The brand names stay pinned at the top as you scroll the table.", "직접 고른 브랜드. 표를 내려도 브랜드 이름은 위에 고정.")}>
+      note={isDefault ? tr("Opens on the main brands with the most top-100 places in Innisfree's categories (3 Korean, 1 Indian, 1 global). Change the set below; the brand names stay pinned at the top as you scroll the table.", "기본값: Innisfree 카테고리에서 상위 100위 제품 수가 가장 많은 주요 브랜드 (K-뷰티 3, 인도 1, 글로벌 1). 아래에서 변경 가능, 표를 내려도 브랜드 이름은 위에 고정.") : tr("Your brand set. The brand names stay pinned at the top as you scroll the table.", "직접 고른 브랜드. 표를 내려도 브랜드 이름은 위에 고정.")}>
       <Card className="mb-4 px-4 py-3">
         <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
           <span>{tr("Brands compared · up to 6, Innisfree always included", "비교 브랜드 · 최대 6개, Innisfree 항상 포함")}</span>
@@ -111,7 +111,7 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isDefa
         <BrandPicker focus={focus} all={all} selected={brands} colors={colors} onToggle={onToggle} max={6} />
       </Card>
       <CompareGrid cols={cols} items={facts} criteria={criteria} extra={extra} groups={GROUPS()} colors={facts.map((f) => colors[f.brand])} labelWidth={160} />
-      <p className="mt-2 text-[11.5px] text-muted">{tr("Shelf, rating and paid figures are from today’s top-100 listings; prices from each brand’s full Nykaa range where tracked. Hover a row name for its definition.", "진열·평점·광고 수치는 오늘 상위 100위 제품 기준, 가격은 추적 브랜드의 Nykaa 전체 라인업 기준. 행 이름에 마우스를 올리면 정의 표시.")}</p>
+      <p className="mt-2 text-[11.5px] text-muted">{tr("Shelf, rating and paid figures are from today’s top-100 listings; prices from each brand’s full Nykaa range where tracked. Hover a row name for its definition.", "랭킹·평점·광고 수치는 오늘 상위 100위 제품 기준, 가격은 추적 브랜드의 Nykaa 전체 라인업 기준. 행 이름에 마우스를 올리면 정의 표시.")}</p>
     </ActionSection>
   );
 }
@@ -154,7 +154,7 @@ export function WhereCompete({ anchor, rows, catalog, colors, brands, onPickCat 
   const rest = [G[1], G[0], G[3]].filter((g) => n(g.k).length);
   return (
     <ActionSection id="compete" kicker={tr("Where they compete", "경쟁 지점")} title={title}
-      note={tr("Places in each category's top 100 tonight (own-category rank, best product). Click a category to compare its products in Part 2.", "오늘 카테고리별 상위 100위 자리(카테고리 자체 순위, 최고 제품). 카테고리를 누르면 2부에서 제품 비교.")}>
+      note={tr("Places in each category's top 100 tonight (own-category rank, best product). Click a category to compare its products in Part 2.", "오늘 카테고리별 상위 100위 제품 수(카테고리 자체 순위, 최고 제품). 카테고리를 누르면 2부에서 제품 비교.")}>
       {un.length > 0 && (
         <Card className="px-4 py-3.5">
           <ul className="space-y-1.5">{un.map((l) => (

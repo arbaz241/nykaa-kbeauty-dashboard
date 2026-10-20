@@ -1,4 +1,4 @@
-import { labels } from "./i18n";
+import { labels, tr } from "./i18n";
 
 export const inr = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `₹${Math.round(v).toLocaleString("en-IN")}`);
 // a share too small to show at this precision reads "<0.1%", never "0.0%" (owner 19 Oct 2026)
@@ -6,6 +6,12 @@ export const pct = (v: number | null | undefined, d = 0) => (v === null || v ===
 export const num = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : Math.round(v).toLocaleString("en-IN"));
 export const compact = (v: number | null | undefined) => {
   if (v === null || v === undefined || Number.isNaN(v)) return "–";
+  // Korean counts in 만 / 억 (2.6만, not 25.7k), the way Korean reports write them
+  if (tr(false, true)) {
+    if (v >= 1e8) return `${(v / 1e8).toFixed(1).replace(/\.0$/, "")}억`;
+    if (v >= 1e4) return `${(v / 1e4).toFixed(v >= 1e6 ? 0 : 1).replace(/\.0$/, "")}만`;
+    return Math.round(v).toLocaleString("ko-KR");
+  }
   // one scale everywhere: a "3.4 L" next to "66.4k" reads as the smaller number
   if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
   if (v >= 1e3) return `${(v / 1e3).toFixed(v >= 1e5 ? 0 : 1)}k`;

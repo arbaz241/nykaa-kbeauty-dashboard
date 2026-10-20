@@ -39,7 +39,7 @@ const ratings = (r: { rating?: number | null; rating_count?: number | null }) =>
   r.rating_count ? `${r.rating ? `★ ${r.rating.toFixed(1)} · ` : ""}${tr(`${compact(r.rating_count)} ratings`, `평가 ${compact(r.rating_count)}건`)}` : tr("no ratings yet", "아직 평가 없음");
 type Window = "7" | "14";
 const NAV = (): NavItem[] => [
-  { id: "summary", label: tr("Summary", "요약") }, { id: "origin", label: tr("Who holds the shelf", "진열 점유") }, { id: "trend", label: tr("Day by day", "일별 추이") },
+  { id: "summary", label: tr("Summary", "요약") }, { id: "origin", label: tr("Who holds the shelf", "상위 100위 점유") }, { id: "trend", label: tr("Day by day", "일별 추이") },
   { id: "movers", label: tr("Movers", "순위 변동") }, { id: "store", label: tr("Korean store", "K-뷰티 스토어") }, { id: "launches", label: tr("Launches", "신제품") },
 ];
 interface Move { wasAd?: boolean; key: string; product_id: string; brand: string; name: string; sub: string; from: number | null; to: number | null; change: number; isAd: boolean; rating: number | null; rating_count: number | null; row?: ShelfRow; url?: string | null }
@@ -182,7 +182,7 @@ function MarketPage() {
   const anchorSlots = anchorRows.length; const anchorBest = Math.min(...anchorRows.map((r) => r.rank), 999);
   return (
     <Shell active="Market" asOf={last ? day(last) : undefined}>
-      <PageHead eyebrow={tr("The Nykaa shelf", "Nykaa 진열")} title={tr("Market", "시장")} sub={tr(<>The Nykaa shelf across {CATEGORIES.length} categories: who holds the top-100 places, how that moves day by day, who is climbing, the Korean store, and which launches are catching on.</>, <>{CATEGORIES.length}개 카테고리의 Nykaa 진열: 상위 100위를 누가 차지하는지, 날마다 어떻게 움직이는지, 누가 오르는지, K-뷰티 스토어, 반응이 오는 신제품.</>)} />
+      <PageHead eyebrow={tr("The Nykaa shelf", "Nykaa 랭킹")} title={tr("Market", "시장")} sub={tr(<>The Nykaa shelf across {CATEGORIES.length} categories: who holds the top-100 places, how that moves day by day, who is climbing, the Korean store, and which launches are catching on.</>, <>{CATEGORIES.length}개 카테고리의 Nykaa 랭킹: 상위 100위를 누가 차지하는지, 날마다 어떻게 움직이는지, 누가 오르는지, K-뷰티 스토어, 반응이 오는 신제품.</>)} />
       {!ready ? <Loading what={tr("market data", "시장 데이터")} /> : (
         <>
           <SectionNav items={NAV()} />
@@ -194,7 +194,7 @@ function MarketPage() {
             const ahead = setL.filter((l) => l.change > 0).length; const behind = setL.filter((l) => l.change < 0).length;
             const lfl = listing[0]?.both ?? 0;
             return (
-              <Verdict eyebrow={tr("The shelf today", "오늘의 진열")} points={tr([
+              <Verdict eyebrow={tr("The shelf today", "오늘의 랭킹")} points={tr([
                 <><b className="text-on-brand">K-beauty&rsquo;s share:</b> {(kL * 100).toFixed(1)}% of the top-100 places on the {baseCats.size} categories tracked since {day(first)}, {kL >= kFirst ? "up" : "down"} {Math.abs((kL - kFirst) * 100).toFixed(1)} pts. Across all {CATEGORIES.length} categories today it is {(kNow * 100).toFixed(1)}%; the gap is new categories, not growth.</>,
                 <><b className="text-on-brand">Focus brands, 14 days:</b> {ahead} gained places, {behind} lost, counted on the {lfl} categories tracked on both days.{gain && gain.change > 0 ? ` ${gain.brand} gained most (+${gain.change}).` : ""}{loss && loss.change < 0 ? ` ${loss.brand} lost most (${loss.change}).` : ""}</>,
                 <><b className="text-on-brand">Korean store:</b> its top three brands hold {storeLeaders.slice(0, 3).reduce((a, s) => a + s.n, 0)} of 100 places, led by {storeLeaders[0]?.b ?? "none"} ({storeLeaders[0]?.n ?? 0}); {storeLeaders.slice(0, 10).filter((s) => isFocus(s.b)).length} of its top 10 brands are focus brands.</>,
@@ -207,19 +207,19 @@ function MarketPage() {
               ])} foot={tr(<><b>So what:</b> {me ? `${set.anchor} holds ${me.n} places (best #${me.best}, ${me.change === 0 ? "unchanged" : `${me.change > 0 ? "+" : ""}${me.change}`} in 14 days)` : `${set.anchor} holds no place`} while {gain && gain.change > 0 ? `${gain.brand} adds ${gain.change}` : "the focus brands hold steady"}: {me && gain && gain.change > me.change + 2 ? "visibility is drifting to rivals; the movers below show where." : "no sharp shift this fortnight; watch the movers below."}</>,
                 <><b>시사점:</b> {me ? `${set.anchor}: 상위 100위 제품 ${me.n}개(최고 #${me.best}, 14일간 ${me.change === 0 ? "변화 없음" : `${me.change > 0 ? "+" : ""}${me.change}`})` : `${set.anchor}: 상위 100위 제품 없음`}, {gain && gain.change > 0 ? `${gain.brand} ${gain.change}개 증가` : "주요 브랜드는 큰 변화 없음"}. {me && gain && gain.change > me.change + 2 ? "노출이 경쟁사로 옮겨 가는 중. 어디인지는 아래 순위 변동에서 확인." : "이번 2주는 큰 변화 없음. 아래 순위 변동 참고."}</>)}>
                 {tr(<>K-beauty holds {(kL * 100).toFixed(1)}% of the top-100 places on like-for-like shelves ({kL >= kFirst ? "+" : "−"}{Math.abs((kL - kFirst) * 100).toFixed(1)} pts since {day(first)}); {set.anchor} holds {anchorSlots} of all {rows.length.toLocaleString("en-IN")} places{anchorSlots ? `, best #${anchorBest}` : ""}{anchorInStore ? `, and ${anchorInStore.n} of the Korean store's top 100` : ", and none in the Korean store's top 100"}.</>,
-                  <>동일 조건 진열 기준 K-뷰티 = 상위 100위 제품의 {(kL * 100).toFixed(1)}%({day(first)} 대비 {kL >= kFirst ? "+" : "−"}{Math.abs((kL - kFirst) * 100).toFixed(1)}%p). {josa(set.anchor, "은/는")} 전체 {rows.length.toLocaleString("en-IN")}개 중 {anchorSlots}개{anchorSlots ? `(최고 #${anchorBest})` : ""}{anchorInStore ? `, K-뷰티 스토어 상위 100위 중 ${anchorInStore.n}개` : ", K-뷰티 스토어 상위 100위에는 없음"}.</>)}
+                  <>동일 조건 랭킹 기준 K-뷰티 = 상위 100위 제품의 {(kL * 100).toFixed(1)}%({day(first)} 대비 {kL >= kFirst ? "+" : "−"}{Math.abs((kL - kFirst) * 100).toFixed(1)}%p). {josa(set.anchor, "은/는")} 전체 {rows.length.toLocaleString("en-IN")}개 중 {anchorSlots}개{anchorSlots ? `(최고 #${anchorBest})` : ""}{anchorInStore ? `, K-뷰티 스토어 상위 100위 중 ${anchorInStore.n}개` : ", K-뷰티 스토어 상위 100위에는 없음"}.</>)}
               </Verdict>
             );
           })()}
           <div className="mt-3 grid gap-3 md:grid-cols-4">
             <Stat label={tr("K-beauty share, like for like", "K-뷰티 점유율, 동일 조건")} value={`${(kL * 100).toFixed(1)}%`} sub={days.length > 1 ? tr(<>{kL >= kFirst ? "▲" : "▼"} {Math.abs((kL - kFirst) * 100).toFixed(1)} pts since {day(first)}<Basis>on the {baseCats.size} categories tracked since day one · all {CATEGORIES.length} today: {(kNow * 100).toFixed(1)}%</Basis></>, <>{day(first)} 대비 {kL >= kFirst ? "▲" : "▼"} {Math.abs((kL - kFirst) * 100).toFixed(1)}%p<Basis>첫날부터 추적한 카테고리 {baseCats.size}개 기준 · 오늘 전체 {CATEGORIES.length}개 기준: {(kNow * 100).toFixed(1)}%</Basis></>) : tr("first day of data", "데이터 첫날")} />
-            <Stat label={tr("Focus brands' listings", "주요 브랜드 진열 제품")} value={String(focusSlots)} sub={tr(<>{((focusSlots / Math.max(1, rows.length)) * 100).toFixed(1)}% of all {rows.length.toLocaleString("en-IN")} top-100 places<Basis>{set.anchor} and the {tiers.focus.length} focus brands, today</Basis></>, <>상위 100위 전체 {rows.length.toLocaleString("en-IN")}자리의 {((focusSlots / Math.max(1, rows.length)) * 100).toFixed(1)}%<Basis>오늘 기준 {set.anchor}와 주요 브랜드 {tiers.focus.length}곳</Basis></>)} />
-            <Stat label={tr("Launches on the shelf", "진열 중인 신제품")} value={String(allLaunches.length)} sub={tr(<>{allLaunches.filter((l) => l.r.origin === "kbeauty").length} K-beauty · {launches.length} from brands in view<Basis>first reviewed in the last 90 days</Basis></>, <>K-뷰티 {allLaunches.filter((l) => l.r.origin === "kbeauty").length}개 · 대상 브랜드 {launches.length}개<Basis>최근 90일 안에 첫 리뷰</Basis></>)} />
+            <Stat label={tr("Focus brands' listings", "주요 브랜드 랭킹 제품")} value={String(focusSlots)} sub={tr(<>{((focusSlots / Math.max(1, rows.length)) * 100).toFixed(1)}% of all {rows.length.toLocaleString("en-IN")} top-100 places<Basis>{set.anchor} and the {tiers.focus.length} focus brands, today</Basis></>, <>상위 100위 전체 {rows.length.toLocaleString("en-IN")}자리의 {((focusSlots / Math.max(1, rows.length)) * 100).toFixed(1)}%<Basis>오늘 기준 {set.anchor}와 주요 브랜드 {tiers.focus.length}곳</Basis></>)} />
+            <Stat label={tr("Launches on the shelf", "랭킹 내 신제품")} value={String(allLaunches.length)} sub={tr(<>{allLaunches.filter((l) => l.r.origin === "kbeauty").length} K-beauty · {launches.length} from brands in view<Basis>first reviewed in the last 90 days</Basis></>, <>K-뷰티 {allLaunches.filter((l) => l.r.origin === "kbeauty").length}개 · 대상 브랜드 {launches.length}개<Basis>최근 90일 안에 첫 리뷰</Basis></>)} />
             <Stat label={tr("Korean store leader", "K-뷰티 스토어 선두")} value={storeLeaders[0]?.b ?? tr("None today", "오늘 없음")} sub={storeLeaders[0] ? tr(<>{storeLeaders[0].n} of the store&rsquo;s top 100 · best #{storeLeaders[0].best}<Basis>Nykaa&rsquo;s Korean Beauty store, today</Basis></>, <>스토어 상위 100위 중 {storeLeaders[0].n}자리 · 최고 #{storeLeaders[0].best}<Basis>오늘 Nykaa K-뷰티 스토어</Basis></>) : tr("the store was not collected today", "오늘 스토어 미수집")} />
           </div>
           </section>
 
-          <ActionSection id="origin" kicker={tr("Who holds the shelf · by brand origin", "진열 점유 · 브랜드 국적별")} title={(() => {
+          <ActionSection id="origin" kicker={tr("Who holds the shelf · by brand origin", "상위 100위 점유 · 브랜드 국적별")} title={(() => {
             const k = CATEGORIES.map((c) => ({ c, v: shareOn(last, c).kbeauty })).sort((a, b) => b.v - a.v);
             return tr(`K-beauty is strongest in ${CATEGORY_LABEL[k[0].c].toLowerCase()} (${Math.round(k[0].v * 100)}% of the top 100) and weakest in ${CATEGORY_LABEL[k[k.length - 1].c].toLowerCase()} (${Math.round(k[k.length - 1].v * 100)}%).`, `K-뷰티는 ${CATEGORY_LABEL[k[0].c]}에서 가장 강하고(상위 100위의 ${Math.round(k[0].v * 100)}%), ${CATEGORY_LABEL[k[k.length - 1].c]}에서 가장 약함(${Math.round(k[k.length - 1].v * 100)}%).`);
           })()} note={tr(`Share of each category's top-100 places by brand origin, ${day(last)}. The top 20 is where most clicks land.`, `${day(last)} 카테고리별 상위 100위 제품의 브랜드 국적별 비중. 클릭은 대부분 상위 20위에서 발생.`)}>
@@ -271,7 +271,7 @@ function MarketPage() {
                       return (
                         <button key={`${r.subcategory}${r.product_id}`} onClick={() => open(ref(r))} className="grid w-full grid-cols-[44px_1fr_auto] items-center gap-3 rounded-lg px-2 py-1.5 text-left text-[12.5px] hover:bg-surface">
                           <b className="tabular">#{r.rank}</b>
-                          <span className="min-w-0"><span className="block truncate">{shortName(r.name, r.brand)}</span><span className="text-[11px] text-muted">{CATEGORY_LABEL[r.subcategory]}{r.is_ad ? tr(" · paid slot", " · 광고 자리") : ""}</span></span>
+                          <span className="min-w-0"><span className="block truncate">{shortName(r.name, r.brand)}</span><span className="text-[11px] text-muted">{CATEGORY_LABEL[r.subcategory]}{r.is_ad ? tr(" · paid slot", " · 광고 구좌") : ""}</span></span>
                           <span className="text-right text-[11.5px] tabular text-muted">{was === undefined ? (pastRows.length ? tr("new", "신규") : "") : was === r.rank ? "=" : was > r.rank ? <span className="text-good">▲{was - r.rank}</span> : <span className="text-bad">▼{r.rank - was}</span>}</span>
                         </button>
                       );
@@ -293,9 +293,9 @@ function MarketPage() {
           </ActionSection>
 
           {days.length > 1 && (
-            <ActionSection id="movers" kicker={tr("Movers · the brands that matter", "순위 변동 · 주요 브랜드")} title={up[0] ? tr(`Biggest climb that matters: ${up[0].brand}, ${up[0].change} places in ${CATEGORY_LABEL[up[0].sub].toLowerCase()}${down[0] ? `; biggest fall: ${down[0].brand}, ${Math.abs(down[0].change)} places in ${CATEGORY_LABEL[down[0].sub].toLowerCase()}` : ""} (${win} days; focus brands and unpaid moves count most).`, `가장 큰 상승: ${up[0].brand}, ${CATEGORY_LABEL[up[0].sub]}에서 ${up[0].change}계단${down[0] ? `. 가장 큰 하락: ${down[0].brand}, ${CATEGORY_LABEL[down[0].sub]}에서 ${Math.abs(down[0].change)}계단` : ""} (${win}일, 주요 브랜드와 비광고 변동에 가중치).`) : tr(`Rank moves over ${win} days.`, `${win}일간 순위 변동.`)}
+            <ActionSection id="movers" kicker={tr("Movers · the brands that matter", "순위 변동 · 주요 브랜드")} title={up[0] ? tr(`Biggest climb that matters: ${up[0].brand}, ${up[0].change} places in ${CATEGORY_LABEL[up[0].sub].toLowerCase()}${down[0] ? `; biggest fall: ${down[0].brand}, ${Math.abs(down[0].change)} places in ${CATEGORY_LABEL[down[0].sub].toLowerCase()}` : ""} (${win} days; focus brands and unpaid moves count most).`, `가장 큰 상승: ${up[0].brand}, ${CATEGORY_LABEL[up[0].sub]}에서 ${up[0].change}계단${down[0] ? `. 가장 큰 하락: ${down[0].brand}, ${CATEGORY_LABEL[down[0].sub]}에서 ${Math.abs(down[0].change)}계단` : ""} (${win}일, 주요 브랜드와 자연 검색 변동에 가중치).`) : tr(`Rank moves over ${win} days.`, `${win}일간 순위 변동.`)}
               note={tr(<>Rank change inside each category&apos;s top 100{past ? `, ${day(past)} → ${day(last)}` : ""}, for {set.anchor}, the Korean brand set and the rivals holding the most places in {set.anchor}&apos;s categories. <Opens detail={{ kicker: "Method", title: "Which moves are counted", body: <Points items={[`Only products ranked on both days count as moves; entries and exits are listed separately.`, `Rivals in view: the Indian and global brands holding the most places in ${set.anchor}'s own categories today.`, `Shelves added after ${past ? day(past) : "that day"} are left out until they have a past to compare with.`, "Entries are often a sponsored slot or a new listing; exits are often a sponsored slot ending or Nykaa showing another listing of the same product."]} /> }}>Method</Opens></>,
-                <>카테고리별 상위 100위 안의 순위 변화{past ? `, ${day(past)} → ${day(last)}` : ""}. 대상: {set.anchor}, K-뷰티 브랜드, {set.anchor} 카테고리에서 상위 100위 제품이 가장 많은 경쟁사. <Opens detail={{ kicker: "방법", title: "어떤 변동을 세는가", body: <Points items={["두 날짜 모두 순위에 있는 제품만 변동으로 집계. 진입·이탈은 따로 표시.", `대상 경쟁사: 오늘 ${set.anchor} 카테고리에서 상위 100위 제품이 가장 많은 인도·글로벌 브랜드.`, `${past ? day(past) : "그날"} 이후 추가된 카테고리는 비교할 과거 데이터가 생길 때까지 제외.`, "진입은 대개 광고 자리나 신규 등록, 이탈은 광고 종료나 Nykaa가 같은 제품의 다른 등록을 보여 주는 경우."]} /> }}>방법</Opens></>)}
+                <>카테고리별 상위 100위 안의 순위 변화{past ? `, ${day(past)} → ${day(last)}` : ""}. 대상: {set.anchor}, K-뷰티 브랜드, {set.anchor} 카테고리에서 상위 100위 제품이 가장 많은 경쟁사. <Opens detail={{ kicker: "방법", title: "어떤 변동을 세는가", body: <Points items={["두 날짜 모두 순위에 있는 제품만 변동으로 집계. 진입·이탈은 따로 표시.", `대상 경쟁사: 오늘 ${set.anchor} 카테고리에서 상위 100위 제품이 가장 많은 인도·글로벌 브랜드.`, `${past ? day(past) : "그날"} 이후 추가된 카테고리는 비교할 과거 데이터가 생길 때까지 제외.`, "진입은 대개 광고 구좌나 신규 등록, 이탈은 광고 종료나 Nykaa가 같은 제품의 다른 등록을 보여 주는 경우."]} /> }}>방법</Opens></>)}
               right={<div className="flex flex-wrap gap-2"><div className="flex gap-1.5">{(["set", "all"] as const).map((v) => <button key={v} onClick={() => setMoverScope(v)} className={`rounded-full px-3 py-1 text-[12.5px] ring-1 ${moverScope === v ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line"}`}>{v === "set" ? tr("Brands that matter", "주요 브랜드") : tr("All brands", "전체 브랜드")}</button>)}</div><Segmented<Window> value={win} onChange={setWin} options={[{ value: "7", label: tr("7 days", "7일") }, { value: "14", label: tr("14 days", "14일") }]} /></div>}>
               <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
                 <span className="mr-1 text-muted">{moverScope === "set" ? tr("Shown: Innisfree, the focus brands and the rivals holding most places in its categories:", "표시: Innisfree, 주요 브랜드, Innisfree 카테고리에서 상위 100위 제품이 가장 많은 경쟁사:") : tr("Showing every brand. Rivals in Innisfree's categories:", "전체 브랜드 표시. Innisfree 카테고리의 경쟁사:")}</span>
@@ -312,7 +312,7 @@ function MarketPage() {
                 ))}
               </div>
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                {([[tr("Entered the top 100", "상위 100위 진입"), entered, tr("Usually a sponsored slot or a new listing; ranked by today's position.", "대개 광고 자리나 신규 등록. 오늘 순위 순.")], [tr("Left the top 100", "상위 100위 이탈"), left, tr("Often a sponsored slot ending, or Nykaa showing another listing of the same product.", "대개 광고 종료이거나, Nykaa가 같은 제품의 다른 등록을 보여 주는 경우.")]] as const).map(([title, list, note]) => (
+                {([[tr("Entered the top 100", "상위 100위 진입"), entered, tr("Usually a sponsored slot or a new listing; ranked by today's position.", "대개 광고 구좌나 신규 등록. 오늘 순위 순.")], [tr("Left the top 100", "상위 100위 이탈"), left, tr("Often a sponsored slot ending, or Nykaa showing another listing of the same product.", "대개 광고 종료이거나, Nykaa가 같은 제품의 다른 등록을 보여 주는 경우.")]] as const).map(([title, list, note]) => (
                   <Card key={title} className="p-4">
                     <div className="px-2 text-[14px] font-semibold">{title} <span className="font-normal text-muted">· {list.length}</span></div>
                     <p className="mb-1 px-2 text-[12px] text-muted">{note}</p>
@@ -321,7 +321,7 @@ function MarketPage() {
                         <span className="min-w-0"><span className="block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{m.brand}<TierTag tier={tagOf(m.brand)} /> <span className="font-normal normal-case tracking-normal text-muted">· {CATEGORY_LABEL[m.sub]}</span></span>
                           <span className="block truncate text-[12.5px]">{shortName(m.name, m.brand)}</span></span>
                         <span className="text-right text-[12.5px] tabular">{m.to ? <b>#{m.to}</b> : <span className="text-muted">{tr("was", "이전")} #{m.from}</span>}
-                          {(m.isAd || m.wasAd) && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">{m.isAd ? tr("paid slot", "광고 자리") : tr("was paid", "이전 광고")}</span>}</span>
+                          {(m.isAd || m.wasAd) && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">{m.isAd ? tr("paid slot", "광고 구좌") : tr("was paid", "이전 광고")}</span>}</span>
                       </button>
                     ))}
                     {list.length > 8 && <button onClick={() => setMoreLists(!moreLists)} className="px-2 pt-1 text-[12px] font-medium text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">{moreLists ? tr("Show fewer", "접기") : tr(`Show ${list.length - 8} more`, `${list.length - 8}개 더 보기`)}</button>}
@@ -342,7 +342,7 @@ function MarketPage() {
 
           <ActionSection id="store" kicker={tr("Nykaa's Korean Beauty store", "Nykaa K-뷰티 스토어")} title={storeLeaders[0] ? tr(`${storeLeaders[0].b} holds the most places in the Korean store (${storeLeaders[0].n} of 100); ${anchorInStore ? `${set.anchor} holds ${anchorInStore.n}, best #${anchorInStore.best}` : `${set.anchor} holds none`}.`, `K-뷰티 스토어 최다 노출: ${storeLeaders[0].b}(100개 중 ${storeLeaders[0].n}개). ${anchorInStore ? `${set.anchor}: ${anchorInStore.n}개, 최고 #${anchorInStore.best}` : `${set.anchor}: 없음`}.`) : tr("The Korean store was not collected today.", "오늘은 K-뷰티 스토어 수집 실패.")}
             note={tr(<>The store&rsquo;s first 100 products in the Nykaa app&rsquo;s order, all product types mixed; brands ordered by places held. Click a brand for its products. <Opens detail={{ kicker: "Method", title: "What the Korean store table shows", body: <Points items={["Nykaa runs a dedicated Korean Beauty store (category 30710) mixing serums, sunscreens, masks and makeup.", "We read its first 100 products every morning in the order the Nykaa app shows them (its default popularity sort; the website can order them differently).", "Brands are ordered by how many of those 100 places they hold, then by best position.", "A place can be bought: the paid column counts sponsored slots, often why a brand sits above one with more ratings.", "Ratings: Nykaa shows one set of ratings for all sizes of a product (e.g. a mask and its Mini), so a brand's total counts each set once."]} /> }}>Method</Opens> <a href={STORE_URL} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">Open the store ↗</a></>,
-              <>Nykaa 앱 순서 기준 스토어 첫 100개 제품(제품 유형 혼합). 브랜드는 차지한 수 순, 브랜드를 누르면 제품 표시. <Opens detail={{ kicker: "방법", title: "K-뷰티 스토어 표의 의미", body: <Points items={["Nykaa는 세럼, 선크림, 마스크, 메이크업을 함께 파는 K-뷰티 전용 스토어(카테고리 30710)를 운영.", "매일 아침 Nykaa 앱의 기본 순서(인기순, 웹사이트 순서와 다를 수 있음)대로 첫 100개 제품 수집.", "브랜드 정렬: 100개 중 차지한 수 → 최고 순위.", "자리는 광고로 살 수 있음: 광고 열은 광고 자리 수. 평가가 적은 브랜드가 위에 있는 이유인 경우가 많음.", "평가 수: Nykaa는 한 제품의 모든 용량(예: 본품과 미니)에 같은 평가를 보여 주므로 브랜드 합계에선 한 번만 집계."]} /> }}>방법</Opens> <a href={STORE_URL} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">스토어 열기 ↗</a></>)}>
+              <>Nykaa 앱 순서 기준 스토어 첫 100개 제품(제품 유형 혼합). 브랜드는 차지한 수 순, 브랜드를 누르면 제품 표시. <Opens detail={{ kicker: "방법", title: "K-뷰티 스토어 표의 의미", body: <Points items={["Nykaa는 세럼, 선크림, 마스크, 메이크업을 함께 파는 K-뷰티 전용 스토어(카테고리 30710)를 운영.", "매일 아침 Nykaa 앱의 기본 순서(인기순, 웹사이트 순서와 다를 수 있음)대로 첫 100개 제품 수집.", "브랜드 정렬: 100개 중 차지한 수 → 최고 순위.", "순위는 광고로 살 수 있음: 광고 열은 광고 구좌 수. 평가가 적은 브랜드가 위에 있는 이유인 경우가 많음.", "평가 수: Nykaa는 한 제품의 모든 용량(예: 본품과 미니)에 같은 평가를 보여 주므로 브랜드 합계에선 한 번만 집계."]} /> }}>방법</Opens> <a href={STORE_URL} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">스토어 열기 ↗</a></>)}>
             <Card className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-[13px]">
                 <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
@@ -390,7 +390,7 @@ function MarketPage() {
             </Card>
           </ActionSection>
 
-          <ActionSection id="launches" kicker={tr("Launches catching on", "반응이 오는 신제품")} title={launches[0] ? tr(`${launches[0].r.brand}'s ${shortName(launches[0].r.name, launches[0].r.brand).split(/,| - /)[0]} is the fastest-catching launch, at ${launches[0].perDay.toFixed(1)} ratings a day.`, `가장 빠르게 반응을 얻는 신제품: ${launches[0].r.brand} ${shortName(launches[0].r.name, launches[0].r.brand).split(/,| - /)[0]}(하루 평가 ${launches[0].perDay.toFixed(1)}건).`) : tr("No launch from these brands is catching on yet.", "아직 반응이 오는 이 브랜드들의 신제품 없음.")}
+          <ActionSection id="launches" kicker={tr("Launches catching on", "초기 반응이 좋은 신제품")} title={launches[0] ? tr(`${launches[0].r.brand}'s ${shortName(launches[0].r.name, launches[0].r.brand).split(/,| - /)[0]} is the fastest-catching launch, at ${launches[0].perDay.toFixed(1)} ratings a day.`, `가장 빠르게 반응을 얻는 신제품: ${launches[0].r.brand} ${shortName(launches[0].r.name, launches[0].r.brand).split(/,| - /)[0]}(하루 평가 ${launches[0].perDay.toFixed(1)}건).`) : tr("No launch from these brands is catching on yet.", "아직 반응이 오는 이 브랜드들의 신제품 없음.")}
             note={tr(`First reviewed under 90 days ago, already in a top 100, with at least 10 ratings; ordered by ratings gained per day. ${allLaunches.length - launches.length} other launches are left out.`, `첫 리뷰 90일 미만, 이미 상위 100위 진입, 평가 10건 이상인 제품. 하루 평균 평가 증가 순. 그 외 신제품 ${allLaunches.length - launches.length}개 제외.`)}>
             <Card className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-[13px]">
@@ -416,7 +416,7 @@ function MarketPage() {
                   ))}
                 </tbody>
               </table>
-              {!launches.length && <p className="px-5 py-4 text-[12.5px] text-muted">{tr("No launches from these brands on a tracked shelf.", "추적 진열 목록에 이 브랜드들의 신제품 없음.")}</p>}
+              {!launches.length && <p className="px-5 py-4 text-[12.5px] text-muted">{tr("No launches from these brands on a tracked shelf.", "추적 랭킹 목록에 이 브랜드들의 신제품 없음.")}</p>}
               {!launches.some((l) => norm(l.r.brand) === norm(set.anchor)) && <p className="border-t border-line px-5 py-3 text-[12.5px] text-ink-2">{tr(<><b>{set.anchor}</b> has no launch under 90 days old on any tracked top 100.</>, <>추적 상위 100위에 출시 90일 미만인 <b>{set.anchor}</b> 신제품 없음.</>)}</p>}
             </Card>
           </ActionSection>
@@ -436,7 +436,7 @@ function MoveRow({ m, tier, onOpen }: { m: Move; tier: Tag | null; onOpen: () =>
       <span className="min-w-0">
         <span className="block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-ink-2">{m.brand}<TierTag tier={tier} /> <span className="font-normal normal-case tracking-normal text-muted">· {CATEGORY_LABEL[m.sub]}</span></span>
         <span className="block truncate text-[13px]">{shortName(m.name, m.brand)}</span>
-        <span className="block text-[11.5px] text-muted">{ratings(m)}{m.isAd && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">{tr("paid slot today", "오늘 광고 자리")}</span>}</span>
+        <span className="block text-[11.5px] text-muted">{ratings(m)}{m.isAd && <span className="ml-1.5 rounded bg-[#fff4d6] px-1 text-[10.5px] text-[#8a6100]">{tr("paid slot today", "오늘 광고 구좌")}</span>}</span>
       </span>
       <span className="text-right text-[12.5px] text-muted tabular">{m.from ? `#${m.from}` : tr("outside", "순위 밖")} → <b className="text-ink">{m.to ? `#${m.to}` : tr("out", "이탈")}</b></span>
       <span className={`text-right text-[13px] font-semibold tabular ${m.change > 0 ? "text-good" : m.change < 0 ? "text-bad" : "text-muted"}`}>{m.change > 0 ? "▲" : m.change < 0 ? "▼" : "="} {Math.abs(m.change) || ""}</span>

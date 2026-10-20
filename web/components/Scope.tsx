@@ -29,17 +29,17 @@ function OriginBar({ counts }: { counts: OriginCount }) {
 }
 
 const depths = (s: Scope) => [
-  { key: "selling" as const, title: tr(`Sell in our ${s.lists} categories`, `우리 ${s.lists}개 카테고리에서 판매`),
+  { key: "selling" as const, title: tr(`Sell in our ${s.lists} categories`, `추적 ${s.lists}개 카테고리에서 판매`),
     brands: s.selling.brands, products: s.selling.products, productsNote: tr("listings", "개 등록"), origin: s.selling.byOrigin,
     what: tr("Every brand with at least one product in these categories, at any rank: Nykaa's own brand filter. Nykaa sells 6,000+ brands across all its categories.", "이 카테고리에 제품이 하나라도 있는 모든 브랜드(순위 무관), Nykaa 브랜드 필터 기준. Nykaa 전체 입점 브랜드는 6,000개 이상."),
     use: tr("Counting brands; spotting new ones", "브랜드 수, 신규 브랜드") },
   { key: "top100" as const, title: tr("Reach a top 100 today", "오늘 상위 100위 안"),
     brands: s.top100.brands, products: s.top100.products, origin: s.top100.byOrigin,
     what: tr("Of those, the brands with a product in today's top 100 of a category, and those products: what shoppers actually see and buy.", "그중 오늘 카테고리 상위 100위에 제품이 든 브랜드와 그 제품: 소비자가 실제로 보고 사는 것."),
-    use: tr("Share of buying, ranks, prices, moves", "구매 점유율, 순위, 가격, 변동") },
+    use: tr("Share of buying, ranks, prices, moves", "판매 점유율, 순위, 가격, 변동") },
   { key: "followed" as const, title: tr("Followed month by month", "월별 추적"),
     brands: s.followed.brands, products: s.followed.products, origin: s.followed.byOrigin,
-    what: tr("Products whose written reviews we read back two years, to compare with a year ago. Not a slice of step 2: Innisfree's whole range and the main brands' best sellers, about half of them in today's top 100s; from 19 Oct also the top 30 of every category (filling in over about a week).", "1년 전과 비교하려고 작성 리뷰를 2년 전까지 읽는 제품. 2단계의 일부가 아님: Innisfree 전체 라인업과 주요 브랜드 베스트셀러(약 절반이 오늘 상위 100위 안), 10월 19일부터 카테고리별 상위 30위도 추가(약 1주에 걸쳐 채워짐)."),
+    what: tr("Products whose dated reviews we read, to compare with a year ago: Innisfree's whole range, the main brands' best sellers, and every category's top 100 (being filled in; the top-100 products read so far are about half).", "전년 대비 비교를 위해 날짜별 리뷰를 수집하는 제품: Innisfree 전체 라인업, 주요 브랜드 베스트셀러, 카테고리별 상위 100위 전체(수집 진행 중, 현재 상위 100위 제품의 약 절반)."),
     use: tr("Growth against a year ago", "전년 대비 성장률") },
 ];
 

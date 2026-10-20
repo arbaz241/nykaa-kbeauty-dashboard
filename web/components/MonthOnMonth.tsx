@@ -111,13 +111,13 @@ export function MonthBars({ values, win, color, open = false }: { values: (numbe
           </div>
         ); })}
       </div>
-      <p className="mt-2 text-[11.5px] text-muted">{tr(`Written reviews per month; under each bar, the change on the month before. * = under ${SMALL} reviews the month before. – = before our history starts.`, `월별 작성 리뷰. 막대 아래 = 전월 대비. * = 전월 리뷰 ${SMALL}건 미만. – = 이력 시작 전.`)}</p>
+      <p className="mt-2 text-[11.5px] text-muted">{tr(`Written reviews per month; under each bar, the change on the month before. * = under ${SMALL} reviews the month before. – = before our history starts.`, `월별 리뷰. 막대 아래 = 전월 대비. * = 전월 리뷰 ${SMALL}건 미만. – = 이력 시작 전.`)}</p>
     </div>
   );
 }
 
 export const momHelp = () => tr(`Written reviews per month over the last 12 complete months; the last three months with their change on the month before (month on month). * = under ${SMALL} reviews the month before, so the percentage swings a lot.`,
-  `최근 완결된 12개월의 월별 작성 리뷰. 최근 3개월은 전월 대비 증감(MoM) 표시. * = 전월 리뷰 ${SMALL}건 미만이라 비율 변동 큼.`);
+  `최근 완결된 12개월의 월별 리뷰. 최근 3개월은 전월 대비 증감(MoM) 표시. * = 전월 리뷰 ${SMALL}건 미만이라 비율 변동 큼.`);
 
 /** One line under a monthly chart: the last three complete months, each against the month before. */
 export function MoMStrip({ values, win, open = false }: { values: (number | null)[]; win: string[]; open?: boolean }) {
