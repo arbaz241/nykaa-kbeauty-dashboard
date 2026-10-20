@@ -1,3 +1,4 @@
+import { monthEnd, readOn } from "./reviewRead";
 import { mean, median, packMl } from "./format";
 import type { AssortmentRow, ReviewAspect, ReviewMonth, SearchRow, ShelfRow } from "./types";
 import { push } from "@/lib/group";
@@ -130,7 +131,7 @@ export function demandLines(months: ReviewMonth[], by: "brand" | "product"): Dem
     const last3 = covered.size ? s(spark.slice(-3)) : null; const prev3 = covered.size ? s(spark.slice(-6, -3)) : null;
     const cov = ok.reduce((a, m) => (m.coverage_start > a ? m.coverage_start : a), "1900-01-01"); const all = new Map<string, number>(); ok.forEach((m) => all.set(m.month, (all.get(m.month) ?? 0) + m.reviews));
     const monthly = by === "product" ? win.map((mo) => (ok.length && mo >= cov ? all.get(mo) ?? 0 : null)) : spark;
-    out.push({ key: k, label: by === "brand" ? k : ms[0].name, brand: ms[0].brand, spark, monthly, open: openEnded(ok.map((m) => [m.month, m.reviews] as [string, number]), win[win.length - 1]), last3, prev3, growth: last3 !== null && prev3 ? (last3 - prev3) / prev3 : null, url: ms[0].url });
+    out.push({ key: k, label: by === "brand" ? k : ms[0].name, brand: ms[0].brand, spark, monthly, open: openEnded(ok.map((m) => [m.month, m.reviews] as [string, number]), win[win.length - 1], by === "product" ? ms[0].product_id : null), last3, prev3, growth: last3 !== null && prev3 ? (last3 - prev3) / prev3 : null, url: ms[0].url });
   }
   return out.sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1));
 }
@@ -164,9 +165,12 @@ export function aspectSummary(rows: { aspects: ReviewAspect[] | null }[]): Aspec
   return [...by.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
 }
 
-/** True when nothing was read after the latest complete month: we may have read the product's reviews before that
- *  month ended, so its count can still grow (the read date isn't on the dashboard; see migration 032). */
-export function openEnded(byMonth: Iterable<[string, number]>, lastMonth: string) {
+/** True when the latest complete month may still be filling in. With the product's read date (migration 032): it was
+ *  read on or before that month's last day. Without one (brands, or before the dates load): nothing was read after
+ *  that month. */
+export function openEnded(byMonth: Iterable<[string, number]>, lastMonth: string, pid?: string | null) {
+  const r = readOn(pid);
+  if (r) return r <= monthEnd(lastMonth);
   for (const [m, n] of byMonth) if (m.slice(0, 10) > lastMonth && n > 0) return false;
   return true;
 }

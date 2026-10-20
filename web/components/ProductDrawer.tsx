@@ -1,5 +1,6 @@
 "use client";
 
+import { readOn, useReviewRead } from "@/lib/reviewRead";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useProduct, useThumbnails } from "@/lib/data";
 import { CATEGORY_LABEL, compact, inr, shortName } from "@/lib/format";
@@ -40,7 +41,9 @@ export function ProductDrawerProvider({ children }: { children: React.ReactNode 
 
 function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
   const { data, error } = useProduct(p.product_id);
+  useReviewRead();
   const win = monthsWindow(12);
+  const histPid = data?.months[0]?.product_id ?? p.product_id;
   const monthly = useMemo(() => {
     const m = new Map((data?.months ?? []).filter((r) => r.month >= r.coverage_start).map((r) => [r.month, r.reviews]));
     const start = data?.months[0]?.coverage_start ?? "1900-01-01";
@@ -88,7 +91,7 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
           {error && <p className="mt-6 text-[13px] text-bad">{tr("Could not load history", "이력 불러오기 실패")}: {String(error.message)}</p>}
 
           <Block title={tr("Demand: reviews per month", "월별 리뷰 수")} note={tr("Last 12 complete months. Months before the product's reliable history are blank.", "최근 완결된 12개월. 신뢰할 수 있는 이력 이전 달은 빈칸.")}>
-            {monthly.some((v) => v !== null) ? <><LineChart labels={win.map((m) => monthYY(m))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: monthly }]} height={200} /><MoMStrip values={monthly} win={win} open={openEnded((data?.months ?? []).map((r) => [r.month, r.reviews] as [string, number]), win[win.length - 1])} /></>
+            {monthly.some((v) => v !== null) ? <><LineChart labels={win.map((m) => monthYY(m))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: monthly }]} height={200} /><MoMStrip values={monthly} win={win} open={openEnded((data?.months ?? []).map((r) => [r.month, r.reviews] as [string, number]), win[win.length - 1], histPid)} />{readOn(histPid) && <p className="mt-1.5 text-[11.5px] text-muted">{tr(`Reviews last read on ${dayMonth(readOn(histPid)!)}.`, `리뷰 최종 수집일: ${dayMonth(readOn(histPid)!)}.`)}</p>}</>
               : <p className="text-[13px] text-muted">{data ? tr("This product is not in the review-history set (tracked for the focus brands' leading products and the most visible competitors).", "리뷰 이력 수집 대상이 아닌 제품 (주요 브랜드 대표 제품과 노출이 많은 경쟁 제품만 추적).") : tr("Loading…", "불러오는 중…")}</p>}
           </Block>
 

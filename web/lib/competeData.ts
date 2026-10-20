@@ -130,7 +130,7 @@ export function productFacts(pid: string, brandHint: string, role: string, s: So
     reviewsTotal: sh?.detail_review_count ?? c?.detail_review_count ?? null, split: sh?.review_splitup ?? c?.review_splitup ?? null,
     recent: s.pooled?.get(pid)?.recent ?? d?.recent ?? null,
     momentum: s.pooled?.has(pid) ? (s.pooled.get(pid)!.complete && s.pooled.get(pid)!.prior > 0 ? s.pooled.get(pid)!.recent / s.pooled.get(pid)!.prior - 1 : null) : d?.momentum ?? null, spark: productSpark(s.months.get(s.pooled?.get(pid)?.product_id ?? pid) ?? s.months.get(pid) ?? [], s.win),
-    sparkOpen: openEnded((s.months.get(s.pooled?.get(pid)?.product_id ?? pid) ?? s.months.get(pid) ?? []).map((m) => [m.month, m.reviews] as [string, number]), s.win[s.win.length - 1]), search: s.search.get(pid) ?? 0,
+    sparkOpen: openEnded((s.months.get(s.pooled?.get(pid)?.product_id ?? pid) ?? s.months.get(pid) ?? []).map((m) => [m.month, m.reviews] as [string, number]), s.win[s.win.length - 1], s.pooled?.get(pid)?.product_id ?? pid), search: s.search.get(pid) ?? 0,
     // Nykaa's own page wording, shown in Korean when the site is (lib/dict); the logic below reads the English source
     whatItIs: tx(sh?.usp_summary ?? c?.usp_summary ?? null), claims: txs(sh?.usp_points ?? c?.usp_points), concerns: txs(sh?.concerns ?? c?.concerns),
     ingredients: txs(sh?.key_ingredients ?? c?.key_ingredients), skinTypes: txs(sh?.skin_types ?? c?.skin_types),

@@ -1,5 +1,6 @@
 "use client";
 
+import { useReviewRead } from "@/lib/reviewRead";
 import { TrackedLink } from "@/components/TrackedProducts";
 import MethodNotes from "@/components/MethodNotes";
 import { useMemo, useState } from "react";
@@ -109,10 +110,12 @@ function DemandPage() {
     const rs = aggBy.get(norm(b.brand)) ?? []; if (!rs.length) return b; const g = growthOf(rs);
     return { ...b, last3: rs.reduce((a, r) => a + r.recent, 0), prev3: g.products ? g.prior : null, same3: g.products ? g.recent : null, growth: g.growth };
   }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, aggBy]);
-  const products = useMemo(() => demandLines(data, "product").map((p) => {
+  const readMap = useReviewRead();
+  // readMap: openEnded reads the review read dates, so the lists recompute when they arrive
+  const products = useMemo(() => (void readMap, demandLines(data, "product")).map((p) => {
     const r = rowBy.get(p.key); if (!r) return p;
     return { ...p, last3: r.recent, prev3: r.complete ? r.prior : null, same3: r.complete ? r.recent : null, growth: r.complete && r.prior > 0 ? r.recent / r.prior - 1 : null };
-  }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, rowBy]);
+  }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, rowBy, readMap]);
   const market = useMemo(() => {
     const m = demandLines(data.map((x) => ({ ...x, brand: tr("All tracked brands", "추적 제품 전체 브랜드") })), "brand")[0] as DemandLine | undefined; if (!m) return m;
     const g = growthOf(drows); return { ...m, last3: drows.reduce((a, r) => a + r.recent, 0), prev3: g.prior, same3: g.recent, growth: g.growth };

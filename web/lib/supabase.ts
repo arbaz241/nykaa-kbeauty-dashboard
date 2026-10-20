@@ -50,6 +50,8 @@ const ORDER: Record<string, string[]> = {
   web_external_news: ["brand", "published_at", "url"],
   // migration 031
   web_pinned_days: ["scrape_date", "subcategory", "product_id"],
+  // migration 032
+  web_review_read: ["product_id"],
   brand_classification: ["brand"],
   // read only when the site is in Korean, so it has no nightly copy and is not prefetched with the tabs
   ko_dictionary: ["en"],

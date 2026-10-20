@@ -1,5 +1,6 @@
 "use client";
 
+import { useReviewRead } from "@/lib/reviewRead";
 import MethodNotes from "@/components/MethodNotes";
 import { useEffect, useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
@@ -71,6 +72,7 @@ function CompetitivePage() {
   // Round 4: rivals anyone can drop or add, kept per hero (or per category without one) in this browser
   const [edits, setEdits] = useState<Record<string, RivalEdit>>(() => (typeof window === "undefined" ? {} : loadEdits()));
   const market = useMarket();
+  const readMap = useReviewRead();
 
   const heroes = useMemo(() => (uspC.data ?? []).filter((g) => shelfCat(g.category) === cat), [uspC.data, cat]);
   // the anchor's current hero where it differs from the analysed one (owner 21 Oct 2026: in sunscreen it is the green-tea
@@ -154,10 +156,11 @@ function CompetitivePage() {
     return new Map(demand.data.map((d) => [d.product_id, byPool.get(d.pool_id || d.product_id)]).filter((x): x is [string, NonNullable<ReturnType<typeof byPool.get>>] => !!x[1]));
   }, [months.data, demand.data, shelf.data, catalog.data]);
   const poolMonths = useMemo(() => { if (!pooled || !months.data) return months.data ?? []; const keep = new Set([...pooled.values()].map((r) => r.product_id)); return months.data.filter((m) => keep.has(m.product_id)); }, [pooled, months.data]);
-  const src: Sources = useMemo(() => ({
+  // readMap: productFacts' month-on-month reads the review read dates, so it recomputes when they arrive
+  const src: Sources = useMemo(() => (void readMap, {
     cat, rows, catalog: cat0, demand: new Map((demand.data ?? []).map((d) => [d.product_id, d])), movement: movement.data ?? [], months: monthsBy, win,
     search: searchCounts(search.data ?? []), thumbs: new Map((thumbs.data ?? []).map((t) => [t.product_id, t])), usp: uspBy, reviews: reviews.data, variants: variants.data, stdMl, lastPrices: lastPrices.data, hero, pooled,
-  }), [cat, rows, cat0, demand.data, movement.data, monthsBy, win, search.data, thumbs.data, uspBy, reviews.data, variants.data, stdMl, lastPrices.data, hero, pooled]);
+  }), [cat, rows, cat0, demand.data, movement.data, monthsBy, win, search.data, thumbs.data, uspBy, reviews.data, variants.data, stdMl, lastPrices.data, hero, pooled, readMap]);
   const products = useMemo(() => productIds.map(({ pid, brand, role }) => productFacts(pid, brand, role, src)), [productIds, src]);
   const productsOf = useMemo(() => {
     const by = new Map<string, ReviewMonth[]>(); for (const r of poolMonths) push(by, r.product_id, r);
