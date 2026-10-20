@@ -18,6 +18,7 @@ const NAV = () => [
   { label: "Overview", text: tr("Brief", "브리핑"), href: "/overview/" },
   // plan v3: Categories and Brands are one Market tab
   { label: "Top by category", text: tr("Market", "시장"), href: "/categories/" },
+  { label: "Top 100", text: tr("Top 100", "상위 100위"), href: "/top100/" },
   { label: "Analysis", text: tr("K-beauty", "K-뷰티"), href: "/analysis/" },
   { label: "Competitive Analysis", text: tr("Competitive analysis", "경쟁 분석"), href: "/compare/" },
   { label: "Demand", text: tr("Demand & search", "수요·검색"), href: "/demand/" },

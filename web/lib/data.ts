@@ -16,6 +16,10 @@ const opts = { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 };
 export function useShelf() {
   return useSWR("shelf", async () => ownCategory((await fetchAll<ShelfRow>("web_latest_shelf")).filter((r) => r.subcategory !== "kbeauty_store").map(numeric)), opts);
 }
+/** Each list exactly as Nykaa shows it (the Top 100 tab): every place, other categories' listings included, rank = Nykaa's. */
+export function useNykaaShelf() {
+  return useSWR("shelf_nykaa", async () => (await fetchAll<ShelfRow>("web_latest_shelf")).filter((r) => r.subcategory !== "kbeauty_store").map(numeric).map((r) => ({ ...r, nykaa_rank: r.rank })), opts);
+}
 export function ownCategory(rows: ShelfRow[]): ShelfRow[] {
   const by = new Map<string, ShelfRow[]>();
   for (const r of rows) if (countsIn(r.subcategory, r.nykaa_l3)) { const g = by.get(r.subcategory) ?? []; g.push(r); by.set(r.subcategory, g); }
