@@ -121,7 +121,7 @@ function BriefPage() {
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "brands", topic: tr("Brands on Nykaa", "Nykaa 입점 브랜드"), big: allBrands.toLocaleString("en-IN"),
       ours: tr(<><b>{allBrands}</b> brands sell in the {listCount} categories we track (Nykaa&rsquo;s own brand filter for each), {koreanInLists} of them Korean.</>, <>추적 {listCount}개 카테고리에서 <b>{allBrands}</b>개 브랜드 판매(카테고리별 Nykaa 브랜드 필터), 그중 K-뷰티 브랜드 {koreanInLists}개.</>),
-      nykaa: tr(<>Nykaa sells <b>6,000+ brands</b>, and launched 1,280 new brands in FY26.</>, <>Nykaa 입점 브랜드 <b>6,000개 이상</b>, FY26 신규 브랜드 1,280개.</>),
+      nykaa: tr(<>Nykaa launched <b>200+ new beauty brands</b> in FY26, 27 of them Korean. (The 6,000+ brands and 1,280 launches in the same presentation are Nykaa Fashion&rsquo;s.)</>, <>Nykaa FY26 신규 뷰티 브랜드 <b>200개 이상</b>, 그중 K-뷰티 27개. (같은 자료의 6,000개 이상·신규 1,280개는 Nykaa Fashion 수치.)</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
     { key: "sales", topic: tr("Sales", "세일"), big: "",
       ours: tr(<>{homeDay0 ? <>Nykaa&rsquo;s homepage on {dayMonth(homeDay0)}: {salesNow.length ? <b>{salesNow.slice(0, 3).join(", ")}</b> : "no sale running"}.</> : "Homepage read nightly from 17 Oct."} The sale calendar is on Offers &amp; events.</>,

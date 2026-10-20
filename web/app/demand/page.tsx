@@ -21,6 +21,7 @@ import { useCatalog, useDemand, useEvents, useReviewMonths, useSearchHistory, us
 import { demandRows, demandWindow, growthOf, type DemandRow } from "@/lib/analysis";
 import { compact, inr, shortName } from "@/lib/format";
 import { demandLines, momentumWord, monthsWindow, type DemandLine } from "@/lib/metrics";
+import { tx } from "@/lib/dict";
 import { noteMarkers, unusual, useDataNotes } from "@/lib/notes";
 import { useBrandSelection } from "@/lib/selection";
 import { fetchAll } from "@/lib/supabase";
@@ -129,7 +130,12 @@ function DemandPage() {
   const setRanked = brands.filter((b) => tiers.inSet(b.brand) && b.last3 !== null).sort((a, b) => (b.last3 ?? 0) - (a.last3 ?? 0));
   const anchorRank = setRanked.findIndex((b) => isA(b.brand)) + 1;
   const demTot = brands.reduce((a, b) => a + (b.last3 ?? 0), 0);
-  const topProducts = products.filter((p) => p.last3 !== null);
+  // one row per review pool (audit 21 Oct 2026: three Nykaa Skin sheet masks showed the same 475 reviews, and a TONYMOLY
+  // combo the Chok Chok Toner's): listings with the same brand and the same monthly reviews share one set on Nykaa
+  const topProducts = useMemo(() => { const seen = new Set<string>(); return products.filter((p) => {
+    if (p.last3 === null) return false;
+    if ((p.last3 ?? 0) < 20) return true;
+    const k = `${p.brand}|${p.spark.join(",")}`; if (seen.has(k)) return false; seen.add(k); return true; }); }, [products]);
   const imgFor = (pid: string) => (shelf.data ?? []).find((r) => r.product_id === pid)?.image_url ?? (catalog.data ?? []).find((r) => r.product_id === pid)?.best_image ?? null;
   const shelfFor = (pid: string) => (shelf.data ?? []).find((r) => r.product_id === pid);
   const openProduct = (pid: string, label: string, brand: string, url?: string | null) => {
@@ -218,9 +224,11 @@ function DemandPage() {
   /* ---- verdict */
   const verdict = anchorD ? tr(`${A}'s written reviews are ${anchorD.growth === null ? "too thinly tracked to read" : `${anchorD.growth >= (mkt ?? 0) ? "growing faster than" : "lagging"} all products we follow (${signed(anchorD.growth)} vs ${signed(mkt)}; Nykaa beauty as a whole: see the Brief)`}, #${anchorRank} of ${setRanked.length} main brands by reviews; it reaches the unpaid top 10 on ${keywords.length - absent} of ${keywords.length} search keywords.`,
       `${A} 리뷰: ${anchorD.growth === null ? "추적 데이터 부족으로 판단 어려움" : `추적 제품 전체보다 ${anchorD.growth >= (mkt ?? 0) ? "빠르게 성장" : "뒤처짐"}(${signed(anchorD.growth)}, 추적 제품 전체 ${signed(mkt)})`}, 리뷰 기준 주요 브랜드 ${setRanked.length}개 중 ${anchorRank}위. 검색어 ${keywords.length}개 중 ${keywords.length - absent}개에서 자연 검색 상위 10위 안.`) : "";
-  const soWhat = !anchorD ? null : keywords.length > 0 && absent > keywords.length / 2 ? tr(`Search is the gap: ${A} is outside the unpaid top 10 on ${absent} of ${keywords.length} keywords. Winning those searches is the cheapest demand to add.`, `약점은 검색: ${A}는 키워드 ${keywords.length}개 중 ${absent}개에서 자연 검색 상위 10위 밖. 이 검색어를 가져오는 게 가장 적은 비용으로 수요를 늘리는 방법.`)
-    : anchorD.growth !== null && mkt !== null && anchorD.growth < mkt ? tr(`Demand is losing momentum against all tracked products; check its top products' prices and stock first.`, `추적 제품 전체 대비 리뷰 모멘텀 약화 중. 대표 제품의 가격·재고부터 확인.`)
-    : tr(`${A} is found in most searches, and its written reviews are growing faster than all tracked products; protect the products driving it (${topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A).split(/,| - /)[0] : "its leaders"}) and keep them in stock.`, `${A}: 대부분의 검색에서 노출되고, 리뷰는 추적 제품 전체보다 빠르게 성장 중. 성장을 이끄는 제품(${topProducts.find((p) => isA(p.brand)) ? shortName(topProducts.find((p) => isA(p.brand))!.label, A).split(/,| - /)[0] : "대표 제품"})의 노출·재고 유지.`);
+  // owner 20 Oct 2026: describe, don't prescribe ("search is the cheapest demand to add" was a lever statement)
+  const leadP = topProducts.find((p) => isA(p.brand)); const leadName = leadP ? shortName(leadP.label, A).split(/,| - /)[0] : null;
+  const soWhat = !anchorD ? null : keywords.length > 0 && absent > keywords.length / 2 ? tr(`${A} is outside the unpaid top 10 on ${absent} of ${keywords.length} search keywords. Unpaid places follow sales and listing quality.`, `${A}: 검색어 ${keywords.length}개 중 ${absent}개에서 자연 검색 상위 10위 밖. 자연 검색 순위는 판매·상품 페이지 품질을 반영.`)
+    : anchorD.growth !== null && mkt !== null && anchorD.growth < mkt ? tr(`${A}'s reviews are growing slower than all tracked products.`, `${A} 리뷰 증가세, 추적 제품 전체 하회.`)
+    : tr(`${A} shows in most searches and its reviews grow faster than all tracked products${leadName ? `, led by ${leadName}` : ""}.`, `${A}: 대부분 검색에서 노출, 리뷰 증가세 추적 제품 전체 상회${leadName ? ` (견인 제품: ${leadName})` : ""}.`);
 
   return (
     <Shell active="Demand" asOf={latest ? day(latest) : undefined}>
@@ -241,7 +249,7 @@ function DemandPage() {
               up && dn ? <><b className="text-on-brand">주요 경쟁사:</b> 가장 빠른 상승: {up.brand}({signed(up.growth)}, 리뷰 {compact(up.prev3)} → {compact(up.same3 ?? up.last3)}건), 가장 큰 하락: {dn.brand}({signed(dn.growth)}, {compact(dn.prev3)} → {compact(dn.same3 ?? dn.last3)}건).</> : null,
               <><b className="text-on-brand">검색:</b> 키워드 {keywords.length}개 중 {absent}개에서 자연 검색 상위 10위 밖. 오늘 자연 검색 상위 5위 {anchorS?.top5 ?? 0}개.</>,
               <><b className="text-on-brand">광고:</b> 오늘 광고 구좌 {totalAds}개 중 {anchorS?.ads ?? 0}개. 주요 브랜드 {pct(focusAds / Math.max(1, totalAds), 0)}, 선두 {topAdv?.brand ?? "없음"}({topAdv?.ads ?? 0}개).</>,
-            ]) as React.ReactNode[]).filter(Boolean)} foot={soWhat && <><b>{tr("So what:", "시사점:")}</b> {soWhat}</>}>{verdict}</Verdict>}
+            ]) as React.ReactNode[]).filter(Boolean)} foot={soWhat && <><b>{tr("Note:", "참고:")}</b> {soWhat}</>}>{verdict}</Verdict>}
             {outliers.length > 0 && <p className="mt-3 text-[12.5px] text-ink-2"><span className="text-muted">{tr("Other notable movers, outside the main brands:", "주요 브랜드 외 눈에 띄는 변화:")}</span> {outliers.map((o, i) => <span key={o.brand}>{i ? "; " : ""}<b className="font-medium">{o.brand}</b> {signed(o.growth)} ({tr(`${compact(o.prev3)} → ${compact(o.same3 ?? o.last3)} reviews`, `리뷰 ${compact(o.prev3)} → ${compact(o.same3 ?? o.last3)}건`)})</span>)}.</p>}
           </section>
 
@@ -259,7 +267,7 @@ function DemandPage() {
                 : <p className="text-[13px] text-muted">{tr("None of the selected brands has review history yet.", "선택한 브랜드에 아직 리뷰 이력 없음.")}</p>}
               {chartNotes.length > 0 && (
                 <div className="mt-3 grid gap-1.5 border-t border-line pt-3 md:grid-cols-2">
-                  {chartNotes.map((n) => <div key={n.id} className="text-[12px] leading-snug text-ink-2"><b className="font-semibold text-ink">{n.title}</b>: {n.detail}</div>)}
+                  {chartNotes.map((n) => <div key={n.id} className="text-[12px] leading-snug text-ink-2"><b className="font-semibold text-ink">{tx(n.title)}</b>: {tx(n.detail)}</div>)}
                   {flags.map((f, i) => <div key={i} className="text-[12px] leading-snug text-bad">{f.label}</div>)}
                 </div>
               )}

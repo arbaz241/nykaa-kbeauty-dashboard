@@ -141,7 +141,7 @@ function OffersPage() {
   const calRows = [
     ...evs.map((e) => ({ label: e.label, start: e.happened_on, end: e.ends_on ?? e.happened_on, color: "#b4532a", tag: e.status === "estimated" ? tr("estimated", "추정") : tr("logged", "기록") })),
     ...runs.filter((r) => r.end >= win.start && r.kind !== "brand").map((r) => ({ label: r.label, start: r.start, end: r.end, color: r.kind === "sale" ? "#b4532a" : "#2a78d6", tag: tr("homepage", "홈페이지") })),
-    ...runs.filter((r) => r.end >= win.start && r.kind === "brand").map((r) => ({ label: r.label, start: r.start, end: r.end, color: "#e87ba4", tag: tr("brand banner", "브랜드 배너") })),
+    ...runs.filter((r) => r.end >= win.start && r.kind === "brand").map((r) => ({ label: r.label || tr("Unnamed brand", "브랜드명 미표기"), start: r.start, end: r.end, color: "#e87ba4", tag: tr("brand banner", "브랜드 배너") })),
   ];
   const dayIdx = (d: string) => Math.max(0, Math.min(win.days.length - 1, win.days.findIndex((x) => x >= d) === -1 ? win.days.length - 1 : win.days.findIndex((x) => x >= d)));
 
@@ -160,7 +160,7 @@ function OffersPage() {
               <>주요 브랜드: <b>{main.length}곳 중 {mainRunning.length}곳</b> 오늘 자체 프로모션{mainRunning.length ? <> ({mainRunning.map((x) => x.brand).join(", ")})</> : null}{mainDisc.length ? <>. 상위 100위 제품 보통 할인율 최대 {mainDisc[0].brand} <b>{pct(mainDisc[0].med!)}</b>, 최소 {mainDisc[mainDisc.length - 1].brand} <b>{pct(mainDisc[mainDisc.length - 1].med!)}</b></> : null}.</>),
             tr(<>Typical discount on today&rsquo;s top 100: Indian brands <b>{pct(disc.byOrigin.local.med)}</b> off the printed price, global <b>{pct(disc.byOrigin.global.med)}</b>, Korean <b>{pct(disc.byOrigin.kbeauty.med)}</b>.</>, <>오늘 상위 100위 보통 할인율: 인도 <b>{pct(disc.byOrigin.local.med)}</b>, 글로벌 <b>{pct(disc.byOrigin.global.med)}</b>, K-뷰티 <b>{pct(disc.byOrigin.kbeauty.med)}</b>.</>),
             cuts ? tr(<>Over the period, {cuts.byO.get("kbeauty")?.cut ?? 0} Korean, {cuts.byO.get("local")?.cut ?? 0} Indian and {cuts.byO.get("global")?.cut ?? 0} global listings were sold at least 5% cheaper by the end{cuts.brands[0] ? <>; {cuts.brands[0].brand} cut the most ({cuts.brands[0].cut})</> : null}.</>, <>기간 중 5% 이상 싸게 팔린 제품: K-뷰티 {cuts.byO.get("kbeauty")?.cut ?? 0}, 인도 {cuts.byO.get("local")?.cut ?? 0}, 글로벌 {cuts.byO.get("global")?.cut ?? 0}개{cuts.brands[0] ? <>. 가격을 가장 많이 내린 브랜드: {cuts.brands[0].brand} ({cuts.brands[0].cut})</> : null}.</>) : null,
-            effect && effect.n ? tr(<>When an offer starts on a product it rises in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for products without one.</>, <>프로모션 시작 시 {pct(effect.up)}확률로 순위 상승 (없는 제품 {pct(effect.baseUp)}).</>) : null,
+            effect && effect.n ? tr(<>When an offer starts on a product it rises in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for products without one.</>, <>프로모션 시작 시 {pct(effect.up)} 확률로 순위 상승 (없는 제품 {pct(effect.baseUp)}).</>) : null,
             tr(<>Brand offers and the homepage are read nightly since 17 Oct ({offerDays.length} night{offerDays.length === 1 ? "" : "s"} so far), so their trends appear after about two weeks. Prices and offer tags go back to 13 Sep.</>, <>브랜드 프로모션·홈페이지는 10월 17일부터 매일 수집(지금까지 {offerDays.length}일) → 추세는 약 2주 뒤부터. 가격·프로모션 표시는 9월 13일부터 있음.</>),
           ].filter(Boolean) as React.ReactNode[]}>
           {(() => { const os = (["kbeauty", "local", "global"] as const).map((o) => ({ o, v: disc.byOrigin[o].med })).sort((a, b) => a.v - b.v); const lo = os[0]; const hi = os[os.length - 1];
@@ -300,7 +300,7 @@ function OffersPage() {
 
       {effect && (
         <ActionSection id="effect" kicker={tr("Do offers move rank?", "프로모션과 순위의 관계")}
-          title={effect.n ? tr(<>When an offer tag appears, the listing moves up in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for listings without one</>, <>프로모션 표시가 붙으면 {pct(effect.up)}확률로 순위 상승 (표시 없는 제품 {pct(effect.baseUp)})</>) : tr("Not enough offer switches in this period yet", "이 기간엔 프로모션 변화가 아직 적음")}
+          title={effect.n ? tr(<>When an offer tag appears, the listing moves up in {pct(effect.up)} of cases, against {pct(effect.baseUp)} for listings without one</>, <>프로모션 표시가 붙으면 {pct(effect.up)} 확률로 순위 상승 (표시 없는 제품 {pct(effect.baseUp)})</>) : tr("Not enough offer switches in this period yet", "이 기간엔 프로모션 변화가 아직 적음")}
           note={tr(<>Rank the day before the tag appeared vs three collected days later, for {effect.n} switches in the {spanLabel(m.period.days)}; the comparison is every other listing over spans of the same length ({effect.baseN.toLocaleString("en-IN")}). It shows association, not proof.</>, <>{spanLabel(m.period.days)} 동안 프로모션 표시가 새로 생긴 {effect.n}건에 대해 전날 순위와 3일 뒤 순위를 비교. 비교군 = 같은 길이 구간의 다른 모든 제품({effect.baseN.toLocaleString("en-IN")}건). 연관성일 뿐 인과 증명은 아님.</>)}>
           <div className="grid gap-3 md:grid-cols-3">
             <Card className="px-5 py-4"><div className="text-[12.5px] text-muted">{tr("Median places gained, with a new offer", "새 프로모션 제품의 순위 상승 중앙값")}</div><div className="mt-1 font-display text-[28px] font-semibold tabular">{effect.med === null ? "–" : `${effect.med > 0 ? "+" : ""}${effect.med}`}</div><Basis>{tr(`${effect.n} offer switches`, `프로모션 변화 ${effect.n}건`)}</Basis></Card>

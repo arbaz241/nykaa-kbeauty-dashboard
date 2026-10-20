@@ -140,7 +140,7 @@ function TopPage() {
                 const bestPos = best ? base.find((b) => b.r === best)?.pos : null;
                 const anchorPos = anchorRows.length ? base.find((b) => b.r === anchorRows[0])?.pos ?? anchorRows[0].rank : null;
                 return tr(`${by[0].o.title} hold ${by[0].n} of the ${summaryRows.length} places (the ${tiers.focus.length + 1} focus brands hold ${fN})${best ? `; the top K-beauty product is ${best.brand} at #${bestPos}` : "; no K-beauty product ranks"}${anchorPos ? `, and ${set.anchor}'s best is #${anchorPos}` : `, and ${set.anchor} is not in this top 100`}.`,
-                  `${summaryRows.length}자리 중 ${by[0].n}자리가 ${by[0].o.title} (주요 브랜드 ${tiers.focus.length + 1}곳은 ${fN}자리)${best ? `. K-뷰티 최고 순위 제품은 ${best.brand} (#${bestPos})` : ". 순위에 든 K-뷰티 제품 없음"}${anchorPos ? `, ${set.anchor} 최고 순위는 #${anchorPos}` : `, ${josa(set.anchor, "은/는")} 이 상위 100위에 없음`}`);
+                  `상위 ${summaryRows.length}개 중 ${by[0].n}개가 ${by[0].o.title} (주요 브랜드 ${tiers.focus.length + 1}곳 ${fN}개)${best ? `. K-뷰티 최고 순위 제품은 ${best.brand} (#${bestPos})` : ". 순위에 든 K-뷰티 제품 없음"}${anchorPos ? `, ${set.anchor} 최고 순위는 #${anchorPos}` : `, ${josa(set.anchor, "은/는")} 이 상위 100위에 없음`}`);
               })()}</h2>
             </div>
             <a href={CATEGORY_URL[cat]} target="_blank" rel="noreferrer" className="text-[12.5px] text-ink-2 underline underline-offset-4 hover:text-ink">{tr("This listing on Nykaa ↗", "Nykaa에서 이 목록 보기 ↗")}</a>
