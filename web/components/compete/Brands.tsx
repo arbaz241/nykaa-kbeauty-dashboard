@@ -21,7 +21,10 @@ import { tx } from "@/lib/dict";
 
 const SKINCARE = ["toner", "serum", "face_moisturizer", "face_wash", "sunscreen", "masks", "sheet_mask", "eye_care", "lip_care"];
 
-function criteriaFor(cat: string, anchor: string): Criterion<BrandFacts>[] {
+/** A brand's share of all buying across the tracked top 100s, and the window it covers. */
+export interface BuyingShare { of: (brand: string) => number | null; span: string }
+
+function criteriaFor(cat: string, anchor: string, buy: BuyingShare): Criterion<BrandFacts>[] {
   const inBasket = (PRICE_BASKET as readonly string[]).includes(cat);
   const crawl = (f: BrandFacts) => (f.basket.source === "shelf" ? tr("Full range crawl pending (from 12 Oct)", "전체 라인업 수집 대기 (10월 12일부터)") : tr("Sells none of these on Nykaa", "Nykaa에서 해당 제품 미판매"));
   const notOnShelf = () => tr("No listing in today's top 100", "오늘 상위 100위 제품 없음");
@@ -30,7 +33,7 @@ function criteriaFor(cat: string, anchor: string): Criterion<BrandFacts>[] {
     { key: "price", label: tr("MRP, core basket", "정가, 핵심 바스켓"), help: tr(`Average of the brand's median full-size MRP per basket category (${basketLabel()})`, `바스켓 카테고리별 정규 용량 정가 중앙값의 평균 (${basketLabel()})`), better: null, value: (f) => f.basket.overall, show: (f) => inr(f.basket.overall),
       sub: (f) => (f.brand === anchor ? tr(`${f.basket.categories} of 5 categories`, `5개 카테고리 중 ${f.basket.categories}개`) : f.basket.vsAnchor ? tr(`${f.basket.vsAnchor.toFixed(2)}× Innisfree, on ${f.basket.shared} shared`, `Innisfree의 ${f.basket.vsAnchor.toFixed(2)}배 (공통 ${f.basket.shared}개 기준)`) : tr(`${f.basket.categories} of 5 categories`, `5개 카테고리 중 ${f.basket.categories}개`)),
       missing: (f) => (f.basket.overall === null ? crawl(f) : null) },
-    { key: "catprice", label: tr(`MRP, ${CATEGORY_LABEL[cat]}`, `정가, ${CATEGORY_LABEL[cat]}`), help: inBasket ? tr("Median full-size MRP in this category", "이 카테고리 정규 용량 정가 중앙값") : tr("Median full-size MRP in this category (outside the core basket)", "이 카테고리 정규 용량 정가 중앙값 (핵심 바스켓 외)"), better: null,
+    { key: "catprice", label: tr(`MRP, ${CATEGORY_LABEL[cat]} (Part 2's category)`, `정가, ${CATEGORY_LABEL[cat]} (2부 카테고리)`), help: inBasket ? tr("Median full-size MRP in this category", "이 카테고리 정규 용량 정가 중앙값") : tr("Median full-size MRP in this category (outside the core basket)", "이 카테고리 정규 용량 정가 중앙값 (핵심 바스켓 외)"), better: null,
       value: (f) => f.catPrice?.price ?? null, show: (f) => inr(f.catPrice?.price),
       sub: (f) => (f.catPrice ? `${f.catPrice.perHundred ? `₹${Math.round(f.catPrice.perHundred).toLocaleString("en-IN")}/100 ml · ` : ""}${tr(`${f.catPrice.n} product${f.catPrice.n === 1 ? "" : "s"}`, `제품 ${f.catPrice.n}개`)}` : null),
       missing: (f) => (f.catPrice ? null : f.basket.source === "shelf" ? tr("Not in today's top 100; full range from 12 Oct", "오늘 상위 100위 없음, 전체 라인업은 10월 12일부터") : tr("Does not sell this category on Nykaa", "Nykaa에서 이 카테고리 미판매")) },
@@ -48,7 +51,11 @@ function criteriaFor(cat: string, anchor: string): Criterion<BrandFacts>[] {
     { key: "rating", label: tr("Star rating", "별점"), help: tr("Average star rating of its top-100 products", "상위 100위 제품의 평균 별점"), better: "high", value: (f) => f.rating, show: (f) => `★ ${f.rating!.toFixed(2)}`,
       missing: (f) => (f.rating ? null : tr("No rated product in today's top 100", "오늘 상위 100위에 평가된 제품 없음")) },
     { key: "ratings", label: tr("Ratings, all time", "누적 평가 수"), help: tr("Total star ratings on its top-100 products; sizes that share one set of ratings on Nykaa count once", "상위 100위 제품의 별점 평가 합계. Nykaa에서 평가를 공유하는 용량별 제품은 한 번만 집계"), better: "high", value: (f) => f.ratings, show: (f) => compact(f.ratings), bar: true },
-    { key: "demand", label: tr("Reviews, last 3 months", "최근 3개월 리뷰"), help: tr("Dated reviews on its tracked products in the last 3 complete months (one count per product, sizes pooled): a stand-in for recent sales", "최근 완결된 3개월 동안 추적 제품에 작성된 리뷰 (제품당 한 번, 용량 합산). 최근 판매의 대리 지표"), better: "high", value: (f) => f.last3, show: (f) => compact(f.last3),
+    // owner 20 Oct 2026: shares must hold up. Buying is measured on every top-100 product alike; review counts depend on
+    // how many of a brand's products we follow, so they are context (no ahead/behind colour, no LEAD)
+    { key: "buying", label: tr("Share of buying, all top 100s", "구매 점유율, 상위 100위 전체"), help: tr(`The brand's new ratings × MRP over all brands' in every tracked top 100, ${buy.span}`, `상위 100위 전체에서 브랜드 신규 평가 × 정가 ÷ 전체 브랜드, ${buy.span}`), better: "high",
+      value: (f) => buy.of(f.brand), show: (f) => pct(buy.of(f.brand)!, 1), sub: () => buy.span, bar: true, missing: (f) => (buy.of(f.brand) ? null : tr("No buying counted in the top 100s", "상위 100위 구매 집계 없음")) },
+    { key: "demand", label: tr("Reviews, last 3 months", "최근 3개월 리뷰"), help: tr("Dated reviews on its tracked products in the last 3 complete months (one count per product, sizes pooled). Depends on how many of its products we follow, so it is not coloured", "최근 완결된 3개월 동안 추적 제품에 작성된 리뷰 (제품당 한 번, 용량 합산). 추적 제품 수에 따라 달라지므로 색 표시 없음"), better: null, value: (f) => f.last3, show: (f) => compact(f.last3),
       sub: (f) => tr(`${DW().recent} · ${f.demandProducts} products`, `${DW().recent} · 제품 ${f.demandProducts}개`), bar: true, missing: (f) => (f.last3 === null ? notTracked() : null) },
     { key: "momentum", label: tr("Review growth", "리뷰 성장률"), help: tr(`Reviews ${DW().recent} against ${DW().prior}, products with complete history only`, `${DW().recent} 리뷰 vs ${DW().prior} 리뷰. 이력이 완전한 제품만`), better: "high", value: (f) => f.growth, show: (f) => signed(f.growth), sub: () => tr(`vs ${DW().prior}`, `${DW().prior} 대비`),
       missing: (f) => (f.growth === null ? (f.last3 === null ? notTracked() : tr("Too new to compare", "비교하기엔 너무 새 제품")) : null) },
@@ -58,16 +65,16 @@ function criteriaFor(cat: string, anchor: string): Criterion<BrandFacts>[] {
       sub: (f) => (f.conversion !== null ? tr(`${pct(f.conversion)} reach a top 100`, `${pct(f.conversion)}가 상위 100위 진입`) : null), missing: (f) => (f.range === null ? tr("Range not counted for this brand", "이 브랜드는 라인업 미집계") : null) },
   ];
 }
-const GROUPS = () => ({ price: tr("Price and promotion", "가격·프로모션"), listings: tr("Shelf visibility", "진열 노출"), rating: tr("Buyer response", "구매자 반응"), demand: tr("Demand (sales signal)", "수요 (판매 신호)"), search: tr("Search", "검색"), range: tr("Range", "라인업") });
+const GROUPS = () => ({ price: tr("Price and promotion", "가격·프로모션"), listings: tr("Shelf visibility", "진열 노출"), rating: tr("Buyer response", "구매자 반응"), buying: tr("Demand (sales signal)", "수요 (판매 신호)"), search: tr("Search", "검색"), range: tr("Range", "라인업") });
 
 /* ---------------------------------------------------------------- §7 brands */
 
 const DW = () => demandWindow();
-export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHeroSet, onToggle, onReset, focusSet, inSet }: {
+export function Brands({ facts, anchor, cat, colors, brands, known, rows, isDefault, onToggle, onReset, focusSet, inSet, buy }: {
   facts: BrandFacts[]; anchor: string; cat: string; colors: Record<string, string>; brands: string[]; known: string[]; rows: ShelfRow[];
-  isHeroSet: boolean; onToggle: (b: string) => void; onReset: () => void; focusSet: string[]; inSet: (b: string) => boolean;
+  isDefault: boolean; onToggle: (b: string) => void; onReset: () => void; focusSet: string[]; inSet: (b: string) => boolean; buy: BuyingShare;
 }) {
-  const criteria = criteriaFor(cat, anchor);
+  const criteria = criteriaFor(cat, anchor, buy);
   const a = facts.find((f) => f.brand === anchor);
   const rivals = facts.filter((f) => f.brand !== anchor);
   const priced = rivals.filter((f) => f.basket.vsAnchor !== null);
@@ -80,7 +87,7 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
   const focus = focusSet.filter((b) => known.includes(b));
   const all = [...new Set(rows.map((r) => r.brand))].map((b) => ({ brand: b, slots: rows.filter((r) => r.brand === b).length })).sort((x, y) => y.slots - x.slots);
 
-  const cols: GridCol[] = facts.map((f) => ({ key: f.brand, anchor: f.brand === anchor, head: (
+  const cols: GridCol[] = facts.map((f) => ({ key: f.brand, anchor: f.brand === anchor, short: f.brand, head: (
     <div>
       <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colors[f.brand] }} /><span className="text-[14px] font-semibold">{f.brand}</span>{!inSet(f.brand) && <span className="whitespace-nowrap rounded bg-sunken px-1 text-[10px] font-normal text-muted ring-1 ring-line">{tr("not in focus set", "주요 브랜드 외")}</span>}</div>
       <div className="mt-0.5 text-[11px] leading-snug text-muted">{ORIGIN_LABEL[f.origin]}{f.madeIn ? tr(` · made in ${f.madeIn}`, ` · ${tx(f.madeIn)} 생산`) : ""}{f.kMarketing ? tr(" · sells as Korean", " · K-뷰티 브랜드로 마케팅") : ""}{f.basket.source === "shelf" ? tr(" · prices from today's top 100 until its full range is crawled", " · 전체 라인업 수집 전까지 오늘 상위 100위 가격 사용") : ""}</div>
@@ -91,12 +98,12 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
   ];
 
   return (
-    <ActionSection id="brands" kicker={tr("Brand scorecard · Innisfree vs the brands behind these products", "브랜드 스코어카드 · Innisfree vs 경쟁 제품의 브랜드")} title={title}
-      note={isHeroSet ? tr("Brands of the selected hero's rivals. Change the set below; the products above stay the analysed group.", "선택한 히어로의 경쟁 제품 브랜드. 아래에서 브랜드 변경 가능, 위 제품은 분석된 그룹 그대로.") : tr("Change the brand set below.", "아래에서 브랜드 변경 가능.")}>
+    <ActionSection id="brands" kicker={tr("Brand scorecard · Innisfree vs the main rival brands", "브랜드 스코어카드 · Innisfree vs 주요 경쟁 브랜드")} title={title}
+      note={isDefault ? tr("Opens on the main brands with the most top-100 places in Innisfree's categories (3 Korean, 1 Indian, 1 global). Change the set below; the brand names stay pinned at the top as you scroll the table.", "기본값: Innisfree 카테고리에서 상위 100위 자리가 가장 많은 주요 브랜드 (K-뷰티 3, 인도 1, 글로벌 1). 아래에서 변경 가능, 표를 내려도 브랜드 이름은 위에 고정.") : tr("Your brand set. The brand names stay pinned at the top as you scroll the table.", "직접 고른 브랜드. 표를 내려도 브랜드 이름은 위에 고정.")}>
       <Card className="mb-4 px-4 py-3">
         <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
           <span>{tr("Brands compared · up to 6, Innisfree always included", "비교 브랜드 · 최대 6개, Innisfree 항상 포함")}</span>
-          {!isHeroSet && <button onClick={onReset} className="normal-case tracking-normal text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">{tr("Reset to the hero’s rivals", "히어로의 경쟁 브랜드로 되돌리기")}</button>}
+          {!isDefault && <button onClick={onReset} className="normal-case tracking-normal text-ink-2 underline decoration-line-2 underline-offset-2 hover:text-ink">{tr("Back to the default brands", "기본 브랜드로 되돌리기")}</button>}
         </div>
         <BrandPicker focus={focus} all={all} selected={brands} colors={colors} onToggle={onToggle} max={6} />
       </Card>
@@ -108,41 +115,44 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isHero
 
 /* ---------------------------------------------------------------- §8 where they compete */
 
-export function WhereCompete({ facts, anchor, rows, catalog, uspBy, comps, colors, brands, onPickCat }: {
-  facts: BrandFacts[]; anchor: string; rows: ShelfRow[]; catalog: CatalogRow[]; uspBy: Map<string, UspProduct>; comps: UspComparison[];
-  colors: Record<string, string>; brands: string[]; onPickCat: (c: string) => void;
+export function WhereCompete({ anchor, rows, catalog, colors, brands, onPickCat }: {
+  anchor: string; rows: ShelfRow[]; catalog: CatalogRow[]; colors: Record<string, string>; brands: string[]; onPickCat: (c: string) => void;
 }) {
   const cats = [...SKINCARE, ...CATEGORIES.filter((c) => !SKINCARE.includes(c))].filter((c) => SKINCARE.includes(c) || brands.some((b) => productOptions(b, c, rows, catalog).length));
   const anchorSells = (c: string) => productOptions(anchor, c, rows, catalog).length > 0;
+  const shared = cats.filter((c) => anchorSells(c) && brands.some((b) => b !== anchor && productOptions(b, c, rows, catalog).length));
   const gaps = cats.filter((c) => !anchorSells(c) && brands.some((b) => b !== anchor && rows.some((r) => r.brand === b && r.subcategory === c)));
-  const lines = facts.filter((f) => f.brand !== anchor).map((f) => {
-    const h2h = comps.flatMap((g) => g.products.filter((id) => uspBy.get(id)?.brand === f.brand && id !== g.anchor_product_id).map((id) => ({ g, p: uspBy.get(id)! })));
-    const shared = cats.filter((c) => anchorSells(c) && productOptions(f.brand, c, rows, catalog).length);
-    return { f, h2h, rest: shared.filter((c) => !h2h.some((x) => shelfCat(x.g.category) === c)) };
-  });
-  const h2hCats = new Set(lines.flatMap((l) => l.h2h.map((x) => shelfCat(x.g.category))));
-  const title = tr(`Innisfree meets these brands head-to-head in ${h2hCats.size} categor${h2hCats.size === 1 ? "y" : "ies"}${gaps.length ? `; it sells nothing in ${gaps.map((c) => CATEGORY_LABEL[c].toLowerCase()).join(", ")}, where rivals rank` : ""}.`,
-    `Innisfree는 카테고리 ${h2hCats.size}곳에서 이 브랜드들과 정면 경쟁${gaps.length ? `. 경쟁사가 순위에 오른 ${gaps.map((c) => CATEGORY_LABEL[c]).join(", ")}에선 판매 제품 없음` : ""}.`);
+  const title = tr(`Innisfree and these brands both sell in ${shared.length} categor${shared.length === 1 ? "y" : "ies"}${gaps.length ? `; Innisfree sells nothing in ${gaps.map((c) => CATEGORY_LABEL[c].toLowerCase()).join(", ")}, where they rank` : ""}.`,
+    `Innisfree와 이 브랜드들이 함께 파는 카테고리 ${shared.length}곳${gaps.length ? `. 이들이 순위에 오른 ${gaps.map((c) => CATEGORY_LABEL[c]).join(", ")}에선 Innisfree 판매 제품 없음` : ""}.`);
   return (
     <ActionSection id="compete" kicker={tr("Where they compete", "경쟁 지점")} title={title}
-      note={tr("Head-to-head: a rival product the USP analysis set against an Innisfree hero, with that rival's lead benefit. Grid: top-100 listings today, or how much a brand sells there without ranking (full range for tracked brands). Click a category row to open it.", "정면 경쟁: 소구점 분석에서 Innisfree 히어로와 맞붙인 경쟁 제품과 대표 효능. 표: 오늘 상위 100위 제품 수, 또는 순위 밖에서 판매 중인 제품 수(추적 브랜드는 전체 라인업 기준). 카테고리 행을 누르면 해당 카테고리로 이동.")}>
-      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {lines.map(({ f, h2h, rest }) => (
-          <Card key={f.brand} className="px-4 py-3.5">
-            <div className="flex items-center gap-1.5 text-[13px] font-semibold"><span className="h-2 w-2 rounded-full" style={{ background: colors[f.brand] }} />{f.brand}</div>
-            {h2h.length ? (
-              <ul className="mt-1.5 space-y-1.5">{h2h.map(({ g, p }) => {
-                const benefit = [...p.analysis.key_benefits].sort((x, y) => y.emphasis - x.emphasis)[0]?.benefit;
-                return <li key={g.anchor_product_id + p.product_id} className="text-[12px] leading-snug"><b className="font-semibold">{CATEGORY_LABEL[shelfCat(g.category)]}</b>: {shortTitle(p.name, p.brand)} vs {shortTitle(g.anchor_name, "Innisfree")}{benefit && <span className="block text-ink-2">{tr("Leads on", "대표 효능")}: {tx(benefit)}</span>}</li>;
-              })}</ul>
-            ) : <p className="mt-1.5 text-[12px] text-muted">{tr("No head-to-head pairing in the USP analysis.", "소구점 분석에 정면 경쟁 짝 없음.")}</p>}
-            {rest.length > 0 && <p className="mt-2 text-[11.5px] text-muted">{tr("Also both sell", "둘 다 판매")}: {rest.map((c) => CATEGORY_LABEL[c]).join(", ")}</p>}
-            {!h2h.length && !rest.length && <p className="mt-1 text-[11.5px] text-muted">{tr(`No overlap with Innisfree’s range${f.basket.source === "shelf" ? " (top 100 only)" : ""}.`, `Innisfree 라인업과 겹치는 곳 없음${f.basket.source === "shelf" ? " (상위 100위 기준)" : ""}.`)}</p>}
-          </Card>
-        ))}
-      </div>
+      note={tr("Each cell: the brand's listings in that category's top 100 today, or how much it sells there without ranking (full range for tracked brands). Click a category row to compare its products in Part 2. The product pairings from the analysis are in Part 2.", "각 칸: 오늘 그 카테고리 상위 100위 제품 수, 또는 순위 밖에서 판매 중인 제품 수(추적 브랜드는 전체 라인업 기준). 카테고리 행을 누르면 2부에서 제품 비교. 분석된 제품 짝은 2부에 있음.")}>
       <PresenceMatrix shelf={rows} catalog={catalog} anchor={anchor} brands={brands} colors={colors} onPick={onPickCat} categories={cats} />
     </ActionSection>
+  );
+}
+
+/** The analysed product pairings (moved from Part 1, owner 20 Oct 2026: products belong with products): every Innisfree
+ *  hero the USP analysis set against rival products, by category, with each rival's lead benefit. Click to compare. */
+export function HeadToHead({ anchor, uspBy, comps, colors, onPick }: {
+  anchor: string; uspBy: Map<string, UspProduct>; comps: UspComparison[]; colors: Record<string, string>; onPick: (cat: string, hero: string) => void;
+}) {
+  if (!comps.length) return null;
+  return (
+    <details className="mt-4 rounded-2xl bg-surface px-4 py-3 shadow-card ring-1 ring-line">
+      <summary className="cursor-pointer text-[13px] font-semibold text-ink">{tr(`Every analysed pairing: ${comps.length} ${anchor} heroes and the rival products set against them`, `분석된 모든 짝: ${anchor} 히어로 ${comps.length}개와 맞붙인 경쟁 제품`)} <span className="font-normal text-muted">{tr("· click one to compare it below", "· 누르면 아래에서 비교")}</span></summary>
+      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {comps.map((g) => (
+          <button key={g.anchor_product_id} onClick={() => onPick(shelfCat(g.category), g.anchor_product_id)} className="rounded-xl px-3 py-2.5 text-left ring-1 ring-line transition hover:bg-page hover:ring-brand">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{CATEGORY_LABEL[shelfCat(g.category)]}</div>
+            <div className="mt-0.5 text-[12.5px] font-semibold leading-snug">{shortTitle(g.anchor_name, anchor)}</div>
+            <ul className="mt-1.5 space-y-1">{g.products.filter((id) => id !== g.anchor_product_id).map((id) => { const p = uspBy.get(id); if (!p) return null;
+              const benefit = [...p.analysis.key_benefits].sort((x, y) => y.emphasis - x.emphasis)[0]?.benefit;
+              return <li key={id} className="text-[12px] leading-snug"><span className="mr-1 inline-block h-2 w-2 rounded-full" style={{ background: colors[p.brand] ?? "#8a8880" }} /><b className="font-medium">{p.brand}</b> {shortTitle(p.name, p.brand)}{benefit && <span className="block pl-3 text-[11.5px] text-ink-2">{tr("Leads on", "대표 효능")}: {tx(benefit)}</span>}</li>; })}</ul>
+          </button>
+        ))}
+      </div>
+    </details>
   );
 }
 

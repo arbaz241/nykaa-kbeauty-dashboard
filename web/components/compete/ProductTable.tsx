@@ -22,7 +22,7 @@ export function ProductTable({ products, colors, bench, std, cat, optionsFor, on
   const price = pricePart({ products, bench, std, cat });
   const buyers = buyersPart({ products, loading });
   const shelf = shelfPart({ products, colors, cat });
-  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, head: <ProductHead p={p} color={colors[p.brand]} options={optionsFor?.(p.brand)} onSwap={(pid) => onSwap(p.brand, pid)} /> }));
+  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, short: <>{p.brand} <span className="font-normal text-ink-2">· {shortTitle(p.name, p.brand)}</span></>, head: <ProductHead p={p} color={colors[p.brand]} options={optionsFor?.(p.brand)} onSwap={(pid) => onSwap(p.brand, pid)} /> }));
   const criteria: Criterion<ProductFacts>[] = [...price.criteria, ...buyers.criteria, ...shelf.criteria];
   const extra: ExtraRow<ProductFacts>[] = [...price.extra, ...buyers.extra, ...shelf.extra];
   return (
