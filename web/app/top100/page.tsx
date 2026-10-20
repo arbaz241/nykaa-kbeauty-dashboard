@@ -10,7 +10,7 @@ import { ORIGIN_LABEL, marketSet, norm } from "@/lib/brands";
 import { useTiers } from "@/lib/tiers";
 import { useNykaaShelf } from "@/lib/data";
 import { countsIn } from "@/lib/market";
-import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, compact, inr, median, shortName } from "@/lib/format";
+import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, PER_SHEET, compact, inr, median, packMl, sheetCount, shortName } from "@/lib/format";
 import type { ShelfRow } from "@/lib/types";
 import { push } from "@/lib/group";
 import { onePerRatingPool } from "@/lib/pools";
@@ -29,6 +29,13 @@ const TAG_WORD = (t: string) => tr(t, ({ Anchor: "기준", Focus: "주요", "Riv
 const ORIGIN_CHIP: Record<string, string> = { kbeauty: "bg-[#e4f0eb] text-[#1f5646]", local: "bg-[#faefe2] text-[#8a5a22]", global: "bg-[#e9eff5] text-[#3d5670]", unknown: "bg-sunken text-muted" };
 const spf = (name: string) => { const m = name.match(/SPF\s*(\d{2,3})/i); return m ? Number(m[1]) : null; };
 const page = (rank: number) => Math.ceil(rank / 20);
+/** MRP per 100 ml/g (per sheet for sheet masks), from the pack size, or from the name when Nykaa's listing leaves the
+ *  size out (owner 20 Oct 2026: the sizes come from each product's own page from the 21 Oct run). */
+const unit = (r: ShelfRow) => {
+  const p = r.mrp ?? r.price; if (!p) return null;
+  if (PER_SHEET.has(r.subcategory)) { const c = sheetCount(r.pack_size, r.name); return { v: p / c.n, per: tr("sheet", "장"), est: c.est }; }
+  const ml = packMl(r.pack_size) ?? packMl(r.name); return ml ? { v: (p / ml) * 100, per: "100 ml/g", est: !packMl(r.pack_size) } : null;
+};
 const ref = (r: ShelfRow): ProductRef => ({ product_id: r.product_id, name: r.name, brand: r.brand, url: r.url, image: r.image_url, price: r.price, mrp: r.mrp, rating: r.rating, rating_count: r.rating_count, usp: r.usp_summary, phrases: r.review_key_phrases, splitup: r.review_splitup, madeIn: r.country_name });
 
 function Stars({ v }: { v: number | null }) {
@@ -101,11 +108,11 @@ function TopPage() {
   const anchorRows = catRows.filter((r) => norm(r.brand) === norm(set.anchor));
 
   const exportCsv = () => {
-    const head = ["position", "nykaa_rank", "page", "origin", "brand", "product", "badges", "concerns", "mrp", "price", "discount_pct", "pack_size", "ratings", "rating", "url"];
+    const head = ["position", "nykaa_rank", "page", "origin", "brand", "product", "badges", "concerns", "mrp", "price", "discount_pct", "pack_size", "mrp_per_unit", "unit", "ratings", "rating", "url"];
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = shown.map(({ r, pos }) => [pos, r.rank, `P${page(r.rank)}`, ORIGIN_LABEL[r.origin], r.brand, r.name,
       [r.is_ad && "AD", r.is_bestseller && "BESTSELLER", r.is_new_tag && "NEW"].filter(Boolean).join(" "), (r.concerns ?? []).join("; "),
-      r.mrp, r.price, r.discount_pct, r.pack_size, r.rating_count, r.rating, r.url].map(esc).join(","));
+      r.mrp, r.price, r.discount_pct, r.pack_size, unit(r) ? Math.round(unit(r)!.v) : "", unit(r)?.per ?? "", r.rating_count, r.rating, r.url].map(esc).join(","));
     const blob = new Blob([[head.join(","), ...lines].join("\n")], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `nykaa-top100-${cat}-${rows[0]?.scrape_date ?? ""}.csv`; a.click();
   };
@@ -193,12 +200,12 @@ function TopPage() {
               </div>
             )}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1180px] text-[13px]">
+              <table className="w-full min-w-[1260px] text-[13px]">
                 <thead><tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted [&>th]:whitespace-nowrap">
                   <th className="px-4 py-3 text-right">#</th><th className="px-2 py-3">{tr("Page", "페이지")}</th><th className="px-2 py-3">{tr("Origin", "국적")}</th><th className="px-3 py-3">{tr("Brand", "브랜드")}</th>
                   <th className="px-3 py-3">{tr("Product", "제품")}</th><th className="px-2 py-3">{tr("Badge", "배지")}</th>{isSun && <th className="px-2 py-3 text-right">SPF</th>}<th className="px-3 py-3">{tr("Targets", "타깃 고민")}</th>
                   <th className="px-2 py-3 text-right">{tr("MRP", "정가")}</th><th className="px-2 py-3 text-right">{tr("Sells at", "판매가")}</th><th className="px-2 py-3 text-right">{tr("Off", "할인")}</th>
-                  <th className="px-2 py-3 text-right">{tr("Size", "용량")}</th><th className="px-2 py-3 text-right">{tr("Ratings", "평가 수")}</th><th className="px-4 py-3 text-right">{tr("Rating", "별점")}</th>
+                  <th className="px-2 py-3 text-right">{tr("Size", "용량")}</th><th className="px-2 py-3 text-right">{tr("MRP per unit", "단위 정가")}</th><th className="px-2 py-3 text-right">{tr("Ratings", "평가 수")}</th><th className="px-4 py-3 text-right">{tr("Rating", "별점")}</th>
                 </tr></thead>
                 <tbody>
                   {shown.map(({ r, pos }) => {
@@ -221,7 +228,8 @@ function TopPage() {
                         <td className="px-2 py-2.5 text-right font-medium tabular">{r.mrp ? inr(r.mrp) : inr(r.price)}</td>
                         <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.price && r.mrp && r.price < r.mrp ? inr(r.price) : <span className="text-[11px] text-muted">{tr("same", "동일")}</span>}</td>
                         <td className="px-2 py-2.5 text-right tabular">{r.discount_pct ? <span className="text-good">{Math.round(r.discount_pct)}%</span> : <span className="text-[11px] text-muted">{tr("none", "없음")}</span>}</td>
-                        <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.pack_size ?? <Missing>{tr("not listed", "표기 없음")}</Missing>}</td>
+                        <td className="px-2 py-2.5 text-right tabular text-ink-2">{r.pack_size ?? (packMl(r.name) ? <span title={tr("Read from the product name; Nykaa's listing leaves the size out", "상품명에서 읽음, Nykaa 목록에 용량 표기 없음")}>{packMl(r.name)} ml/g*</span> : <Missing>{tr("not on Nykaa's list", "Nykaa 목록에 없음")}</Missing>)}</td>
+                        <td className="whitespace-nowrap px-2 py-2.5 text-right tabular text-ink-2">{(() => { const u = unit(r); return u ? <>₹{Math.round(u.v).toLocaleString("en-IN")}<span className="text-[10.5px] text-muted">/{u.per}{u.est ? "*" : ""}</span></> : <Missing>{tr("no size", "용량 없음")}</Missing>; })()}</td>
                         <td className="px-2 py-2.5 text-right tabular">{r.rating_count ? r.rating_count.toLocaleString("en-US") : <Missing>{tr("none yet", "아직 없음")}</Missing>}</td>
                         <td className="px-4 py-2.5 text-right"><Stars v={r.rating} /></td>
                       </tr>
@@ -233,7 +241,7 @@ function TopPage() {
             </div>
             <div className="flex flex-wrap justify-between gap-2 border-t border-line px-4 py-3 text-[11.5px] text-muted">
               <span>{tr(`Nykaa app ranking, top 100, collected ${asOf}. Positions are Nykaa's own; with a "hide" switch on, the list is renumbered and Nykaa's position shows underneath. Click a row for its rank history, demand and reviews.`, `Nykaa 앱 순위 상위 100위, ${asOf} 수집. 순위는 Nykaa 기준, 숨기기를 켜면 다시 번호를 매기고 Nykaa 순위는 아래 표시. 행을 누르면 순위 이력·수요·리뷰`)}</span>
-              <span>{tr("Origin: brand classification · Badges: Nykaa’s own tags on the listing", "국적: 브랜드 분류 · 배지: 상품에 붙은 Nykaa 태그")}</span>
+              <span>{tr("Origin: brand classification · Badges: Nykaa’s own tags on the listing · * size read from the product name (Nykaa’s list leaves it out; from 21 Oct it comes from each product’s own page)", "국적: 브랜드 분류 · 배지: 상품에 붙은 Nykaa 태그 · * 상품명에서 읽은 용량 (Nykaa 목록에 없음, 10월 21일부터 상품 페이지에서 채움)")}</span>
             </div>
           </Card>
         </>

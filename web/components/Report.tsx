@@ -23,7 +23,7 @@ export function SectionNav({ items }: { items: NavItem[] }) {
     return () => io.disconnect();
   }, [items]);
   return (
-    <nav aria-label={tr("On this page", "이 페이지 목차")} className="sticky top-16 z-20 -mx-6 mt-6 bg-page/95 px-6 py-2 backdrop-blur-md">
+    <nav data-section-nav aria-label={tr("On this page", "이 페이지 목차")} className="sticky top-16 z-20 -mx-6 mt-6 bg-page/95 px-6 py-2 backdrop-blur-md">
       <div className="flex items-center gap-3 overflow-x-auto rounded-xl bg-sunken px-3 py-1.5">
         <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted">{tr("On this page", "이 페이지")}</span>
         <ol className="flex gap-0.5">

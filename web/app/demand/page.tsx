@@ -172,14 +172,26 @@ function DemandPage() {
     return [...t.values()].sort((a, b) => b.top5 - a.top5 || b.top10 - a.top10 || b.ads - a.ads);
   }, [byKw, rows, days]);
   const cur = byKw.get(active) ? split(byKw.get(active)!) : { unpaid: [], ads: [] };
+  // owner 20 Oct: the ad timeline opens on two weeks by day and widens to everything collected, by day or by week
+  const [adSpan, setAdSpan] = useState<number>(14); const [adWeekly, setAdWeekly] = useState(false); const [adAll, setAdAll] = useState(false);
   const adGrid = useMemo(() => {
-    const ds = days.slice(-10); const bs = new Map<string, Map<string, number>>();
-    rows.filter((r) => r.query === active && r.is_ad && ds.includes(r.scrape_date)).forEach((r) => {
-      const m = bs.get(r.brand) ?? new Map<string, number>(); m.set(r.scrape_date, (m.get(r.scrape_date) ?? 0) + 1); bs.set(r.brand, m);
+    const ds = adSpan ? days.slice(-adSpan) : days; const inKw = (r: SearchRow) => adAll || r.query === active;
+    // a column is a day, or a Monday-to-Sunday week (key = its Monday)
+    const col = (d: string) => { if (!adWeekly) return d; const t = new Date(`${d}T00:00:00Z`); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7)); return t.toISOString().slice(0, 10); };
+    const cols = [...new Set(ds.map(col))]; const daysIn = new Map(cols.map((c) => [c, ds.filter((d) => col(d) === c)]));
+    const bs = new Map<string, Map<string, number>>();
+    rows.filter((r) => inKw(r) && r.is_ad && ds.includes(r.scrape_date)).forEach((r) => {
+      const c = col(r.scrape_date); const m = bs.get(r.brand) ?? new Map<string, number>(); m.set(c, (m.get(c) ?? 0) + 1); bs.set(r.brand, m);
     });
-    const unpaid1 = ds.map((d) => { const rs = rows.filter((r) => r.query === active && r.scrape_date === d); return rs.length ? split(rs).unpaid[0]?.brand ?? null : null; });
-    return { ds, brands: [...bs.entries()].sort((a, b) => (tiers.order(a[0]) - tiers.order(b[0])) || [...b[1].values()].reduce((x, y) => x + y, 0) - [...a[1].values()].reduce((x, y) => x + y, 0)), unpaid1 };
-  }, [rows, days, active, tiers]);
+    // last row: the #1 unpaid brand (one keyword), or the brand most often #1 that day or week (all keywords, or a week)
+    const unpaid1 = cols.map((c) => {
+      const tally = new Map<string, number>();
+      for (const d of daysIn.get(c)!) { const by = new Map<string, SearchRow[]>(); rows.filter((r) => inKw(r) && r.scrape_date === d).forEach((r) => push(by, r.query, r)); for (const rs of by.values()) { const b = split(rs).unpaid[0]?.brand; if (b) tally.set(b, (tally.get(b) ?? 0) + 1); } }
+      return [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    });
+    const total = (m: Map<string, number>) => [...m.values()].reduce((x, y) => x + y, 0);
+    return { cols, daysIn, brands: [...bs.entries()].sort((a, b) => (tiers.order(a[0]) - tiers.order(b[0])) || total(b[1]) - total(a[1])), unpaid1, from: ds[0], to: ds[ds.length - 1], max: Math.max(1, ...[...bs.values()].flatMap((m) => [...m.values()])) };
+  }, [rows, days, active, tiers, adSpan, adWeekly, adAll]);
   const totalAds = sov.reduce((a, s) => a + s.ads, 0);
   const focusAds = sov.filter((s) => tiers.inSet(s.brand)).reduce((a, s) => a + s.ads, 0);
   const anchorS = sov.find((s) => isA(s.brand));
@@ -364,22 +376,35 @@ function DemandPage() {
             <div className="mb-3 flex flex-wrap gap-1.5">
               {keywords.map((k) => <button key={k} onClick={() => setKw(k)} className={`rounded-full px-3 py-1 text-[12.5px] transition ${active === k ? "bg-brand font-medium text-on-brand" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"}`}>{k}</button>)}
             </div>
-            <Card className="overflow-x-auto p-5">
-              <div className="mb-1 text-[14px] font-semibold">{tr("Ad placements over time", "광고 노출 추이")} · &ldquo;{active}&rdquo;</div>
-              <div className="mb-3 text-[12px] text-muted">{tr("AD tiles each brand held per day, main brands first. Last row: the #1 unpaid result, for comparison.", "브랜드별 일일 광고 자리 수 (주요 브랜드 먼저). 마지막 줄은 비교용 비광고 1위 결과.")}</div>
-              <table className="w-full min-w-[620px] text-[12.5px] tabular">
-                <thead><tr><th className="pb-2 pr-3 text-left font-medium text-muted">{tr("Brand", "브랜드")}</th>{adGrid.ds.map((d) => <th key={d} className="pb-2 text-center font-medium text-muted">{day(d)}</th>)}</tr></thead>
+            <Card className="p-5">
+              <div className="mb-1 text-[14px] font-semibold">{tr("Ad placements over time", "광고 노출 추이")} · {adAll ? tr("all keywords", "전체 키워드") : <>&ldquo;{active}&rdquo;</>}</div>
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px]">
+                <div className="inline-flex rounded-full bg-sunken p-0.5 ring-1 ring-line">
+                  {([[10, tr("10 days", "10일")], [14, tr("2 weeks", "2주")], [28, tr("4 weeks", "4주")], [0, tr(`Everything (${days.length} days)`, `전체 (${days.length}일)`)]] as [number, string][]).map(([v, l]) => <button key={v} onClick={() => setAdSpan(v)} aria-pressed={adSpan === v} className={`rounded-full px-3 py-1 transition ${adSpan === v ? "bg-surface font-medium text-ink shadow-card" : "text-ink-2 hover:text-ink"}`}>{l}</button>)}
+                </div>
+                <div className="inline-flex rounded-full bg-sunken p-0.5 ring-1 ring-line">
+                  {([[false, tr("By day", "일별")], [true, tr("By week", "주별")]] as [boolean, string][]).map(([v, l]) => <button key={String(v)} onClick={() => setAdWeekly(v)} aria-pressed={adWeekly === v} className={`rounded-full px-3 py-1 transition ${adWeekly === v ? "bg-surface font-medium text-ink shadow-card" : "text-ink-2 hover:text-ink"}`}>{l}</button>)}
+                </div>
+                <button onClick={() => setAdAll(!adAll)} aria-pressed={adAll} className={`rounded-full px-3 py-1 ring-1 transition ${adAll ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>{tr("All keywords together", "전체 키워드 합산")}</button>
+              </div>
+              <div className="mb-3 text-[12px] text-muted">{tr(`AD tiles each brand held ${adWeekly ? "per week (Monday to Sunday, summed over the days collected)" : "per day"}, ${adAll ? "summed over every keyword" : "on this keyword"}, ${day(adGrid.from)}–${day(adGrid.to)}; main brands first. Last row: the #1 unpaid result${adAll || adWeekly ? " most often in that column" : ""}, for comparison.`,
+                `브랜드별 ${adWeekly ? "주간(월–일, 수집일 합계)" : "일일"} 광고 자리 수, ${adAll ? "전체 키워드 합산" : "이 키워드"}, ${day(adGrid.from)}–${day(adGrid.to)} (주요 브랜드 먼저). 마지막 줄은 비교용 비광고 1위${adAll || adWeekly ? " (가장 자주 1위)" : ""}.`)}</div>
+              <div className="overflow-x-auto">
+              <table className="w-full text-[12.5px] tabular" style={{ minWidth: Math.max(620, 180 + adGrid.cols.length * 44) }}>
+                <thead><tr><th className="sticky left-0 z-[1] bg-surface pb-2 pr-3 text-left font-medium text-muted">{tr("Brand", "브랜드")}</th>{adGrid.cols.map((c) => <th key={c} className="pb-2 text-center font-medium text-muted" title={adWeekly ? `${day(adGrid.daysIn.get(c)![0])}–${day(adGrid.daysIn.get(c)!.slice(-1)[0])} · ${adGrid.daysIn.get(c)!.length} ${tr("days", "일")}` : undefined}>{adWeekly ? <>{tr(`wk of ${day(c)}`, `${day(c)} 주`)}{adGrid.daysIn.get(c)!.length < 7 && <span className="block text-[10px] font-normal">{tr(`${adGrid.daysIn.get(c)!.length} days`, `${adGrid.daysIn.get(c)!.length}일`)}</span>}</> : day(c)}</th>)}<th className="pb-2 pl-2 text-right font-medium text-muted">{tr("Total", "합계")}</th></tr></thead>
                 <tbody>
                   {adGrid.brands.map(([b, m]) => (
                     <tr key={b} className={`border-t border-line ${isA(b) ? "bg-accent-soft/50" : ""}`}>
-                      <td className="py-1.5 pr-3 font-medium">{b}{!tiers.inSet(b) && <span className="ml-1.5 text-[10.5px] font-normal text-muted">{tr("not a main brand", "주요 브랜드 외")}</span>}</td>
-                      {adGrid.ds.map((d) => { const n = m.get(d) ?? 0; return <td key={d} className="py-1.5 text-center">{n ? <span className="inline-grid h-6 w-6 place-items-center rounded-md text-[11.5px] font-semibold text-white" style={{ background: `rgba(217,154,30,${0.5 + Math.min(n, 3) * 0.16})` }}>{n}</span> : <span className="text-line-2">·</span>}</td>; })}
+                      <td className="sticky left-0 z-[1] bg-surface py-1.5 pr-3 font-medium">{b}{!tiers.inSet(b) && <span className="ml-1.5 text-[10.5px] font-normal text-muted">{tr("not a main brand", "주요 브랜드 외")}</span>}</td>
+                      {adGrid.cols.map((c) => { const n = m.get(c) ?? 0; return <td key={c} className="py-1.5 text-center">{n ? <span className="inline-grid h-6 min-w-6 place-items-center rounded-md px-1 text-[11.5px] font-semibold text-white" style={{ background: `rgba(217,154,30,${0.5 + (n / adGrid.max) * 0.48})` }}>{n}</span> : <span className="text-line-2">·</span>}</td>; })}
+                      <td className="py-1.5 pl-2 text-right font-semibold">{[...m.values()].reduce((x, y) => x + y, 0)}</td>
                     </tr>
                   ))}
-                  <tr className="border-t-2 border-line"><td className="py-1.5 pr-3 text-muted">{tr("#1 unpaid", "비광고 1위")}</td>{adGrid.unpaid1.map((b, i) => <td key={i} className="py-1.5 text-center text-[11px] text-ink-2">{b ?? <Missing>{tr("not collected", "미수집")}</Missing>}</td>)}</tr>
+                  <tr className="border-t-2 border-line"><td className="sticky left-0 z-[1] bg-surface py-1.5 pr-3 text-muted">{tr("#1 unpaid", "비광고 1위")}</td>{adGrid.unpaid1.map((b, i) => <td key={i} className="py-1.5 text-center text-[11px] text-ink-2">{b ?? <Missing>{tr("not collected", "미수집")}</Missing>}</td>)}<td /></tr>
                 </tbody>
               </table>
-              {adGrid.brands.length === 0 && <p className="mt-2 text-[12.5px] text-muted">{tr("No ads recorded on this keyword.", "이 키워드에 기록된 광고 없음.")}</p>}
+              </div>
+              {adGrid.brands.length === 0 && <p className="mt-2 text-[12.5px] text-muted">{adAll ? tr("No ads recorded in this period.", "이 기간에 기록된 광고 없음.") : tr("No ads recorded on this keyword in this period.", "이 기간 이 키워드에 기록된 광고 없음.")}</p>}
             </Card>
             <Card className="mt-4 overflow-hidden">
               <div className="grid grid-cols-[minmax(180px,1.5fr)_1fr_1fr_1fr] border-b border-line px-5 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted"><span>{tr("Ads by brand, all keywords", "브랜드별 광고, 전체 키워드")}</span><span>{tr("Ad slots today", "오늘 광고 자리")}</span><span>{tr("Ad keyword-days, 7 d", "광고 키워드-일, 7일")}</span><span>{tr("Unpaid top 10 today", "오늘 비광고 상위 10")}</span></div>

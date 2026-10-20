@@ -84,7 +84,7 @@ export function versusCounts(p: ProductFacts, hero: UspComparison, products: Pro
 export function Message({ hero, products, colors }: { hero: UspComparison | null; products: ProductFacts[]; colors: Record<string, string> }) {
   const a = products.find((p) => p.role === "anchor");
   const c = hero?.comparison;
-  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, head: <ProductHead p={p} color={colors[p.brand]} /> }));
+  const cols: GridCol[] = products.map((p) => ({ key: p.pid, anchor: p === a, short: <>{p.brand} <span className="font-normal text-ink-2">· {shortTitle(p.name, p.brand)}</span></>, head: <ProductHead p={p} color={colors[p.brand]} /> }));
   const has = (p: ProductFacts) => !!p.usp;
   const benefits = (p: ProductFacts) => [...p.usp!.analysis.key_benefits].sort((x, y) => y.emphasis - x.emphasis);
   const rows: ExtraRow<ProductFacts>[] = [
@@ -125,7 +125,7 @@ export function Message({ hero, products, colors }: { hero: UspComparison | null
       note={c ? tr(<>What each listing claims, read from every photo in its Nykaa gallery and its page text; what buyers make of it is under What buyers say. Levels use one scale: <b>strong · moderate · weak</b>; click a level for the reasons. {<Opens className="ml-1" detail={{ kicker: "AI read of the whole group", title: "The group at a glance", body: <Points items={c.group_summary.split(/(?<=[.!?])\s+/)} /> }}>Group summary</Opens>}</>,
         <>상품 페이지가 내세우는 내용. 제품별 Nykaa 상세 이미지 전체와 페이지 문구를 읽고 판단. 구매자 반응은 ‘구매자 반응’ 참고. 수준은 한 가지 척도로 표시: <b>강함 · 보통 · 약함</b>. 수준을 누르면 이유 표시. {<Opens className="ml-1" detail={{ kicker: "그룹 전체 AI 분석", title: "그룹 한눈에 보기", body: <Points items={tx(c.group_summary).split(/(?<=[.!?])\s+/)} /> }}>그룹 요약</Opens>}</>)
         : tr("No message analysis for this category yet: rows show what the Nykaa page states.", "이 카테고리는 아직 메시지 분석이 없어 Nykaa 페이지 표기만 표시.")}>
-      <CompareGrid cols={cols} items={products} criteria={[]} extra={rows} labelWidth={150} />
+      <CompareGrid cols={cols} items={products} criteria={[]} extra={rows} labelWidth={150} colors={products.map((p) => colors[p.brand])} />
       {c && (
         <div className="mt-4 grid gap-3 lg:grid-cols-3">
           <Bucket title={tr("Table stakes", "기본 소구점")} help={tr("Claims every product here makes: needed to compete, but they set no one apart.", "모든 제품이 내세우는 소구점: 경쟁엔 필요하지만 차별화는 안 됨.")} tone={undefined}

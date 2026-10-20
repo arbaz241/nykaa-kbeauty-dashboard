@@ -425,13 +425,14 @@ export function homepageRuns(rows: HomepageFeature[]): Run[] {
 export type OfferKind = "percent" | "bogo" | "gift" | "members" | "other";
 export const OFFER_KIND_LABEL = () => ({
   percent: tr("Extra % off", "추가 할인"), bogo: tr("Buy more, save more", "다구매 할인"), gift: tr("Free gift", "사은품"),
-  members: tr("Members only", "회원 전용"), other: tr("Other", "기타"),
+  members: tr("Members only (NykaaPro, Prive)", "회원 전용 (NykaaPro, Prive)"), other: tr("Other", "기타"),
 });
 /** What kind of offer, and whether it is the brand's own or a Nykaa-wide one (a category, Luxe or new customers). */
 export function classifyOffer(o: BrandOffer): { kind: OfferKind; brandOwn: boolean } {
   const t = `${o.title ?? ""} ${o.description ?? ""}`.toLowerCase();
+  // a free sample, mini, kit or gift is a gift, never "buy more" (audit 20 Oct: "Get 2 free samples" read as buy-more)
   const kind: OfferKind = /prive|nykaapro|new customers|members?/.test(t) ? "members"
-    : /buy \d|get \d|\d free/.test(t) ? "bogo" : /gift|mini|free product|complimentary/.test(t) ? "gift" : /% off|flat/.test(t) ? "percent" : "other";
+    : /buy \d+ items?/.test(t) ? "bogo" : /free|gift|mini|sample|complimentary/.test(t) ? "gift" : /% off|flat/.test(t) ? "percent" : "other";
   const brandWord = norm(o.brand).slice(0, 5);
   const sitewide = /on\s+(skincare|makeup|luxe|hair|fragrance|bath)\s+orders|on orders!|only for new customers/.test(t);
   return { kind, brandOwn: !sitewide && (norm(t).includes(brandWord) || /on all .* orders/.test(t)) };

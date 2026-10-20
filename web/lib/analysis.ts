@@ -1,6 +1,7 @@
 import { norm } from "./brands";
 import { monthsWindow } from "./metrics";
 import type { BrandDaily, BrandShare, CatalogRow, ProductDemand, ReviewMonth, SearchRow, ShelfRow } from "./types";
+import type { FlowRow } from "./market";
 import { push } from "@/lib/group";
 import { monthShort, tr } from "./i18n";
 
@@ -93,7 +94,11 @@ export interface ScoreRow {
   /** Change in places over the comparison window, counted only on categories tracked on both days. */
   slotsChange: number | null;
   search: number; searchChange: number | null; paid: number | null;
-  demand: number; demandRecent: number;
+  /** Share of all buying across the tracked top 100s (owner 20 Oct 2026: a share of the reviews we happen to track is
+   *  not a market share, it moves with how many of a brand's products we follow). */
+  demand: number; buying: number;
+  /** Written reviews on the brand's tracked products in the last 3 months (context, not a share). */
+  demandRecent: number;
   growth: number | null; growthProducts: number;
 }
 
@@ -101,7 +106,7 @@ export interface Scoreboard {
   rows: ScoreRow[];
   shelfTotal: number; searchDay: string; searchThenDay: string | null;
   shelfDay: string; shelfThenDay: string | null; likeForLikeCats: number;
-  demandTotal: number; market: ReturnType<typeof growthOf>;
+  demandTotal: number; buyingTotal: number; market: ReturnType<typeof growthOf>;
 }
 
 /** Share of search, as the glossary defines it: each brand's places among the unpaid top 10 of every keyword
@@ -119,7 +124,7 @@ export function searchShares(search: SearchRow[], day: string) {
   return { total, share: (b: string) => (total ? (by.get(norm(b)) ?? 0) / total : 0), paidSlots: (b: string) => paid.get(norm(b)) ?? 0, places: (b: string) => by.get(norm(b)) ?? 0 };
 }
 
-export function scoreboard(brands: string[], daily: BrandDaily[], shares: BrandShare[], rows: DemandRow[], search: SearchRow[]): Scoreboard {
+export function scoreboard(brands: string[], daily: BrandDaily[], shares: BrandShare[], rows: DemandRow[], search: SearchRow[], flow: FlowRow[], cats: string[]): Scoreboard {
   const days = shelfDays(daily); const today = days.at(-1) ?? "";
   const then = days.length > 14 ? days.at(-15)! : days.length > 1 ? days[0] : null;
   const catsOn = (d: string) => new Set(daily.filter((r) => r.scrape_date === d && r.subcategory !== "kbeauty_store").map((r) => r.subcategory));
@@ -134,6 +139,8 @@ export function scoreboard(brands: string[], daily: BrandDaily[], shares: BrandS
   const byBrand = new Map<string, DemandRow[]>(); for (const r of rows) { const k = norm(r.brand); push(byBrand, k, r); }
 
   const demandTotal = rows.reduce((a, r) => a + r.recent, 0);
+  const inCats = new Set(cats); const buyBy = new Map<string, number>(); let buyingTotal = 0;
+  for (const f of flow) if (inCats.has(f.subcategory) && f.value > 0) { const k = norm(f.brand); buyBy.set(k, (buyBy.get(k) ?? 0) + f.value); buyingTotal += f.value; }
   const out = brands.map((b) => {
     const mine = byBrand.get(norm(b)) ?? []; const g = growthOf(mine);
     return {
@@ -141,11 +148,11 @@ export function scoreboard(brands: string[], daily: BrandDaily[], shares: BrandS
       // the comparison counts only categories tracked on both days, so a newly added category is not a gain
       slotsChange: thenL && nowL ? nowL.count(b) - thenL.count(b) : null,
       search: voice(b, sNow), searchChange: sThen ? voice(b, sNow) - voice(b, sBefore) : null, paid: paid(b),
-      demand: demandTotal ? mine.reduce((a, r) => a + r.recent, 0) / demandTotal : 0, demandRecent: mine.reduce((a, r) => a + r.recent, 0),
+      demand: buyingTotal ? (buyBy.get(norm(b)) ?? 0) / buyingTotal : 0, buying: buyBy.get(norm(b)) ?? 0, demandRecent: mine.reduce((a, r) => a + r.recent, 0),
       growth: g.growth, growthProducts: g.products,
     };
   });
-  return { rows: out, shelfTotal: now.total, searchDay: sToday, searchThenDay: sThen, shelfDay: today, shelfThenDay: then, likeForLikeCats: both?.size ?? 0, demandTotal, market: growthOf(rows) };
+  return { rows: out, shelfTotal: now.total, searchDay: sToday, searchThenDay: sThen, shelfDay: today, shelfThenDay: then, likeForLikeCats: both?.size ?? 0, demandTotal, buyingTotal, market: growthOf(rows) };
 }
 
 /** 1-based rank of `b` among `rows` on a metric (higher = better). */
@@ -156,51 +163,71 @@ export function rankOn(rows: ScoreRow[], b: string, k: "shelf" | "search" | "dem
 /* ------------------------------------------------------------------ the category opportunity map */
 
 export interface CategoryCell {
-  category: string; recent: number; products: number; brands: number;
+  category: string;
+  /** Written reviews in the last 3 months on the category's tracked products (context for the growth figure). */
+  recent: number; products: number; brands: number;
   growth: number | null; growthBase: { recent: number; prior: number; products: number };
-  anchorRecent: number; anchorShare: number; anchorProducts: number;
-  leader: { brand: string; recent: number; share: number }; focusLeader: { brand: string; recent: number; share: number } | null;
+  /** Share of the category's buying held by the products the growth figure rests on. */
+  coverage: number;
+  /** The category's buying (₹, new ratings × MRP) and the anchor's share of it: the site's one share measure. */
+  buying: number; anchorShare: number; anchorProducts: number;
+  leader: { brand: string; share: number }; focusLeader: { brand: string; share: number } | null;
   thin: string | null;
   quadrant: "opportunity" | "invest" | "maintain" | "low" | null;
 }
 
+/** The four areas of the category map. Owner 20 Oct 2026: describe where a category sits, never tell the reader what
+ *  to do about it ("be gentle… don't give statements too leaning on some front"); the ids stay for the code. */
 const quad = (label: [string, string], read: [string, string], tone: "good" | "bad" | "accent" | "muted") =>
   ({ get label() { return tr(...label); }, get read() { return tr(...read); }, tone });
 export const QUAD: Record<NonNullable<CategoryCell["quadrant"]>, { label: string; read: string; tone: "good" | "bad" | "accent" | "muted" }> = {
-  opportunity: quad(["Opportunity", "기회"], ["Growing faster than the market, and the anchor does worse here than its usual share", "시장보다 빠르게 성장하는데, 기준 브랜드는 평소 점유율보다 약한 곳"], "accent"),
-  invest: quad(["Protect and invest", "방어·투자"], ["Growing faster than the market, and the anchor does better here than usual", "시장보다 빠르게 성장하고, 기준 브랜드도 평소보다 강한 곳"], "good"),
-  maintain: quad(["Maintain", "유지"], ["Growing slower than the market; the anchor does better here than usual", "시장보다 느리게 성장하지만, 기준 브랜드는 평소보다 강한 곳"], "muted"),
-  low: quad(["Low priority", "낮은 우선순위"], ["Growing slower than the market, and the anchor does worse here than usual", "시장보다 느리게 성장하고, 기준 브랜드도 평소보다 약한 곳"], "bad"),
+  opportunity: quad(["Faster growth · smaller share", "빠른 성장 · 점유율 낮음"], ["Growing faster than all tracked products, and the anchor's share of buying here is below its share across all lists", "추적 전체보다 빠르게 성장, 기준 브랜드의 구매 점유율은 전체 목록 평균보다 낮은 곳"], "accent"),
+  invest: quad(["Faster growth · larger share", "빠른 성장 · 점유율 높음"], ["Growing faster than all tracked products, and the anchor's share of buying here is above its share across all lists", "추적 전체보다 빠르게 성장, 기준 브랜드의 구매 점유율도 전체 목록 평균보다 높은 곳"], "good"),
+  maintain: quad(["Slower growth · larger share", "느린 성장 · 점유율 높음"], ["Growing slower than all tracked products; the anchor's share of buying here is above its share across all lists", "추적 전체보다 느리게 성장, 기준 브랜드의 구매 점유율은 전체 목록 평균보다 높은 곳"], "muted"),
+  low: quad(["Slower growth · smaller share", "느린 성장 · 점유율 낮음"], ["Growing slower than all tracked products, and the anchor's share of buying here is below its share across all lists", "추적 전체보다 느리게 성장, 기준 브랜드의 구매 점유율도 전체 목록 평균보다 낮은 곳"], "muted"),
 };
 
-export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: string) => boolean) {
+/** Category map (round 6 sweep, owner 20 Oct 2026: numbers that hold up in front of others). Across: the anchor's share
+ *  of the category's buying (the same measure as the rest of the site), with its share across all lists as the dividing
+ *  line. Up: the category's written-review growth on the same products, with all tracked products' growth as the line.
+ *  Each growth figure says how much of the category's buying its products hold; below a quarter, or on fewer than 6
+ *  products, the bubble is hollow and not placed in an area. */
+export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: string) => boolean, flow: FlowRow[], poolOf: (pid: string) => string, cats: string[]) {
   const market = growthOf(rows);
-  const all = rows.reduce((a, r) => a + r.recent, 0);
-  const usual = all ? rows.filter((r) => same(r.brand, anchor)).reduce((a, r) => a + r.recent, 0) / all : 0;
+  const inCats = new Set(cats);
+  const live = flow.filter((f) => inCats.has(f.subcategory) && f.value > 0);
+  const all = live.reduce((a, f) => a + f.value, 0);
+  const usual = all ? live.filter((f) => same(f.brand, anchor)).reduce((a, f) => a + f.value, 0) / all : 0;
   const by = new Map<string, DemandRow[]>();
-  // the hidden cleansing-balm list (owner, 18 Oct) stays off the map like everywhere else
-  for (const r of rows) if (r.category && r.category !== "kbeauty_store" && r.category !== "cleansing_balm") push(by, r.category, r);
+  for (const r of rows) if (r.category && inCats.has(r.category)) push(by, r.category, r);
   const cells: CategoryCell[] = [];
-  for (const [category, rs] of by) {
+  for (const category of cats) {
+    const rs = by.get(category) ?? [];
+    const fs = live.filter((f) => f.subcategory === category);
+    const buying = fs.reduce((a, f) => a + f.value, 0);
     const recent = rs.reduce((a, r) => a + r.recent, 0);
     const g = growthOf(rs);
-    const brand = new Map<string, number>(); rs.forEach((r) => brand.set(r.brand, (brand.get(r.brand) ?? 0) + r.recent));
+    const base = new Set(rs.filter((r) => r.complete && r.prior > 0).map((r) => poolOf(r.product_id)));
+    const coverage = buying ? fs.filter((f) => base.has(poolOf(f.product_id))).reduce((a, f) => a + f.value, 0) / buying : 0;
+    const brand = new Map<string, number>(); fs.forEach((f) => brand.set(f.brand, (brand.get(f.brand) ?? 0) + f.value));
     const ranked = [...brand.entries()].sort((a, b) => b[1] - a[1]);
-    const anchorRecent = ranked.find(([b]) => same(b, anchor))?.[1] ?? 0;
+    const anchorBuy = ranked.find(([b]) => same(b, anchor))?.[1] ?? 0;
     const lead = ranked.find(([b]) => !same(b, anchor)) ?? ["", 0];
     const fl = ranked.find(([b]) => !same(b, anchor) && isFocus(b));
-    const thin = recent < 300 ? tr(`only ${recent} reviews in 3 months`, `3개월 리뷰 ${recent}건뿐`) : g.products < 6 ? tr(`growth rests on ${g.products} products`, `성장률이 제품 ${g.products}개에 기댐`) : null;
-    const anchorShare = recent ? anchorRecent / recent : 0;
+    const thin = !buying ? tr("no buying counted in this list yet", "이 목록은 아직 구매 집계 없음")
+      : g.growth === null || g.products < 6 ? tr(`growth rests on ${g.products} product${g.products === 1 ? "" : "s"}`, `성장률이 제품 ${g.products}개에 기댐`)
+      : coverage < 0.25 ? tr(`growth covers ${Math.round(coverage * 100)}% of the category's buying`, `성장률이 카테고리 구매의 ${Math.round(coverage * 100)}%만 반영`) : null;
+    const anchorShare = buying ? anchorBuy / buying : 0;
     const fast = g.growth !== null && market.growth !== null && g.growth >= market.growth;
     cells.push({
-      category, recent, products: rs.length, brands: brand.size, growth: g.growth, growthBase: g,
-      anchorRecent, anchorShare, anchorProducts: rs.filter((r) => same(r.brand, anchor)).length,
-      leader: { brand: lead[0], recent: lead[1], share: recent ? lead[1] / recent : 0 },
-      focusLeader: fl ? { brand: fl[0], recent: fl[1], share: recent ? fl[1] / recent : 0 } : null,
-      thin, quadrant: thin || g.growth === null ? null : fast ? (anchorShare >= usual ? "invest" : "opportunity") : anchorShare >= usual ? "maintain" : "low",
+      category, recent, products: rs.length, brands: brand.size, growth: g.growth, growthBase: g, coverage, buying,
+      anchorShare, anchorProducts: fs.filter((f) => same(f.brand, anchor)).length,
+      leader: { brand: lead[0], share: buying ? lead[1] / buying : 0 },
+      focusLeader: fl ? { brand: fl[0], share: buying ? fl[1] / buying : 0 } : null,
+      thin, quadrant: thin ? null : fast ? (anchorShare >= usual ? "invest" : "opportunity") : anchorShare >= usual ? "maintain" : "low",
     });
   }
-  return { cells: cells.sort((a, b) => b.recent - a.recent), usual, market };
+  return { cells: cells.sort((a, b) => b.buying - a.buying || b.recent - a.recent), usual, market };
 }
 
 /* ------------------------------------------------------------------ range gaps, with the products behind every cell */

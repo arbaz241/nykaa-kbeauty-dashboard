@@ -1,11 +1,13 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { TONE_CLASS, tone, type Criterion } from "@/lib/compete";
 import { Missing } from "./Detail";
 import { tr } from "@/lib/i18n";
 
-export interface GridCol { key: string; head: React.ReactNode; anchor?: boolean }
+export interface GridCol { key: string; head: React.ReactNode; anchor?: boolean;
+  /** one-line name for the header that stays in view while the table scrolls (defaults to `key`) */
+  short?: React.ReactNode }
 export interface GridGroup { label: string; title?: React.ReactNode; id?: string }
 export interface ExtraRow<T> { label: React.ReactNode; help?: string; render: (x: T) => React.ReactNode; has?: (x: T) => boolean;
   /** why a cell has no value (shown instead of a dash) */
@@ -37,10 +39,38 @@ export default function CompareGrid<T>({ cols, items, criteria, extra = [], grou
     </div>
   );
   const shownExtra = extra.filter((r) => !r.has || live.some(r.has));
+  // owner 20 Oct 2026: in a long table the brand or product names scroll away and the columns get lost. Once the header
+  // row leaves the screen, a slim copy stays pinned under the page menu, following the table's sideways scroll.
+  // It is moved by hand (no re-render), so scrolling stays smooth.
+  const box = useRef<HTMLDivElement>(null); const head = useRef<HTMLDivElement>(null); const pin = useRef<HTMLDivElement>(null); const pinRow = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const b = box.current, h = head.current, f = pin.current, fr = pinRow.current; if (!b || !h || !f || !fr) return;
+    let raf = 0;
+    const place = () => {
+      raf = 0;
+      const bar = document.querySelector<HTMLElement>("header.sticky"); const nav = document.querySelector<HTMLElement>("nav[data-section-nav]");
+      const top = Math.max(bar?.getBoundingClientRect().bottom ?? 0, nav && nav.getBoundingClientRect().top < 90 ? nav.getBoundingClientRect().bottom : 0);
+      const r = b.getBoundingClientRect(); const hr = h.getBoundingClientRect();
+      const on = hr.bottom < top && r.bottom > top + 60;
+      f.style.display = on ? "block" : "none";
+      if (on) { f.style.top = `${top}px`; f.style.left = `${r.left}px`; f.style.width = `${r.width}px`; fr.style.transform = `translateX(${-b.scrollLeft}px)`; }
+    };
+    const ask = () => { if (!raf) raf = requestAnimationFrame(place); };
+    window.addEventListener("scroll", ask, { passive: true }); window.addEventListener("resize", ask); b.addEventListener("scroll", ask, { passive: true });
+    place();
+    return () => { window.removeEventListener("scroll", ask); window.removeEventListener("resize", ask); b.removeEventListener("scroll", ask); if (raf) cancelAnimationFrame(raf); };
+  }, []);
   return (
-    <div className="overflow-x-auto rounded-2xl bg-surface shadow-card ring-1 ring-line">
+    <div ref={box} className="overflow-x-auto rounded-2xl bg-surface shadow-card ring-1 ring-line">
+      <div ref={pin} aria-hidden className="fixed z-[19] hidden overflow-hidden rounded-b-xl border-b-2 border-ink/70 bg-surface/95 shadow-pop backdrop-blur-md">
+        <div ref={pinRow} className="grid" style={{ ...grid, minWidth: labelWidth + cols.length * 158 }}>
+          <div className="px-4 py-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("Columns", "열")}</div>
+          {cols.map((c, i) => <div key={c.key} className={`truncate border-l border-line px-3 py-2 text-[12.5px] font-semibold ${c.anchor ? "bg-page/70" : ""}`}>
+            {colors?.[i] && <span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full align-[-1px]" style={{ background: colors[i] }} />}{c.short ?? c.key}</div>)}
+        </div>
+      </div>
       <div style={{ minWidth: labelWidth + cols.length * 158 }}>
-        <div className="grid border-b border-line" style={grid}>
+        <div ref={head} className="grid border-b border-line" style={grid}>
           <div className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
             <span className="flex flex-wrap gap-1.5 normal-case tracking-normal">
               <Key cls={TONE_CLASS.ahead} t="ahead" /><Key cls={TONE_CLASS.behind} t="behind" /><Key cls={TONE_CLASS.par} t="par" />

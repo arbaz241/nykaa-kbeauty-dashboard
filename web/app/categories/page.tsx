@@ -61,7 +61,7 @@ function MarketPage() {
     <Shell active="Top by category" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Market", "시장")} title={tr("Who is winning each category", "카테고리별 승자")}
         sub={tr("Pick one category, or all of them. Its brands, its top products and what moved are on this page together. Press \"Details\" on any row to see more without leaving the page.", "카테고리 하나 또는 전체 선택. 브랜드, 상위 제품, 변동을 한 페이지에서 확인. 어느 행이든 \"자세히\"를 누르면 이 페이지에서 바로 더 보기.")} />
-      <ScopeLine uses={["selling", "top100"]} measure={tr("share of buying (new ratings × MRP over the last 30 days of live rating counts, within one category) and places in each top 100; brand counts come from Nykaa's brand filter.", "구매 점유율(평가 수가 살아 있는 최근 30일 신규 평가 수 × 정가(MRP), 카테고리 안에서)과 상위 100위 순위. 브랜드 수는 Nykaa 브랜드 필터 기준.")} />
+      <ScopeLine uses={["selling", "top100"]} measure={tr(`share of buying (new ratings × MRP within one category, ${dayMonth(span.start)}–${dayMonth(span.end)}: the last stretch before Nykaa froze its public rating counts on 10 Oct) and places in each top 100; brand counts come from Nykaa's brand filter.`, `구매 점유율(카테고리 안 신규 평가 수 × 정가(MRP), ${dayMonth(span.start)}–${dayMonth(span.end)}: Nykaa가 10월 10일 평가 수 공개를 멈추기 전 마지막 구간)과 상위 100위 순위. 브랜드 수는 Nykaa 브랜드 필터 기준.`)} />
       <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label={tr("Category", "카테고리")}>
         <button className={pill(cat === "all")} onClick={() => setCat("all")}>{tr(`All ${CATEGORIES.length} categories`, `${CATEGORIES.length}개 카테고리 전체`)}</button>
         {CATEGORIES.map((c) => <button key={c} className={pill(cat === c)} onClick={() => setCat(c)}>{catName(c)}</button>)}
@@ -127,7 +127,7 @@ function AllView({ m, tiers, allBrands, latestStat, stats, onPick, span }: { m: 
               <tr key={r.c} className="border-b border-line/60 align-top">
                 <td className="px-4 py-2.5 font-medium">{catName(r.c)}</td>
                 <td className="px-2 py-2.5 tabular">{r.brands ?? "–"}{r.brands && allBrands ? <Basis>{pct(r.brands / allBrands)} {tr("of all brands", "전체 대비")}</Basis> : null}</td>
-                <td className="px-2 py-2.5">{r.leader ? <><b className="font-medium">{r.leader.key}</b> <span className="tabular text-ink-2">{pct(r.leaderShare, 0)}</span></> : <Missing>{tr("no buying counted", "집계 없음")}</Missing>}</td>
+                <td className="px-2 py-2.5">{r.leader ? <><b className="font-medium">{r.leader.key}</b> <span className="tabular text-ink-2">{pct(r.leaderShare, 0)}</span>{r.top && r.top.brand === r.leader.key && r.top.poolSize >= 5 && (r.topShare ?? 0) > 0.3 ? <Basis>{tr(`mostly one rating count Nykaa shows on ${r.top.poolSize} of its listings at once`, `Nykaa가 제품 ${r.top.poolSize}개에 함께 표시하는 평가 수 하나에 크게 기댐`)}</Basis> : null}</> : <Missing>{tr("no buying counted: list added after Nykaa froze rating counts (10 Oct)", "구매 집계 없음: Nykaa 평가 수 동결(10월 10일) 뒤 추가된 목록")}</Missing>}</td>
                 <td className="px-2 py-2.5 tabular">{r.top5 !== null ? pct(r.top5, 0) : "–"}</td>
                 <td className="max-w-[300px] px-2 py-2.5">{r.top ? <>{r.top.brand} {shortName(r.top.name, r.top.brand)} <span className="tabular text-muted">{pct(r.topShare, 1)}</span></> : "–"}</td>
                 <td className="px-4 py-2.5 text-right"><button onClick={() => { onPick(r.c); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-full px-2.5 py-0.5 text-[12px] font-medium text-accent-strong ring-1 ring-line hover:bg-sunken">{tr("Open ›", "열기 ›")}</button></td>

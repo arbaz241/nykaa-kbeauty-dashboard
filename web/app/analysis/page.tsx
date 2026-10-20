@@ -14,7 +14,7 @@ import { Basis, BrandSelect, Def, TieredList } from "@/components/Tiered";
 import { Card, Loading, PageHead, Verdict } from "@/components/ui";
 import { norm } from "@/lib/brands";
 import { useAvailability, useBrandDaily, useBrandShares, useCatalog, useCategoryCoverage, useDemand, useMovement, useReviewMonths, useSearch, useSearchHistory, useShelf } from "@/lib/data";
-import { BANDS, QUAD, categoryMap, demandRows, demandWindow, rangeGrid, rankOn, scoreboard, type CategoryCell, type DemandRow, type GapCell, type ScoreRow } from "@/lib/analysis";
+import { BANDS, QUAD, categoryMap, demandRows, demandWindow, rangeGrid, scoreboard, type CategoryCell, type DemandRow, type GapCell, type ScoreRow } from "@/lib/analysis";
 import { buildFindings, type Finding } from "@/lib/findings";
 import { CATEGORIES, CATEGORY_LABEL, compact, inr, shortName } from "@/lib/format";
 import { useMarket } from "@/lib/useMarket";
@@ -34,7 +34,7 @@ import { ScopeLine } from "@/components/Scope";
 const NAV = (anchor: string): NavItem[] => [
   { id: "summary", label: tr(`${anchor} in one line`, `${anchor} 요약`) }, { id: "fights", label: tr("Category by category", "카테고리별 대결") }, { id: "rivals", label: tr("Rivals scorecard", "경쟁사 스코어카드") },
   { id: "standing", label: tr("Seen vs bought", "노출 vs 구매") },
-  { id: "changes", label: tr("Rivals' moves", "경쟁사 동향") }, { id: "heroes", label: tr("Hero products", "히어로 제품") }, { id: "gaps", label: tr("Range gaps", "라인업 공백") }, { id: "next", label: tr("Next steps", "다음 단계") }, { id: "method", label: tr("How this page works", "계산 방법") },
+  { id: "changes", label: tr("Rivals' moves", "경쟁사 동향") }, { id: "heroes", label: tr("Hero products", "히어로 제품") }, { id: "gaps", label: tr("Range gaps", "라인업 공백") }, { id: "next", label: tr("Worth a look", "더 볼 곳") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
 const THEMES = (): { id: string; label: string; test: (f: Finding) => boolean }[] => [
   { id: "shelf", label: tr("Shelf position", "진열 순위"), test: (f) => /^(climb|slip|entry|origin)/.test(f.id) },
@@ -93,7 +93,7 @@ function Analysis() {
   const [openTheme, setOpenTheme] = useState<string | null>(null);
   const win = demandWindow();
 
-  const ready = !!(ownDaily && shelf.data && movement.data && shares.data && demand.data && months.data && daily.data && catalog.data && searchHist.data);
+  const ready = !!(m.ready && ownDaily && shelf.data && movement.data && shares.data && demand.data && months.data && daily.data && catalog.data && searchHist.data);
   const rows = useMemo(() => (ready ? demandRows(months.data!, demand.data!, shelf.data!, catalog.data!) : []), [ready, months.data, demand.data, shelf.data, catalog.data]);
   const complete = useMemo(() => {
     // every product whose own history covers both windows (variants included), for the demand rules
@@ -108,11 +108,13 @@ function Analysis() {
   const board = useMemo(() => {
     if (!ready) return null;
     const others = known.filter((b) => !setBrands.some((x) => same(x, b)));
-    return scoreboard([...setBrands, ...others], ownDaily!, shares.data!, rows, searchHist.data!);
-  }, [ready, known, setBrands, ownDaily, shares.data, rows, searchHist.data]);
+    return scoreboard([...setBrands, ...others], ownDaily!, shares.data!, rows, searchHist.data!, m.flow, CATEGORIES);
+  }, [ready, known, setBrands, ownDaily, shares.data, rows, searchHist.data, m.flow]);
   const setRows = useMemo(() => (board ? board.rows.filter((r) => setBrands.some((b) => same(b, r.brand))) : []), [board, setBrands]);
   const me = setRows.find((r) => same(r.brand, anchor));
-  const cmap = useMemo(() => (ready ? categoryMap(anchor, rows, (b) => tiers.inSet(b)) : null), [ready, anchor, rows, tiers]);
+  const poolOf = useMemo(() => { const p = new Map((demand.data ?? []).map((d) => [d.product_id, d.pool_id || d.product_id])); return (pid: string) => p.get(pid) ?? pid; }, [demand.data]);
+  const cmap = useMemo(() => (ready ? categoryMap(anchor, rows, (b) => tiers.inSet(b), m.flow, poolOf, CATEGORIES) : null), [ready, anchor, rows, tiers, m.flow, poolOf]);
+  const buySpan = m.flowSpan ? `${dayMonth(m.flowSpan.start)}–${dayMonth(m.flowSpan.end)}` : "";
   const findings = useMemo(() => (ready ? buildFindings({ anchor, movement: movement.data!, shares: shares.data!, demand: demand.data!, availability: availability.data ?? [], coverage: coverage.data ?? [], complete })
     .filter((f) => !f.brand || korean.has(norm(f.brand))) : []),
     [ready, anchor, movement.data, shares.data, demand.data, availability.data, coverage.data, complete, korean]);
@@ -154,28 +156,18 @@ function Analysis() {
 
   /* ---------------- verdict */
   const n = setRows.length;
-  const rS = rankOn(setRows, anchor, "shelf"); const rQ = rankOn(setRows, anchor, "search"); const rD = rankOn(setRows, anchor, "demand");
   const lead = (k: "shelf" | "search" | "demand") => [...setRows].filter((r) => !same(r.brand, anchor)).sort((a, b) => b[k] - a[k])[0];
   const mkt = board.market.growth;
-  const avgRank = (rS + rQ + rD) / 3;
   const gapCells = gaps.flatMap((g) => g.bands.filter((b) => b.gap).map((b) => ({ category: g.category, ...b })));
   const oos = (availability.data ?? []).filter((a) => same(a.brand, anchor));
-  const opps = cmap.cells.filter((c) => c.quadrant === "opportunity").sort((a, b) => b.recent - a.recent);
-  // the lever: whichever of the three shares is weakest against the rivals' median (same index as the scoreboard title)
-  const idx = me ? (["shelf", "search", "demand"] as const).map((k) => ({ k, r: me[k] / (median(setRows.map((x) => x[k])) || 1e-9) })).sort((a, b) => a.r - b.r) : [];
-  const weakest = idx[0]; const fx = (r: number) => tr(`${r.toFixed(1)}× the rivals' median`, `K-뷰티 경쟁사 중앙값의 ${r.toFixed(1)}배`);
-  const word = { get shelf() { return tr("the shelf", "진열"); }, get search() { return tr("search", "검색"); }, get demand() { return tr("written reviews", "작성 리뷰"); } };
-  const lever = !weakest ? { text: "", href: "#standing" }
-    : idx[1].r - weakest.r < 0.15 ? { text: tr(`against the K-beauty rivals, ${anchor} is equally weak on ${word[weakest.k]} and ${word[idx[1].k]} (${fx(weakest.r)} and ${idx[1].r.toFixed(1)}×) and stronger on ${word[idx[2].k]} (${idx[2].r.toFixed(1)}×), so no single channel is the bottleneck: grow where the category is rising and ${anchor} under-indexes${opps[0] ? `, starting with ${cat(opps[0].category).toLowerCase()}` : ""}`,
-        `K-뷰티 경쟁사 대비 ${josa(anchor, "은/는")} ${josa(word[weakest.k], "과/와")} ${word[idx[1].k]}에서 비슷하게 약하고(${fx(weakest.r)}, ${idx[1].r.toFixed(1)}배) ${word[idx[2].k]}에서는 더 강함(${idx[2].r.toFixed(1)}배). 특정 채널 하나가 병목이 아님 → 카테고리는 크는데 ${josa(anchor, "이/가")} 평소보다 약한 곳부터 키우는 게 맞음${opps[0] ? `. 출발점: ${cat(opps[0].category)}` : ""}`), href: "#portfolio" }
-    : weakest.k === "demand" ? { text: tr(`against the K-beauty rivals, ${anchor} is weakest on written reviews, our stand-in for buying (${fx(weakest.r)}, vs ${fx(idx[1].r)} on ${word[idx[1].k]}): it is seen more than it is bought, so the offer itself (price, range, claims) is the first lever`,
-        `K-뷰티 경쟁사 대비 ${josa(anchor, "은/는")} 구매가 가장 약함(${fx(weakest.r)}, ${josa(word[idx[1].k], "은/는")} ${fx(idx[1].r)}). 보이는 만큼 안 팔림 → 제품 제안 자체(가격, 라인업, 소구점)가 첫 번째 레버`), href: "#gaps" }
-    : weakest.k === "search" ? { text: tr(`against the K-beauty rivals, ${anchor} is weakest in search (${fx(weakest.r)}, vs ${fx(idx[1].r)} on ${word[idx[1].k]}): shoppers who search rarely find it, so search visibility is the first lever`,
-        `K-뷰티 경쟁사 대비 ${josa(anchor, "은/는")} 검색이 가장 약함(${fx(weakest.r)}, ${josa(word[idx[1].k], "은/는")} ${fx(idx[1].r)}). 검색하는 소비자가 잘 못 찾음 → 검색 노출이 첫 번째 레버`), href: "#standing" }
-    : { text: tr(`against the K-beauty rivals, ${anchor} is weakest on the shelf (${fx(weakest.r)}, vs ${fx(idx[1].r)} on ${word[idx[1].k]}): Nykaa's lists show it less than buyers choose it, so shelf visibility (offers, ads, listing quality) is the first lever`,
-        `K-뷰티 경쟁사 대비 ${josa(anchor, "은/는")} 진열이 가장 약함(${fx(weakest.r)}, ${josa(word[idx[1].k], "은/는")} ${fx(idx[1].r)}). 구매자가 고르는 만큼 Nykaa 목록에 안 보임 → 진열 노출(프로모션, 광고, 상품 페이지 품질)이 첫 번째 레버`), href: "#standing" };
-  const priority = me && mkt !== null && me.growth !== null && (me.growth < mkt - 0.05 || avgRank > n * 0.6) ? "High" : me && mkt !== null && me.growth !== null && (me.growth < mkt || avgRank > n / 3) ? "Medium" : "Watch";
-  const priorityWord = { High: tr("High priority", "우선순위 높음"), Medium: tr("Medium priority", "우선순위 보통"), Watch: tr("Watch priority", "관찰") }[priority];
+  const above = cmap.cells.filter((c) => c.buying > 0 && c.anchorShare > cmap.usual);
+  const absentCats = cmap.cells.filter((c) => c.buying > 0 && !c.anchorShare);
+  // overall view (owner 20 Oct 2026: "be gentle… don't give statements too leaning on some front"; shelf and search
+  // places move with buying, offers and ads, so they are positions, not levers): the three ratios to the rivals' median
+  const idx = me ? (["demand", "shelf", "search"] as const).map((k) => ({ k, r: me[k] / (median(setRows.map((x) => x[k])) || 1e-9) })) : [];
+  const word = { get shelf() { return tr("places in the top 100s", "상위 100위 자리"); }, get search() { return tr("unpaid search places", "비광고 검색 자리"); }, get demand() { return tr("share of buying", "구매 점유율"); } };
+  const overall = !idx.length ? "" : tr(`against its ${n - 1} Korean rivals, ${anchor} sits at ${idx.map((x) => `${x.r.toFixed(1)}× their median on ${word[x.k]}`).join(", ")}. Places on Nykaa's lists and in search follow buying, offers and ads, so read them as where the brand shows up today rather than as the cause`,
+    `K-뷰티 경쟁사 ${n - 1}곳 대비 ${anchor}: ${idx.map((x) => `${word[x.k]} 중앙값의 ${x.r.toFixed(1)}배`).join(", ")}. 목록·검색 자리는 구매·프로모션·광고에 따라 움직이므로 원인이 아니라 오늘의 노출 위치로 읽기`);
   const wins = fights.filter((f) => f.anchor.place === 1);
   const nearest = fights.filter((f) => f.anchor.place && f.anchor.place > 1).sort((a, b) => (a.anchor.place ?? 99) - (b.anchor.place ?? 99) || b.anchor.share - a.anchor.share)[0];
   const biggestGap = fights.filter((f) => f.korean[0] && !same(f.korean[0].brand, anchor)).sort((a, b) => b.total - a.total)[0];
@@ -185,33 +177,33 @@ function Analysis() {
   const verdictPoints = me ? tr([
     <><b className="text-on-brand">Products in Nykaa&rsquo;s top 100s:</b> {me.shelfSlots} of {board.shelfTotal.toLocaleString("en-IN")} ({pct(me.shelf)}); {lead("shelf")?.brand} leads the rival set with {lead("shelf")?.shelfSlots}. {me.slotsChange !== null && <>{me.slotsChange === 0 ? "No change from" : `${Math.abs(me.slotsChange)} ${me.slotsChange > 0 ? "more" : "fewer"} than`} 14 days ago, counted on the {board.likeForLikeCats} categories tracked throughout.</>}</>,
     <><b className="text-on-brand">Search results:</b> {pct(me.search)} of unpaid top-10 results across today&rsquo;s keywords; {lead("search")?.brand} leads with {pct(lead("search")?.search ?? 0)}.{kw.total ? ` Absent from the top 10 on ${kw.absent} of ${kw.total} keywords.` : ""}</>,
-    <><b className="text-on-brand">Written reviews:</b> {pct(me.demand)} of tracked reviews in {win.recent}; {lead("demand")?.brand} leads with {pct(lead("demand")?.demand ?? 0)}. Growth {signed(me.growth)} vs <TrackedLink /> {signed(mkt)} ({win.recent} vs {win.prior}).</>,
+    <><b className="text-on-brand">Buying:</b> {pct(me.demand, 1)} of all buying across the {CATEGORIES.length} top 100s ({buySpan}); {lead("demand")?.brand} leads the rival set with {pct(lead("demand")?.demand ?? 0, 1)}. Written-review growth {signed(me.growth)} vs <TrackedLink /> {signed(mkt)} ({win.recent} vs {win.prior}, same products).</>,
     <><b className="text-on-brand">Range and stock:</b> {gapCells.length ? `${gapCells.length} price band${gapCells.length === 1 ? "" : "s"} where K-beauty rivals sell 3+ products and ${anchor} none` : "no price band left open to the K-beauty rivals"}; {oos.length ? `${oos.length} product${oos.length === 1 ? "" : "s"} out of stock today` : "nothing out of stock today"}.</>,
   ], [
     <><b className="text-on-brand">Nykaa 상위 100위 제품:</b> {board.shelfTotal.toLocaleString("en-IN")}개 중 {me.shelfSlots}개({pct(me.shelf)}). K-뷰티 경쟁사 중 선두: {lead("shelf")?.brand}({lead("shelf")?.shelfSlots}개). {me.slotsChange !== null && <>14일 전 대비 {me.slotsChange === 0 ? "변화 없음" : `${me.slotsChange > 0 ? "+" : ""}${me.slotsChange}개`} (기간 내내 추적한 카테고리 {board.likeForLikeCats}개 기준).</>}</>,
     <><b className="text-on-brand">검색:</b> 오늘 키워드 전체의 비광고 상위 10개 결과 중 {pct(me.search)}. 선두: {lead("search")?.brand}({pct(lead("search")?.search ?? 0)}).{kw.total ? ` 키워드 ${kw.total}개 중 ${kw.absent}개에서 상위 10위 밖.` : ""}</>,
-    <><b className="text-on-brand">작성 리뷰:</b> {win.recent} 추적 리뷰 중 {pct(me.demand)}. 선두: {lead("demand")?.brand}({pct(lead("demand")?.demand ?? 0)}). 성장률 {signed(me.growth)}, <TrackedLink /> {signed(mkt)} ({win.recent} vs {win.prior}).</>,
+    <><b className="text-on-brand">구매:</b> 상위 100위 {CATEGORIES.length}개 전체 구매의 {pct(me.demand, 1)} ({buySpan}). K-뷰티 경쟁사 중 선두: {lead("demand")?.brand}({pct(lead("demand")?.demand ?? 0, 1)}). 작성 리뷰 성장률 {signed(me.growth)}, <TrackedLink /> {signed(mkt)} ({win.recent} vs {win.prior}, 동일 제품).</>,
     <><b className="text-on-brand">라인업·재고:</b> {gapCells.length ? `K-뷰티 경쟁사는 3개 이상 파는데 ${anchor} 제품은 없는 가격대 ${gapCells.length}곳` : "K-뷰티 경쟁사에 내준 가격대 없음"}. {oos.length ? `오늘 품절 제품 ${oos.length}개` : "오늘 품절 제품 없음"}.</>,
   ]) : [];
 
   /* ---------------- next steps: up to five, ranked by impact, each tied to its evidence */
-  const steps = nextSteps({ anchor, cmap: cmap.cells, market: mkt, usual: cmap.usual, gapCells, gaps, me, kw, oos, findings: ranked.filter((f) => f.tone === "threat" && f.brand && isRival(f.brand) && !same(f.brand, anchor)), rows });
+  const steps = nextSteps({ anchor, cmap: cmap.cells, market: mkt, usual: cmap.usual, gapCells, gaps, me, kw, oos, findings: ranked.filter((f) => f.tone === "threat" && f.brand && isRival(f.brand) && !same(f.brand, anchor)), rows, span: buySpan });
 
   const catDetail = (c: CategoryCell): DetailContent => {
     const ps = rows.filter((r) => r.category === c.category).sort((a, b) => b.recent - a.recent);
     const mine = ps.filter((r) => same(r.brand, anchor));
     return {
-      kicker: `${cat(c.category)} · ${c.quadrant ? QUAD[c.quadrant].label : tr("not classified", "미분류")}`,
-      title: c.quadrant ? tr(QUAD[c.quadrant].read.replace("the anchor", anchor), QUAD[c.quadrant].read.replace("기준 브랜드는", josa(anchor, "은/는")).replace("기준 브랜드도", `${anchor}도`)) : tr(`Not classified: ${c.thin ?? "no growth reading"}`, `미분류: ${c.thin ?? "성장률 판단 불가"}`),
+      kicker: `${cat(c.category)} · ${c.quadrant ? QUAD[c.quadrant].label : tr("not placed", "미배치")}`,
+      title: c.quadrant ? tr(QUAD[c.quadrant].read.replace("the anchor's", `${anchor}'s`), QUAD[c.quadrant].read.replace("기준 브랜드의", `${anchor}의`)) : tr(`Not placed: ${c.thin ?? "no growth reading"}`, `미배치: ${c.thin ?? "성장률 판단 불가"}`),
       body: (<>
         <Points items={tr([
-          <>Category growth <b>{signed(c.growth)}</b>: {c.growthBase.recent.toLocaleString("en-IN")} reviews in {win.recent} vs {c.growthBase.prior.toLocaleString("en-IN")} in {win.prior}, from {c.growthBase.products} products with complete history. Market: {signed(mkt)}.</>,
-          <>{anchor}: {c.anchorRecent} of {c.recent.toLocaleString("en-IN")} reviews ({pct(c.anchorShare)}), against its usual {pct(cmap.usual)} across all categories.</>,
-          <>Leader: {c.leader.brand} ({pct(c.leader.share)}){c.focusLeader && !same(c.focusLeader.brand, c.leader.brand) ? `; leading K-beauty rival ${c.focusLeader.brand} (${pct(c.focusLeader.share)})` : ""}.</>,
+          <>Written-review growth <b>{signed(c.growth)}</b>: {c.growthBase.recent.toLocaleString("en-IN")} reviews in {win.recent} vs {c.growthBase.prior.toLocaleString("en-IN")} in {win.prior}, from {c.growthBase.products} products that hold {pct(c.coverage)} of the category&rsquo;s buying. All tracked products: {signed(mkt)}.</>,
+          <>{anchor}: {c.buying ? `${pct(c.anchorShare, 1)} of the category's buying (${buySpan}), ${c.anchorProducts} product${c.anchorProducts === 1 ? "" : "s"} in the top 100` : "no buying counted in this list yet"}; across all lists it holds {pct(cmap.usual, 1)}.</>,
+          <>Biggest seller: {c.leader.brand} ({pct(c.leader.share)} of buying){c.focusLeader && !same(c.focusLeader.brand, c.leader.brand) ? `; biggest main brand ${c.focusLeader.brand} (${pct(c.focusLeader.share)})` : ""}.</>,
         ], [
-          <>카테고리 성장률 <b>{signed(c.growth)}</b>: {win.recent} 리뷰 {c.growthBase.recent.toLocaleString("en-IN")}건, {win.prior} {c.growthBase.prior.toLocaleString("en-IN")}건 (이력 완전한 제품 {c.growthBase.products}개 기준). 시장: {signed(mkt)}.</>,
-          <>{anchor}: 리뷰 {c.recent.toLocaleString("en-IN")}건 중 {c.anchorRecent}건({pct(c.anchorShare)}). 전체 카테고리 평소 점유율 {pct(cmap.usual)}.</>,
-          <>선두: {c.leader.brand}({pct(c.leader.share)}){c.focusLeader && !same(c.focusLeader.brand, c.leader.brand) ? `. K-뷰티 경쟁사 중 선두: ${c.focusLeader.brand}(${pct(c.focusLeader.share)})` : ""}.</>,
+          <>작성 리뷰 성장률 <b>{signed(c.growth)}</b>: {win.recent} 리뷰 {c.growthBase.recent.toLocaleString("en-IN")}건, {win.prior} {c.growthBase.prior.toLocaleString("en-IN")}건 (카테고리 구매의 {pct(c.coverage)}를 차지하는 제품 {c.growthBase.products}개). 추적 전체: {signed(mkt)}.</>,
+          <>{anchor}: {c.buying ? `카테고리 구매의 ${pct(c.anchorShare, 1)} (${buySpan}), 상위 100위 제품 ${c.anchorProducts}개` : "이 목록은 아직 구매 집계 없음"}. 전체 목록 기준 {pct(cmap.usual, 1)}.</>,
+          <>최대 판매: {c.leader.brand}(구매의 {pct(c.leader.share)}){c.focusLeader && !same(c.focusLeader.brand, c.leader.brand) ? `. 주요 브랜드 중 최대: ${c.focusLeader.brand}(${pct(c.focusLeader.share)})` : ""}.</>,
         ])} />
         <DetailHead>{tr(`Top products by reviews, ${win.recent}`, `리뷰 수 상위 제품, ${win.recent}`)}</DetailHead>
         <ProductBars rows={ps.slice(0, 8)} anchor={anchor} />
@@ -253,7 +245,7 @@ function Analysis() {
 
       <section id="summary" className="mt-6 scroll-mt-32">
         <Verdict eyebrow={tr(<>{anchor} in one line</>, <>{anchor} 요약</>)} points={verdictPoints}
-          foot={me && <div className="flex flex-wrap items-start gap-3"><span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] ${priority === "High" ? "bg-bad-soft text-bad" : priority === "Medium" ? "bg-warn-soft text-warn" : "bg-accent-soft text-accent-strong"}`}>{priorityWord}</span><span className="min-w-0 flex-1"><b>{tr("So what:", "시사점:")}</b> {lever.text}. <a href={lever.href} className="text-accent underline underline-offset-2">{tr("See the evidence ↓", "근거 보기 ↓")}</a></span></div>}>
+          foot={me && overall && <div className="min-w-0"><b>{tr("Overall:", "종합:")}</b> {overall}. <a href="#standing" className="text-accent underline underline-offset-2">{tr("See the scoreboard ↓", "스코어보드 보기 ↓")}</a></div>}>
           {headline}
         </Verdict>
       </section>
@@ -261,29 +253,30 @@ function Analysis() {
       <KBeautyOverview tiers={tiers} anchor={anchor} />
 
       <ActionSection id="standing" kicker={tr("Scoreboard · against the K-beauty rivals", "스코어보드 · K-뷰티 경쟁사 대비")} title={scoreTitle(anchor, setRows)}
-        note={tr(<>Three ways to read the same market. Where a brand&rsquo;s bars disagree is the story: seen but not bought, or bought but not seen. The grey tick on each bar is the rivals&rsquo; median.</>, <>같은 시장을 읽는 세 가지 방법. 막대가 서로 어긋나는 곳이 핵심: 보이는데 안 팔리거나, 팔리는데 안 보이거나. 막대 위 회색 눈금 = K-뷰티 경쟁사 중앙값.</>)}>
-        <Scoreboard rows={board.rows} setRows={setRows} anchor={anchor} tiers={tiers} board={board} win={win.recent} />
+        note={tr(<>Three views of the same brands: places on Nykaa&rsquo;s top-100 lists, places in unpaid search, and share of buying ({buySpan}). Places follow buying, offers and ads, so they describe where a brand shows up, not why it sells. The grey tick on each bar is the rivals&rsquo; median.</>, <>같은 브랜드를 보는 세 가지 시각: Nykaa 상위 100위 자리, 비광고 검색 자리, 구매 점유율({buySpan}). 자리는 구매·프로모션·광고를 따라 움직이므로 판매 이유가 아니라 노출 위치. 막대 위 회색 눈금 = K-뷰티 경쟁사 중앙값.</>)}>
+        <Scoreboard rows={board.rows} setRows={setRows} anchor={anchor} tiers={tiers} board={board} win={win.recent} span={buySpan} />
       </ActionSection>
 
-      <ActionSection id="portfolio" kicker={tr("By category · where it wins and loses", "카테고리별 · 강점과 약점")} title={opps.length ? tr(`${opps.length} growing categor${opps.length === 1 ? "y is" : "ies are"} where ${anchor} does worse than its usual share: ${opps.slice(0, 3).map((c) => cat(c.category).toLowerCase()).join(", ")}.`, `성장 카테고리 ${opps.length}곳에서 ${josa(anchor, "이/가")} 평소 점유율보다 약함: ${opps.slice(0, 3).map((c) => cat(c.category)).join(", ")}.`) : tr(`No growing category where ${anchor} under-indexes.`, `${josa(anchor, "이/가")} 평소보다 약한 성장 카테고리 없음.`)}
-        note={tr(<>Each category is placed by how fast its buying grows (up) and by {anchor}&rsquo;s slice of it (across). The dashed lines are the growth of <TrackedLink /> ({signed(mkt)}) and {anchor}&rsquo;s usual share ({pct(cmap.usual)}). Hollow bubbles have too little data to classify. Bubble size = reviews in {win.recent}.</>,
-          <>세로축 = 카테고리 구매 성장 속도, 가로축 = 그 안에서 {anchor}의 점유율. 점선 = <TrackedLink /> 성장률({signed(mkt)})과 {anchor}의 평소 점유율({pct(cmap.usual)}). 속이 빈 원 = 데이터 부족으로 미분류. 원 크기 = {win.recent} 리뷰 수.</>)}>
+      <ActionSection id="portfolio" kicker={tr("By category · share of buying and growth", "카테고리별 · 구매 점유율과 성장")} title={tr(`${anchor}'s share of buying is above its all-list share (${pct(cmap.usual, 1)}) in ${above.length} categor${above.length === 1 ? "y" : "ies"}${above.length ? ` (${above.slice(0, 3).map((c) => cat(c.category).toLowerCase()).join(", ")})` : ""}; it has no product in the top 100 of ${absentCats.length}.`,
+          `${anchor} 구매 점유율이 전체 목록 점유율(${pct(cmap.usual, 1)})보다 높은 카테고리 ${above.length}곳${above.length ? ` (${above.slice(0, 3).map((c) => cat(c.category)).join(", ")})` : ""}. 상위 100위 제품이 없는 카테고리 ${absentCats.length}곳.`)}
+        note={tr(<>Across: {anchor}&rsquo;s share of each category&rsquo;s buying ({buySpan}), the same share as the rest of the site; the dashed line is its share across all {CATEGORIES.length} lists ({pct(cmap.usual, 1)}). Up: written-review growth, {win.recent} vs {win.prior}, same products only; the dashed line is <TrackedLink /> ({signed(mkt)}). A bubble is hollow when its growth rests on fewer than 6 products or on products holding under a quarter of the category&rsquo;s buying. Bubble size = the category&rsquo;s buying.</>,
+          <>가로: 카테고리 구매 중 {anchor} 점유율({buySpan}), 사이트 전체와 같은 점유율. 점선 = 전체 {CATEGORIES.length}개 목록 기준 점유율({pct(cmap.usual, 1)}). 세로: 작성 리뷰 성장률, {win.recent} vs {win.prior}, 동일 제품만. 점선 = <TrackedLink />({signed(mkt)}). 성장률이 제품 6개 미만이나 카테고리 구매의 4분의 1 미만을 차지하는 제품에 기대면 속 빈 원. 원 크기 = 카테고리 구매.</>)}>
         <div className="grid gap-4">
-          <Card className="p-4"><OpportunityMap cells={cmap.cells} usual={cmap.usual} market={mkt} anchor={anchor} onPick={(c) => detail(catDetail(c))} /></Card>
+          <Card className="p-4"><OpportunityMap cells={cmap.cells} usual={cmap.usual} market={mkt} anchor={anchor} span={buySpan} onPick={(c) => detail(catDetail(c))} /></Card>
           <Card className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-[12.5px]">
               <thead><tr className="border-b border-line text-left text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted">
-                <th className="px-4 py-2.5">{tr("Category", "카테고리")}</th><th className="px-2 py-2.5"><Def k="growth">{tr("Growth", "성장률")}</Def></th><th className="px-2 py-2.5"><Def k="catShare">{anchor}</Def></th><th className="px-4 py-2.5">{tr("Read", "판단")}</th>
+                <th className="px-4 py-2.5">{tr("Category", "카테고리")}</th><th className="px-2 py-2.5"><Def k="growth">{tr("Growth", "성장률")}</Def></th><th className="px-2 py-2.5"><Def k="catShare">{tr(`${anchor}, share of buying`, `${anchor} 구매 점유율`)}</Def></th><th className="px-4 py-2.5">{tr("Where it sits", "위치")}</th>
               </tr></thead>
               <tbody>{cmap.cells.map((c) => (
                 <tr key={c.category} onClick={() => detail(catDetail(c))} className="cursor-pointer border-b border-line last:border-0 hover:bg-sunken/60">
                   <td className="px-4 py-2 font-medium">{cat(c.category)} <span className="text-muted">›</span></td>
-                  <td className="px-2 py-2 tabular"><span className={c.growth !== null && mkt !== null && c.growth >= mkt ? "text-good" : "text-ink-2"}>{signed(c.growth)}</span><Basis>{tr(`${c.growthBase.products} products`, `제품 ${c.growthBase.products}개`)}</Basis></td>
-                  <td className="px-2 py-2 tabular">{c.anchorRecent ? pct(c.anchorShare) : <Missing>{tr("none", "없음")}</Missing>}<Basis>{tr(`${c.anchorRecent} of ${compact(c.recent)}`, `${compact(c.recent)}건 중 ${c.anchorRecent}건`)}</Basis></td>
-                  <td className="px-4 py-2">{c.quadrant ? <QuadTag q={c.quadrant} /> : <Missing>{tr("thin data", "데이터 부족")}: {c.thin}</Missing>}</td>
+                  <td className="px-2 py-2 tabular">{c.growth === null ? <Missing>{tr("no reading", "판단 불가")}</Missing> : <span className="text-ink-2">{signed(c.growth)}</span>}<Basis>{c.buying ? tr(`${c.growthBase.products} products · ${pct(c.coverage)} of its buying`, `제품 ${c.growthBase.products}개 · 구매의 ${pct(c.coverage)}`) : tr(`${c.growthBase.products} products`, `제품 ${c.growthBase.products}개`)}</Basis></td>
+                  <td className="px-2 py-2 tabular">{!c.buying ? <Missing>{tr("no buying counted yet", "구매 집계 전")}</Missing> : c.anchorShare ? (c.anchorShare < 0.0005 ? "<0.1%" : pct(c.anchorShare, 1)) : <Missing>{tr("not in the top 100", "상위 100위 없음")}</Missing>}<Basis>{c.buying ? tr(`${c.anchorProducts} product${c.anchorProducts === 1 ? "" : "s"} · biggest: ${c.leader.brand} ${pct(c.leader.share)}`, `제품 ${c.anchorProducts}개 · 최대: ${c.leader.brand} ${pct(c.leader.share)}`) : ""}</Basis></td>
+                  <td className="px-4 py-2">{c.quadrant ? <QuadTag q={c.quadrant} /> : <Missing>{tr("not placed", "미배치")}: {c.thin}</Missing>}</td>
                 </tr>))}</tbody>
             </table>
-            <Basis className="border-t border-line px-4 py-2.5">{tr(<>Growth = reviews {win.recent} vs {win.prior}, only products with complete history. {anchor} = its share of the category&rsquo;s reviews in {win.recent}.</>, <>성장률 = {win.recent} 리뷰 vs {win.prior} 리뷰 (이력이 완전한 제품만). {anchor} = {win.recent} 카테고리 리뷰 중 {anchor}의 비중.</>)}</Basis>
+            <Basis className="border-t border-line px-4 py-2.5">{tr(<>Growth = written reviews {win.recent} vs {win.prior}, only products with reviews in both (same products); &ldquo;of its buying&rdquo; = how much of the category&rsquo;s buying those products hold. {anchor} = its share of the category&rsquo;s buying, {buySpan} (new ratings × MRP, top 100).</>, <>성장률 = 작성 리뷰 {win.recent} vs {win.prior}, 두 기간 모두 리뷰가 있는 제품만(동일 제품). &ldquo;구매의 %&rdquo; = 그 제품들이 카테고리 구매에서 차지하는 비중. {anchor} = 카테고리 구매 중 점유율, {buySpan} (신규 평가 × 정가, 상위 100위).</>)}</Basis>
           </Card>
         </div>
       </ActionSection>
@@ -399,8 +392,8 @@ function Analysis() {
         )}
       </ActionSection>
 
-      <ActionSection id="next" kicker={tr("Suggested next steps", "다음 단계 제안")} title={steps.length ? tr(`${steps.length} actions, ranked by expected impact.`, `예상 효과가 큰 순서로 실행 과제 ${steps.length}개.`) : tr("Nothing needs action today.", "오늘은 조치할 일 없음.")}
-        note={tr("Rule-based from the evidence above, limited to the K-beauty rivals and the anchor's own levers: range, price, search, stock and hero products. Each links to its evidence.", "위 근거에서 규칙으로 뽑은 과제. 기준 브랜드가 직접 움직일 수 있는 레버(라인업, 가격, 검색, 재고, 히어로 제품)로 한정했고, 항목마다 근거로 연결됨.")}>
+      <ActionSection id="next" kicker={tr("Worth a closer look", "더 볼 만한 곳")} title={steps.length ? tr(`${steps.length} points from the evidence above.`, `위 근거에서 나온 ${steps.length}가지.`) : tr("Nothing stands out today.", "오늘은 눈에 띄는 것 없음.")}
+        note={tr("Picked by rule from the sections above (stock, categories, range, search, the K-beauty rivals' moves); each states what the numbers show and links to them. They are prompts for discussion, not instructions.", "위 섹션(재고, 카테고리, 라인업, 검색, K-뷰티 경쟁사 움직임)에서 규칙으로 뽑은 항목. 수치가 보여 주는 것만 적고 근거로 연결. 논의 출발점이지 지시가 아님.")}>
         <div className="grid gap-3 md:grid-cols-2">
           {steps.map((s, i) => (
             <Card key={i} className="relative overflow-hidden px-5 py-4">
@@ -432,12 +425,11 @@ function Analysis() {
 function scoreTitle(anchor: string, rows: ScoreRow[]) {
   const me = rows.find((r) => same(r.brand, anchor)); if (!me) return tr(`${anchor} is not on any tracked shelf today.`, `오늘 추적 중인 진열 목록에 ${anchor} 없음.`);
   const m = (k: "shelf" | "search" | "demand") => median(rows.map((r) => r[k])) || 1e-9;
-  const xs = ([["shelf", tr("shelf share", "진열 점유율")], ["search", tr("search share", "검색 점유율")], ["demand", tr("demand share", "수요 점유율")]] as const).map(([k, l]) => ({ l, r: me[k] / m(k) })).sort((a, b) => b.r - a.r);
-  const fx = (r: number) => `${r.toFixed(1)}×`;
-  return tr(`${anchor}'s ${xs[0].l} is ${fx(xs[0].r)} the rivals' median, but its ${xs[2].l} only ${fx(xs[2].r)}.`, `${anchor}의 ${josa(xs[0].l, "은/는")} K-뷰티 경쟁사 중앙값의 ${xs[0].r.toFixed(1)}배, ${josa(xs[2].l, "은/는")} ${xs[2].r.toFixed(1)}배에 그침.`);
+  const xs = ([["demand", tr("share of buying", "구매 점유율")], ["shelf", tr("top-100 places", "상위 100위 자리")], ["search", tr("unpaid search places", "비광고 검색 자리")]] as const).map(([k, l]) => ({ l, r: me[k] / m(k) }));
+  return tr(`Against the Korean rivals' median, ${anchor} is at ${xs.map((x) => `${x.r.toFixed(1)}× on ${x.l}`).join(", ")}.`, `K-뷰티 경쟁사 중앙값 대비 ${anchor}: ${xs.map((x) => `${x.l} ${x.r.toFixed(1)}배`).join(", ")}.`);
 }
 
-function Scoreboard({ rows, setRows, anchor, tiers, board, win }: { rows: ScoreRow[]; setRows: ScoreRow[]; anchor: string; tiers: ReturnType<typeof useTiers>; board: NonNullable<ReturnType<typeof scoreboard>>; win: string }) {
+function Scoreboard({ rows, setRows, anchor, tiers, board, win, span }: { rows: ScoreRow[]; setRows: ScoreRow[]; anchor: string; tiers: ReturnType<typeof useTiers>; board: NonNullable<ReturnType<typeof scoreboard>>; win: string; span: string }) {
   // the K-beauty tab compares with the Korean rivals: Innisfree and its rivals first, the other focus brands one click away
   const inRivals = (b: string) => setRows.some((r) => same(r.brand, b));
   const sorted = [...rows].sort((a, b) => (same(a.brand, anchor) ? -1 : same(b.brand, anchor) ? 1 : Number(inRivals(b.brand)) - Number(inRivals(a.brand)) || b.demand - a.demand));
@@ -459,7 +451,7 @@ function Scoreboard({ rows, setRows, anchor, tiers, board, win }: { rows: ScoreR
           <span>{tr("Brand", "브랜드")}</span>
           <span><Def k="shelf">{tr("Share of top-100 products", "상위 100위 제품 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr("products today · change in 14 days", "오늘 제품 수 · 14일 변화")}</span></span>
           <span><Def k="search">{tr("Share of top-10 search", "상위 10위 검색 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr("unpaid results today · change in 7 days", "오늘 비광고 결과 · 7일 변화")}</span></span>
-          <span><Def k="demand">{tr("Share of reviews", "리뷰 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{win}</span></span>
+          <span><Def k="ratingFlow">{tr("Share of buying", "구매 점유율")}</Def><span className="block font-normal normal-case tracking-normal">{tr(`all top 100s · ${span}`, `상위 100위 전체 · ${span}`)}</span></span>
           <span><Def k="growth">{tr("Written-review growth", "작성 리뷰 성장률")}</Def><span className="block font-normal normal-case tracking-normal">{tr(<>vs <TrackedLink /> {signed(board.market.growth)}</>, <><TrackedLink /> {signed(board.market.growth)}</>)}</span></span>
         </div>
         <TieredList rows={sorted} brandOf={(r) => r.brand} tiers={tiers} top={setRows.length} render={(r) => {
@@ -469,15 +461,15 @@ function Scoreboard({ rows, setRows, anchor, tiers, board, win }: { rows: ScoreR
               <span className="text-[13px]"><span className={hl ? "font-semibold" : "font-medium"}>{r.brand}</span>{out && <span className="ml-1.5 rounded bg-sunken px-1 text-[10px] text-muted ring-1 ring-line">{tr("not in rival set", "K-뷰티 경쟁사 외")}</span>}</span>
               <Cell v={r.shelf} k="shelf" hl={hl} sub={<>{tr(`${r.shelfSlots} products`, `제품 ${r.shelfSlots}개`)}{r.slotsChange !== null ? ` · ${moved(r.slotsChange)}` : ""}</>} />
               <Cell v={r.search} k="search" hl={hl} sub={<>{r.searchChange !== null ? pts(r.searchChange) : tr("no earlier day", "이전 데이터 없음")}{r.paid ? tr(` · ${Math.round(r.paid * 100)}% paid`, ` · 광고 ${Math.round(r.paid * 100)}%`) : ""}</>} />
-              <Cell v={r.demand} k="demand" hl={hl} sub={<>{tr(`${compact(r.demandRecent)} reviews`, `리뷰 ${compact(r.demandRecent)}건`)}</>} />
+              <Cell v={r.demand} k="demand" hl={hl} sub={<>{r.buying ? tr(`${compact(r.demandRecent)} written reviews in ${win}`, `${win} 작성 리뷰 ${compact(r.demandRecent)}건`) : tr("no buying counted", "구매 집계 없음")}</>} />
               <span className="text-[12.5px] tabular">{r.growth === null ? <Missing>{tr("no full history", "이력 불완전")}</Missing> : <><b className={board.market.growth !== null && r.growth >= board.market.growth ? "text-good" : "text-bad"}>{signed(r.growth)}</b><span className="block text-[11px] text-muted">{tr(`${r.growthProducts} products`, `제품 ${r.growthProducts}개`)}</span></>}</span>
             </div>
           );
         }} />
       </div>
       <Basis className="border-t border-line px-4 py-2.5">
-        {tr(<>Shelf: {board.shelfTotal.toLocaleString("en-IN")} products in the top 100s on {dayLabel(board.shelfDay)} (only products Nykaa files under each category); the 14-day change counts only the {board.likeForLikeCats} categories tracked on both days. Search: unpaid top 10 of every tracked keyword on {dayLabel(board.searchDay)}. Reviews: {compact(board.demandTotal)} reviews for tracked products in {win}. Grey tick = median of the K-beauty rivals.</>,
-          <>진열: {dayLabel(board.shelfDay)} 상위 100위 제품 {board.shelfTotal.toLocaleString("en-IN")}개(Nykaa가 해당 카테고리로 분류한 제품만). 14일 변화 = 두 날짜 모두 추적한 카테고리 {board.likeForLikeCats}개 기준. 검색: {dayLabel(board.searchDay)} 추적 키워드 전체의 비광고 상위 10개. 리뷰: {win} 추적 제품 리뷰 {compact(board.demandTotal)}건. 회색 눈금 = K-뷰티 경쟁사 중앙값.</>)}
+        {tr(<>Shelf: {board.shelfTotal.toLocaleString("en-IN")} products in the top 100s on {dayLabel(board.shelfDay)} (only products Nykaa files under each category); the 14-day change counts only the {board.likeForLikeCats} categories tracked on both days. Search: unpaid top 10 of every tracked keyword on {dayLabel(board.searchDay)}. Buying: new ratings × MRP in every top 100, {span} (Nykaa froze rating counts on 10 Oct), a brand&rsquo;s ₹ over all brands&rsquo;. Growth: written reviews, same products, {win} vs a year earlier. Grey tick = median of the K-beauty rivals.</>,
+          <>진열: {dayLabel(board.shelfDay)} 상위 100위 제품 {board.shelfTotal.toLocaleString("en-IN")}개(Nykaa가 해당 카테고리로 분류한 제품만). 14일 변화 = 두 날짜 모두 추적한 카테고리 {board.likeForLikeCats}개 기준. 검색: {dayLabel(board.searchDay)} 추적 키워드 전체의 비광고 상위 10개. 구매: 상위 100위 전체의 신규 평가 × 정가, {span} (Nykaa가 10월 10일 평가 수 갱신 중단), 브랜드 금액 ÷ 전체 금액. 성장률: 작성 리뷰, 동일 제품, {win} vs 전년. 회색 눈금 = K-뷰티 경쟁사 중앙값.</>)}
       </Basis>
     </Card>
   );
@@ -539,29 +531,31 @@ function keywordView(search: SearchRow[], anchor: string, inSet: (b: string) => 
 
 interface Step { what: string; who: string; why: string; href: string; tone?: "good" | "bad"; impact: number }
 
-function nextSteps({ anchor, cmap, market, usual, gapCells, gaps, me, kw, oos, findings, rows }: {
+/** Points worth a closer look (owner 20 Oct 2026: describe, don't instruct; each says what the evidence shows). */
+function nextSteps({ anchor, cmap, market, usual, gapCells, gaps, me, kw, oos, findings, rows, span }: {
   anchor: string; cmap: CategoryCell[]; market: number | null; usual: number; gapCells: (GapCell & { category: string })[]; gaps: ReturnType<typeof rangeGrid>;
-  me: ScoreRow | undefined; kw: ReturnType<typeof keywordView>; oos: { name: string; brand: string; rating_count: number | null }[]; findings: Finding[]; rows: DemandRow[];
+  me: ScoreRow | undefined; kw: ReturnType<typeof keywordView>; oos: { name: string; brand: string; rating_count: number | null }[]; findings: Finding[]; rows: DemandRow[]; span: string;
 }): Step[] {
   const out: Step[] = [];
   const best = (c: string) => rows.filter((r) => r.category === c && same(r.brand, anchor)).sort((a, b) => b.recent - a.recent)[0];
   const growthOf = (c: string) => cmap.find((x) => x.category === c)?.growth ?? null;
-  for (const o of oos.filter((x) => (x.rating_count ?? 0) >= 1000).slice(0, 2)) out.push({ what: tr(`Restock ${shortName(o.name, o.brand)}`, `${shortName(o.name, o.brand)} 재입고`), who: tr(`${anchor} supply team`, `${anchor} 공급 담당`), why: tr(`Out of stock today with ${compact(o.rating_count ?? 0)} ratings of demand behind it; Nykaa drops unavailable products from its lists, so every day out sends buyers to rivals.`, `평가 ${compact(o.rating_count ?? 0)}건만큼 수요가 있는데 오늘 품절. Nykaa는 구매 불가 제품을 목록에서 빼기 때문에, 품절 하루하루 구매자가 경쟁사로 넘어감.`), href: "#changes", tone: "bad", impact: 70 + Math.min(25, (o.rating_count ?? 0) / 1000) });
-  for (const c of cmap.filter((x) => x.quadrant === "opportunity").slice(0, 2)) {
+  for (const o of oos.filter((x) => (x.rating_count ?? 0) >= 1000).slice(0, 2)) out.push({ what: tr(`Out of stock: ${shortName(o.name, o.brand)}`, `품절: ${shortName(o.name, o.brand)}`), who: tr(`${anchor} supply`, `${anchor} 공급`), why: tr(`Out of stock on Nykaa today; it has ${compact(o.rating_count ?? 0)} ratings. Unavailable products tend to drop out of Nykaa's lists.`, `오늘 Nykaa 품절, 누적 평가 ${compact(o.rating_count ?? 0)}건. 구매 불가 제품은 Nykaa 목록에서 빠지는 경향.`), href: "#changes", tone: "bad", impact: 70 + Math.min(25, (o.rating_count ?? 0) / 1000) });
+  for (const c of cmap.filter((x) => x.quadrant === "opportunity").sort((a, b) => b.buying - a.buying).slice(0, 2)) {
     const b = best(c.category);
-    out.push({ what: tr(`Push ${b ? shortName(b.name, anchor).split(/,| - | with /)[0] : "a product"} in ${cat(c.category).toLowerCase()}`, `${cat(c.category)}에서 ${b ? shortName(b.name, anchor).split(/,| - | with /)[0] : "제품"} 강화`), who: b ? tr(`${anchor}'s best seller here (${b.recent} reviews in 3 months)`, `이 카테고리 ${anchor} 베스트셀러 (3개월 리뷰 ${b.recent}건)`) : tr(`${anchor} has no tracked product here yet`, `아직 추적 중인 ${anchor} 제품 없음`),
-      why: tr(`The category grows ${signed(c.growth)} vs all tracked products' ${signed(market)}, but ${anchor} has ${pct(c.anchorShare)} of its written reviews against its usual ${pct(usual)}; ${c.focusLeader?.brand ?? c.leader.brand} leads with ${pct(c.focusLeader?.share ?? c.leader.share)} of them.`, `카테고리는 ${signed(c.growth)} 성장(추적 전체 ${signed(market)})인데 ${anchor} 리뷰 점유율은 ${pct(c.anchorShare)}로 평소 ${pct(usual)}보다 낮음. 선두: ${c.focusLeader?.brand ?? c.leader.brand}(리뷰의 ${pct(c.focusLeader?.share ?? c.leader.share)}).`), href: "#portfolio", impact: 80 + Math.min(15, c.recent / 1000) });
+    out.push({ what: tr(`${cat(c.category)}: growing faster than average, ${anchor}'s share small`, `${cat(c.category)}: 평균보다 빠른 성장, ${anchor} 점유율 낮음`), who: b ? tr(`${anchor}'s most-reviewed product here: ${shortName(b.name, anchor).split(/,| - | with /)[0]} (${b.recent} reviews in 3 months)`, `이 카테고리 ${anchor} 리뷰 최다 제품: ${shortName(b.name, anchor).split(/,| - | with /)[0]} (3개월 리뷰 ${b.recent}건)`) : tr(`${anchor} has no tracked product here yet`, `아직 추적 중인 ${anchor} 제품 없음`),
+      why: tr(`Written reviews here grow ${signed(c.growth)} (same products, ${pct(c.coverage)} of the category's buying) against ${signed(market)} for all tracked products; ${anchor} holds ${c.anchorShare ? pct(c.anchorShare, 1) : "none"} of the category's buying (${span}) against ${pct(usual, 1)} across all lists. ${c.focusLeader?.brand ?? c.leader.brand} holds ${pct(c.focusLeader?.share ?? c.leader.share)}.`,
+        `작성 리뷰 성장 ${signed(c.growth)} (동일 제품, 카테고리 구매의 ${pct(c.coverage)}), 추적 전체 ${signed(market)}. ${anchor}의 카테고리 구매 점유율 ${c.anchorShare ? pct(c.anchorShare, 1) : "없음"} (${span}), 전체 목록 ${pct(usual, 1)}. ${c.focusLeader?.brand ?? c.leader.brand}: ${pct(c.focusLeader?.share ?? c.leader.share)}.`), href: "#portfolio", impact: 80 + Math.min(15, c.recent / 1000) });
   }
   const growingGaps = [...gapCells].sort((a, b) => (growthOf(b.category) ?? -1) - (growthOf(a.category) ?? -1) || b.rivals.length - a.rivals.length);
-  for (const g of growingGaps.slice(0, 1)) out.push({ what: tr(`Fill the ${g.label} band in ${cat(g.category).toLowerCase()}`, `${cat(g.category)} ${bandLabel(g.label)} 가격대 채우기`), who: tr(`${anchor} range planning`, `${anchor} 상품 기획`), why: tr(`${g.rivals.length} K-beauty rival products (${g.rivalBrands.slice(0, 3).join(", ")}${g.rivalBrands.length > 3 ? "…" : ""}) sell at this MRP and ${anchor} has none; the category grows ${signed(growthOf(g.category))}.`, `이 정가대에서 K-뷰티 경쟁사 제품 ${g.rivals.length}개(${g.rivalBrands.slice(0, 3).join(", ")}${g.rivalBrands.length > 3 ? "…" : ""})가 팔리는데 ${anchor} 제품은 없음. 카테고리 성장률 ${signed(growthOf(g.category))}.`), href: "#gaps", impact: 70 + g.rivals.length });
+  for (const g of growingGaps.slice(0, 1)) out.push({ what: tr(`Range: ${cat(g.category).toLowerCase()} at ${g.label}`, `라인업: ${cat(g.category)} ${bandLabel(g.label)}`), who: tr(`${anchor} range planning`, `${anchor} 상품 기획`), why: tr(`${g.rivals.length} K-beauty rival products (${g.rivalBrands.slice(0, 3).join(", ")}${g.rivalBrands.length > 3 ? "…" : ""}) sell at this MRP and ${anchor} lists none; written reviews in the category grow ${signed(growthOf(g.category))}.`, `이 정가대에 K-뷰티 경쟁사 제품 ${g.rivals.length}개(${g.rivalBrands.slice(0, 3).join(", ")}${g.rivalBrands.length > 3 ? "…" : ""}), ${anchor} 제품은 없음. 카테고리 작성 리뷰 성장률 ${signed(growthOf(g.category))}.`), href: "#gaps", impact: 70 + g.rivals.length });
   if (me && me.search < me.demand * 0.8 && kw.total) {
     const lost = kw.rows.filter((x) => x.pos === null && x.focusTop3).slice(0, 3);
-    out.push({ what: tr(`Win back search${lost.length ? ` on "${lost.map((x) => x.q).join('", "')}"` : ""}`, `${lost.length ? `"${lost.map((x) => x.q).join('", "')}" ` : ""}검색 노출 되찾기`), who: tr(`${anchor} search and ads`, `${anchor} 검색·광고 담당`), why: tr(`${anchor} gets ${pct(me.search)} of search but ${pct(me.demand)} of reviews: shoppers who search find it less often than buyers choose it. ${lost.length ? `A K-beauty rival sits in the top 3 on these keywords where ${anchor} is absent.` : ""}`, `${anchor} 검색 점유율 ${pct(me.search)}, 리뷰 점유율 ${pct(me.demand)}. 구매자가 고르는 만큼 검색에서 못 찾고 있음. ${lost.length ? `이 키워드에선 K-뷰티 경쟁사가 상위 3위 안에 있고 ${anchor}는 없음.` : ""}`), href: "#standing", impact: 75 });
+    out.push({ what: tr(`Search${lost.length ? `: "${lost.map((x) => x.q).join('", "')}"` : ""}`, `검색${lost.length ? `: "${lost.map((x) => x.q).join('", "')}"` : ""}`), who: tr(`${anchor} search and ads`, `${anchor} 검색·광고`), why: tr(`${anchor} holds ${pct(me.search)} of unpaid top-10 search places and ${pct(me.demand, 1)} of buying. ${lost.length ? `On these keywords a K-beauty rival is in the unpaid top 3 and ${anchor} is not in the top 10.` : ""} Unpaid places follow sales and listing quality; paid slots are bought separately.`, `${anchor}: 비광고 상위 10 검색 자리의 ${pct(me.search)}, 구매의 ${pct(me.demand, 1)}. ${lost.length ? `이 키워드에선 K-뷰티 경쟁사가 비광고 상위 3위, ${anchor}는 상위 10위 밖.` : ""} 비광고 자리는 판매·상품 페이지 품질을 따라감, 광고 자리는 별도 구매.`), href: "#standing", impact: 75 });
   }
-  for (const f of findings.slice(0, 1)) out.push({ what: tr(`Answer ${f.brand}'s move${f.category ? ` in ${cat(f.category).toLowerCase()}` : ""}`, `${f.category ? `${cat(f.category)}에서 ` : ""}${f.brand}의 움직임에 대응`), who: tr(`${anchor} category team`, `${anchor} 카테고리 담당`), why: `${f.headline}. ${f.soWhat}`, href: "#changes", tone: "bad", impact: 60 + Math.min(20, f.weight / 5) });
+  for (const f of findings.slice(0, 1)) out.push({ what: tr(`${f.brand}'s move${f.category ? ` in ${cat(f.category).toLowerCase()}` : ""}`, `${f.category ? `${cat(f.category)} · ` : ""}${f.brand}의 움직임`), who: tr(`${anchor} category team`, `${anchor} 카테고리 담당`), why: `${f.headline}. ${f.soWhat}`, href: "#changes", tone: "bad", impact: 60 + Math.min(20, f.weight / 5) });
   for (const c of cmap.filter((x) => x.quadrant === "invest").slice(0, 1)) {
     const b = best(c.category);
-    out.push({ what: tr(`Protect ${cat(c.category).toLowerCase()}`, `${cat(c.category)} 방어`), who: b ? `${shortName(b.name, anchor).split(/,| - | with /)[0]}` : anchor, why: tr(`A growing category (${signed(c.growth)}) where ${anchor} does better than usual (${pct(c.anchorShare)} vs ${pct(usual)}); keep the hero visible and in stock.`, `${josa(anchor, "이/가")} 평소보다 강한(${pct(c.anchorShare)}, 평소 ${pct(usual)}) 성장 카테고리(${signed(c.growth)}). 히어로 제품의 노출·재고 지키기.`), href: "#portfolio", tone: "good", impact: 55 });
+    out.push({ what: tr(`${cat(c.category)}: growing faster than average, ${anchor}'s share above its average`, `${cat(c.category)}: 평균보다 빠른 성장, ${anchor} 점유율도 평균 이상`), who: b ? `${shortName(b.name, anchor).split(/,| - | with /)[0]}` : anchor, why: tr(`Written reviews grow ${signed(c.growth)} (same products) and ${anchor} holds ${pct(c.anchorShare, 1)} of the category's buying (${span}) against ${pct(usual, 1)} across all lists.`, `작성 리뷰 ${signed(c.growth)} 성장(동일 제품), ${anchor} 카테고리 구매 점유율 ${pct(c.anchorShare, 1)} (${span}), 전체 목록 ${pct(usual, 1)}.`), href: "#portfolio", tone: "good", impact: 55 });
   }
   if (!gaps.length) out.push({ what: tr("Collect this brand's catalogue", "이 브랜드 카탈로그 수집"), who: tr("Data", "데이터"), why: tr("Range gaps and heroes need the brand's full Nykaa range.", "라인업 공백·히어로 분석엔 브랜드의 Nykaa 전체 라인업이 필요."), href: "#gaps", impact: 10 });
   return out.sort((a, b) => b.impact - a.impact).slice(0, 5);
