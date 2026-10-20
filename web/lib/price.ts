@@ -12,7 +12,12 @@ export const basketLabel = () => tr("Toner, Serum, Moisturiser, Face wash, Sunsc
 
 /** Below this a pack is a mini/travel/trial size, not the size a shopper compares on. */
 const MINI_ML = 15;
-const NOT_STANDARD = /\b(combo|kit|gift|set of|sets?\b|duo|trio|bundle|pack of \d|mini|travel|trial|sample|discovery|\d+\s*x\s*\d+|value pack)\b|\s\+\s/i;
+const NOT_STANDARD = /\b(combo|kit|gift|set of|sets?\b|duo|trio|bundle|pack of \d|mini|travel|trial|sample|discovery|\d+\s*x\s*\d+|value pack)\b/i;
+/** " + " joins two products only when both sides name one ("Toner + Serum"); "Relief Sunscreen Rice + Probiotics" or
+ *  "Niacinamide + Zinc" is one product's ingredients. Owner 21 Oct 2026: the old rule dropped Beauty of Joseon's best
+ *  seller from every per-ml price. */
+const PRODUCT_WORD = /\b(toner|serum|essence|ampoule|cream|moisturi[sz]er|lotion|cleanser|face ?wash|foam|sunscreen|sun (?:cream|stick|serum)|mask|balm|oil|mist|gel|lipstick|lip ?tint|foundation|cushion|primer|eye cream|scrub)\b/i;
+const twoProducts = (name: string) => name.split(/\s\+\s/).length > 1 && name.split(/\s\+\s/).filter((part) => PRODUCT_WORD.test(part)).length >= 2;
 const NOT_STANDARD_L3 = new Set(["Combos @ Nykaa", "Gift Sets", "Makeup Combos", "Bath & Body Combos"]);
 
 export interface PricedItem { product_id: string; brand: string; name: string; category: string; price: number; ml: number | null; perHundred: number | null }
@@ -21,7 +26,7 @@ export interface PricedItem { product_id: string; brand: string; name: string; c
 export function exclusion(r: { name: string; pack_size: string | null; l3?: string | null; nykaa_l3?: string | null; price: number | null }): string | null {
   if (!r.price) return "no price";
   if (NOT_STANDARD_L3.has(r.l3 ?? r.nykaa_l3 ?? "")) return "combo or gift set";
-  if (NOT_STANDARD.test(r.name)) return "combo, kit or mini";
+  if (NOT_STANDARD.test(r.name) || twoProducts(r.name)) return "combo, kit or mini";
   const ml = packMl(r.pack_size) ?? packMl(r.name);
   if (ml !== null && ml < MINI_ML) return "mini size";
   return null;
@@ -97,7 +102,7 @@ export function withAnchor(prices: Omit<BasketPrice, "vsAnchor" | "shared">[], a
 export interface Bench {
   /** the K-beauty leader's MRP per unit: what every product is compared against */
   value: number; unit: "100 ml/g" | "sheet";
-  leader: { product_id: string; brand: string; name: string; url: string | null; reviews: number; mrp: number; size: string };
+  leader: { product_id: string; brand: string; name: string; url: string | null; reviews: number; buying: number | null; mrp: number; size: string };
   /** context only: median and range of comparable products in today's top 100 */
   median: number | null; min: number | null; max: number | null; n: number;
 }
@@ -114,21 +119,33 @@ export function shelfUnit(r: ShelfRow, perSheet: boolean, std: number | null): {
   return { value: (p / ml) * 100, size: `${ml} ml/g` };
 }
 
-/** Benchmark (owner, 10 Oct): the K-beauty leader of the category, i.e. the K-beauty product in today's top 100 with the most
- *  reviews, Innisfree's own excluded; the category median stays as context. */
-export function kBeautyBenchmark(shelf: ShelfRow[], cat: string, anchor: string, std: number | null): Bench | null {
+/** The K-beauty product with the most buying in the category's top 100 (the anchor's own excluded), or null when the list has no buying yet. */
+export function kBeautyLeaderId(shelf: ShelfRow[], cat: string, anchor: string, buying: Map<string, number>): string | null {
+  let best: string | null = null; let v = 0;
+  for (const r of shelf) if (r.subcategory === cat && r.origin === "kbeauty" && r.brand !== anchor && (buying.get(r.product_id) ?? 0) > v) { v = buying.get(r.product_id)!; best = r.product_id; }
+  return best;
+}
+
+/** Benchmark (owner, 10 Oct): the K-beauty leader of the category, Innisfree's own excluded; the category median stays
+ *  as context. Leader = the K-beauty product with the most buying (new ratings × MRP) in the category's top 100. Owner
+ *  21 Oct 2026: picking it by lifetime reviews made COSRX's Aloe Sun Cream (#77, ₹37k of buying) the sunscreen leader
+ *  over Beauty of Joseon's Relief Sunscreen (#3, ₹17.6 lakh). Reviews decide only on lists with no buying yet. If the
+ *  leader's size can't be found, there is no benchmark rather than a lesser one. */
+export function kBeautyBenchmark(shelf: ShelfRow[], cat: string, anchor: string, std: number | null, buying?: Map<string, number>, sizeOf?: (r: ShelfRow) => string | null): Bench | null {
   const perSheet = PER_SHEET.has(cat);
   const seen = new Set<string>(); const vals: number[] = [];
+  const top = buying ? kBeautyLeaderId(shelf, cat, anchor, buying) : null;
   let lead: Bench["leader"] | null = null; let leadVal = 0;
   for (const r of shelf) {
     if (r.subcategory !== cat || seen.has(r.product_id)) continue;
     seen.add(r.product_id);
-    const u = shelfUnit(r, perSheet, std); if (!u) continue;
+    // a listing without a pack size on Nykaa's list takes it from its own product page, when given
+    const fill = !r.pack_size && sizeOf ? sizeOf(r) : null;
+    const u = shelfUnit(fill ? { ...r, pack_size: fill } : r, perSheet, std); if (!u) continue;
     vals.push(u.value);
     const reviews = r.review_count ?? r.rating_count ?? 0;
-    if (r.origin === "kbeauty" && r.brand !== anchor && (!lead || reviews > lead.reviews)) {
-      lead = { product_id: r.product_id, brand: r.brand, name: r.name, url: r.url, reviews, mrp: (r.mrp ?? r.price)!, size: u.size }; leadVal = u.value;
-    }
+    const isLead = top ? r.product_id === top : r.origin === "kbeauty" && r.brand !== anchor && (!lead || reviews > lead.reviews);
+    if (isLead) { lead = { product_id: r.product_id, brand: r.brand, name: r.name, url: r.url, reviews, buying: top ? buying!.get(top) ?? null : null, mrp: (r.mrp ?? r.price)!, size: u.size }; leadVal = u.value; }
   }
   if (!lead) return null;
   return { value: leadVal, unit: perSheet ? "sheet" : "100 ml/g", leader: lead, median: vals.length >= 3 ? med(vals) : null,

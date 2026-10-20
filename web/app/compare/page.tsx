@@ -13,14 +13,14 @@ import { SectionNav, type NavItem } from "@/components/Report";
 import Shell from "@/components/Shell";
 import { Card, Loading, PageHead } from "@/components/ui";
 import { ANCHOR_BRAND, SLOT_COLORS, norm, resolveBrand } from "@/lib/brands";
-import { HERO_ORDER, brandFacts, productFacts, productOptions, searchCounts, shelfCat, shortTitle, standardSize, type Sources } from "@/lib/competeData";
+import { HERO_ORDER, brandFacts, productFacts, productOptions, productSpark, searchCounts, shelfCat, shortTitle, standardSize, type Sources } from "@/lib/competeData";
 import { useReviewsFor, useVariants, useAssortment, useCatalog, useDemand, useLastPrices, useMovement, useReviewMonths, useSearch, useShelf, useThumbnails } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/format";
 import { monthsWindow } from "@/lib/metrics";
 import { demandRows } from "@/lib/analysis";
 import { useTiers } from "@/lib/tiers";
-import { kBeautyBenchmark } from "@/lib/price";
-import type { ReviewMonth } from "@/lib/types";
+import { kBeautyBenchmark, kBeautyLeaderId } from "@/lib/price";
+import type { ReviewMonth, ShelfRow } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
 import { push } from "@/lib/group";
 import { dayMonth, dayMonthYear, tr } from "@/lib/i18n";
@@ -73,7 +73,13 @@ function CompetitivePage() {
   const market = useMarket();
 
   const heroes = useMemo(() => (uspC.data ?? []).filter((g) => shelfCat(g.category) === cat), [uspC.data, cat]);
-  const hero: UspComparison | null = heroes.find((g) => g.anchor_product_id === heroPick) ?? heroes[0] ?? null;
+  // the anchor's current hero where it differs from the analysed one (owner 21 Oct 2026: in sunscreen it is the green-tea
+  // sun serum, not the Hyaluron Moist Sunscreen): compared without the USP sections, analysed hero one click away
+  const current = CURRENT_HERO[cat] ?? [];
+  const analysedCurrent = heroes.find((g) => current.includes(g.anchor_product_id)) ?? null;
+  const plain = current.length && !analysedCurrent ? current[0] : null;
+  const hero: UspComparison | null = heroes.find((g) => g.anchor_product_id === heroPick) ?? (plain && (!heroPick || heroPick === plain) ? null : analysedCurrent ?? heroes[0] ?? null);
+  const plainName = plain ? cat0.find((r) => r.product_id === plain)?.name ?? rows.find((r) => r.product_id === plain)?.name ?? null : null;
   const uspBy = useMemo(() => new Map((uspP.data ?? []).map((p) => [p.product_id, p])), [uspP.data]);
 
   useEffect(() => {
@@ -113,13 +119,13 @@ function CompetitivePage() {
   const productIds = useMemo(() => {
     const base = hero ? [hero.anchor_product_id, ...hero.products.filter((x) => x !== hero.anchor_product_id)]
       .map((pid) => ({ pid, brand: uspBy.get(pid)?.brand ?? "", role: hero.roles?.[pid] ?? "anchor" }))
-      : [anchor, ...focusRivals].map((b) => { const o = productOptions(b, cat, rows, cat0); const pid = swap[`${cat}|${b}`] ?? o[0]?.product_id; return pid ? { pid, brand: b, role: b === anchor ? "anchor" : "rival" } : null; })
+      : [anchor, ...focusRivals].map((b) => { const o = productOptions(b, cat, rows, cat0); const pid = swap[`${cat}|${b}`] ?? (b === anchor && plain ? plain : undefined) ?? o[0]?.product_id; return pid ? { pid, brand: b, role: b === anchor ? "anchor" : "rival" } : null; })
         .filter((x): x is { pid: string; brand: string; role: string } => !!x);
     if (!edit) return base;
     const kept = base.filter((p, i) => i === 0 || !edit.removed.includes(p.pid));
     const added = edit.added.filter((a) => !kept.some((k) => k.pid === a.pid)).map((a) => ({ pid: a.pid, brand: a.brand, role: "added" }));
     return [...kept, ...added].slice(0, MAX_PRODUCTS);
-  }, [hero, uspBy, focusRivals, cat, rows, cat0, swap, anchor, edit]);
+  }, [hero, uspBy, focusRivals, cat, rows, cat0, swap, anchor, edit, plain]);
   const changeEdit = (f: (e: RivalEdit) => RivalEdit | null) => {
     const next = { ...edits }; const v = f(edits[editKey] ?? { removed: [], added: [] });
     if (v && (v.removed.length || v.added.length)) next[editKey] = v; else delete next[editKey];
@@ -131,9 +137,13 @@ function CompetitivePage() {
     return Object.fromEntries([...new Set(all)].map((b, i) => [b, i === 0 ? "#0e3b2e" : SLOT_COLORS[(i - 1) % SLOT_COLORS.length]]));
   }, [brands, productIds, tiers.focus]);
   const ids = useMemo(() => productIds.map((p) => p.pid), [productIds]);
-  const reviews = useReviewsFor(ids); const variants = useVariants(ids);
+  const buyingHere = useMemo(() => new Map(market.flow.filter((f) => f.subcategory === cat).map((f) => [f.product_id, f.value])), [market.flow, cat]);
+  const leaderId = useMemo(() => kBeautyLeaderId(rows, cat, anchor, buyingHere), [rows, cat, anchor, buyingHere]);
+  const reviews = useReviewsFor(ids); const variants = useVariants(useMemo(() => (leaderId ? [...ids, leaderId] : ids), [ids, leaderId]));
   const stdMl = useMemo(() => standardSize(rows, cat), [rows, cat]);
-  const bench = useMemo(() => kBeautyBenchmark(rows, cat, anchor, stdMl), [rows, cat, anchor, stdMl]);
+  // the leader's pack size from its product page when Nykaa's list leaves it out: the size at its MRP, or its only size
+  const sizeOf = useMemo(() => (r: ShelfRow) => { const vs = variants.data?.get(r.product_id) ?? []; return (vs.find((v) => v.mrp === r.mrp) ?? (vs.length === 1 ? vs[0] : undefined))?.pack_size ?? null; }, [variants.data]);
+  const bench = useMemo(() => kBeautyBenchmark(rows, cat, anchor, stdMl, buyingHere, sizeOf), [rows, cat, anchor, stdMl, buyingHere, sizeOf]);
   const lastPrices = useLastPrices(useMemo(() => ids.filter((id) => !rows.some((r) => r.product_id === id) && !cat0.some((r) => r.product_id === id)), [ids, rows, cat0]));
   const win = useMemo(() => monthsWindow(12), []);
   const monthsBy = useMemo(() => { const m = new Map<string, ReviewMonth[]>(); (months.data ?? []).forEach((r) => push(m, r.product_id, r)); return m; }, [months.data]);
@@ -149,6 +159,12 @@ function CompetitivePage() {
     search: searchCounts(search.data ?? []), thumbs: new Map((thumbs.data ?? []).map((t) => [t.product_id, t])), usp: uspBy, reviews: reviews.data, variants: variants.data, stdMl, lastPrices: lastPrices.data, hero, pooled,
   }), [cat, rows, cat0, demand.data, movement.data, monthsBy, win, search.data, thumbs.data, uspBy, reviews.data, variants.data, stdMl, lastPrices.data, hero, pooled]);
   const products = useMemo(() => productIds.map(({ pid, brand, role }) => productFacts(pid, brand, role, src)), [productIds, src]);
+  const productsOf = useMemo(() => {
+    const by = new Map<string, ReviewMonth[]>(); for (const r of poolMonths) push(by, r.product_id, r);
+    return (b: string) => [...by.values()].filter((ms) => norm(ms[0].brand) === norm(b))
+      .map((ms) => ({ pid: ms[0].product_id, name: shortTitle(ms[0].name, ms[0].brand), values: productSpark(ms, win) ?? [] }))
+      .filter((p) => p.values.some((v) => v));
+  }, [poolMonths, win]);
   const bfacts = useMemo(() => brandFacts(brands, anchor, cat, rows, cat0, poolMonths, search.data ?? [], assort.data ?? []), [brands, anchor, cat, rows, cat0, poolMonths, search.data, assort.data]);
 
   // share of all top-100 buying, the site's one share measure (owner 20 Oct 2026)
@@ -173,13 +189,13 @@ function CompetitivePage() {
           <SectionNav items={NAV()} />
 
           <PartHead id="part-brands" n={1} kind="brands" title={tr("Brand to brand", "브랜드 대 브랜드")} sub={tr(<>Innisfree against up to five main brands, across every category: the scorecard, the categories where they meet, and a like-for-like price basket. It opens on the main brands with the most top-100 places in Innisfree&rsquo;s categories; change them in the scorecard.</>, <>Innisfree vs 주요 브랜드 최대 5곳, 전체 카테고리 기준: 스코어카드, 맞붙는 카테고리, 동일 조건 가격 바스켓. 기본값은 Innisfree 카테고리에서 상위 100위 자리가 가장 많은 주요 브랜드, 스코어카드에서 변경 가능.</>)} />
-          <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isDefault={!brandOverride} focusSet={[tiers.pinned, ...tiers.focus]} inSet={tiers.inSet} buy={buy}
+          <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isDefault={!brandOverride} focusSet={[tiers.pinned, ...tiers.focus]} inSet={tiers.inSet} buy={buy} productsOf={productsOf}
             onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
           <WhereCompete anchor={anchor} rows={rows} catalog={cat0} colors={colors} brands={brands}
             onPickCat={(c) => { setCat(c); setHeroPick(null); setTimeout(() => document.getElementById("part-products")?.scrollIntoView({ behavior: "smooth" }), 50); }} />
           <PriceBasket facts={bfacts} anchor={anchor} />
 
-          <PartHead id="part-products" n={2} kind="products" title={tr(`Product to product · ${CATEGORY_LABEL[cat]}`, `제품 대 제품 · ${CATEGORY_LABEL[cat]}`)} sub={tr(<>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} against its rival products</> : <>Each brand&rsquo;s best-ranked product in {CATEGORY_LABEL[cat]}</>}: the verdict, then price, what buyers say, shelf and demand side by side, then the message. Drop a rival or add any product with the bar below.</>, <>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품</> : <>{CATEGORY_LABEL[cat]} 브랜드별 최고 순위 제품</>}: 결론, 가격·구매자 반응·진열·수요 비교표, 그다음 메시지 순. 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
+          <PartHead id="part-products" n={2} kind="products" title={tr(`Product to product · ${CATEGORY_LABEL[cat]}`, `제품 대 제품 · ${CATEGORY_LABEL[cat]}`)} sub={tr(<>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} against its rival products</> : plain && plainName ? <>{shortTitle(plainName, "Innisfree")} against each main brand&rsquo;s best-ranked product</> : <>Each brand&rsquo;s best-ranked product in {CATEGORY_LABEL[cat]}</>}: the verdict, then price, what buyers say, shelf and demand side by side, then the message. Drop a rival or add any product with the bar below.</>, <>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품</> : <>{CATEGORY_LABEL[cat]} 브랜드별 최고 순위 제품</>}: 결론, 가격·구매자 반응·진열·수요 비교표, 그다음 메시지 순. 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
           {hero && productIds.some((p) => !tiers.inSet(p.brand)) && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">{tr(<>{[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")} {productIds.filter((p) => !tiers.inSet(p.brand)).length === 1 ? "is" : "are"} compared here because the comparison was made before your main brands were chosen; it is not one of them.</>,
             <>이 히어로의 경쟁 제품은 주요 브랜드 목록이 생기기 전에 AI 비교용으로 고른 것. {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")}는 주요 브랜드가 아님. 비교 결과는 분석된 그대로 두고, </>)}</p>}
           <Card className="mt-5 px-4 py-3.5 ring-2 ring-brand/30">
@@ -197,10 +213,16 @@ function CompetitivePage() {
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-line pt-3">
               <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("Innisfree hero", "Innisfree 히어로")}</span>
+              {plain && plainName && (
+                <button onClick={() => setHeroPick(plain)}
+                  className={`rounded-full px-3 py-1 text-[12.5px] ring-1 transition ${!hero ? "bg-brand text-on-brand ring-brand" : "bg-surface text-ink-2 ring-line hover:text-ink"}`}>
+                  {shortTitle(plainName, "Innisfree")} <span className="opacity-75">{tr("· current", "· 현재")}</span>
+                </button>
+              )}
               {heroes.length ? heroes.map((g) => (
                 <button key={g.anchor_product_id} onClick={() => setHeroPick(g.anchor_product_id)}
                   className={`rounded-full px-3 py-1 text-[12.5px] ring-1 transition ${g === hero ? "bg-brand text-on-brand ring-brand" : "bg-surface text-ink-2 ring-line hover:text-ink"}`}>
-                  {shortTitle(g.anchor_name, "Innisfree")}
+                  {shortTitle(g.anchor_name, "Innisfree")}{g === analysedCurrent && <span className="opacity-75">{tr(" · current", " · 현재")}</span>}
                 </button>
               )) : <span className="text-[12.5px] text-muted">{tr(<>No Innisfree hero analysed in {CATEGORY_LABEL[cat]}: each brand&rsquo;s best-ranked product is compared instead, without the USP sections.</>, <>{CATEGORY_LABEL[cat]}에는 분석된 Innisfree 히어로가 없어, 브랜드별 최고 순위 제품을 소구점 섹션 없이 비교.</>)}</span>}
             </div>
@@ -229,6 +251,11 @@ function CompetitivePage() {
     </Shell>
   );
 }
+
+/** Innisfree's current hero per category where it is not the AI-analysed one (owner 21 Oct 2026). The sunscreen hero is
+ *  "Green Tea Hyaluronic Sunscreen Serum SPF 50+" on Nykaa (two listings share its reviews). The analysed comparison is
+ *  used when there is one; otherwise it is compared without the USP sections. */
+const CURRENT_HERO: Record<string, string[]> = { sunscreen: ["18742426", "18742425"] };
 
 export default function Page() {
   return <AuthGate><CompetitivePage /></AuthGate>;
