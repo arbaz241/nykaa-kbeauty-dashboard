@@ -43,7 +43,7 @@ export function listingMove(c: Context, cat: string, pid: string): ListingMove |
   const to = left ? null : sm ? sm.to : onEnd ? series[series.length - 1].rank : null;
   const gain = from !== null && to !== null ? from - to : entered && to !== null ? 101 - to : left && from !== null ? from - 101 : 0;
   const why = Math.abs(gain) >= 5 && !entered && !left
-    ? [...(sm?.bought ? [{ kind: "paid" as const, strength: 5, text: tr("it sat in a sponsored or pinned spot on most days (a bought placement, not sales)", "대부분의 날 광고·고정 자리 (판매가 아닌 구매한 배치)") }] : []),
+    ? [...(sm?.bought ? [{ kind: "paid" as const, strength: 5, text: tr("it sat in a sponsored or pinned spot on most days (a bought placement, not sales)", "대부분의 날 광고·고정 구좌 (판매가 아닌 구매한 배치)") }] : []),
        ...explainMove({ key, productId: pid, brand, start, end: c.end, ix: c.ix, events: c.events, runs: c.runs, offers: c.offers, dims: c.dims, firstReview: dim?.first_review_date ?? null, up: gain > 0 })]
     : [];
   return { key, product_id: pid, subcategory: cat, brand, name: dim?.name ?? pid, from, to, gain, entered, left, bought: !!sm?.bought, why, series };

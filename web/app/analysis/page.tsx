@@ -30,8 +30,8 @@ import { ScopeLine } from "@/components/Scope";
 
 const NAV = (): NavItem[] => [
   { id: "summary", label: tr("K-beauty in one line", "K-뷰티 요약") }, { id: "where", label: tr("Where it sells", "판매 분포") },
-  { id: "changes", label: tr("What changed", "변화") }, { id: "heroes", label: tr("Hero products", "히어로 제품") }, { id: "gaps", label: tr("Range gaps", "라인업 공백") },
-  { id: "good", label: tr("Good to know", "알아 둘 것") }, { id: "method", label: tr("How this page works", "계산 방법") },
+  { id: "changes", label: tr("What changed", "주요 변동") }, { id: "heroes", label: tr("Hero products", "히어로 제품") }, { id: "gaps", label: tr("Range gaps", "라인업 공백") },
+  { id: "good", label: tr("Good to know", "주목할 점") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
 const TONE_DOT = { threat: "bg-bad", opening: "bg-good", watch: "bg-muted" } as const;
 const TONE_WORD = { get threat() { return tr("Threat", "위협"); }, get opening() { return tr("Opening", "기회"); }, get watch() { return tr("Watch", "주시"); } };
@@ -73,7 +73,7 @@ function Analysis() {
   const heroes = useMemo(() => (ready ? heroProducts(anchor, movement.data!, demand.data!, catalog.data!).slice(0, 4) : []), [ready, anchor, movement.data, demand.data, catalog.data]);
   const gaps = useMemo(() => (catalog.data ? rangeGrid(anchor, catalog.data, isRival) : []), [catalog.data, anchor, isRival]);
 
-  if (!ready || !k) return <Shell active="Analysis"><PageHead eyebrow={tr("K-beauty", "K-뷰티")} title={tr("K-beauty on Nykaa", "Nykaa의 K-뷰티")} sub={tr("Korean brands as a whole, then Innisfree's products.", "K-뷰티 전체, 그다음 Innisfree 제품.")} /><Loading what={tr("today's analysis", "오늘의 분석")} /></Shell>;
+  if (!ready || !k) return <Shell active="Analysis"><PageHead eyebrow={tr("K-beauty", "K-뷰티")} title={tr("K-beauty on Nykaa", "Nykaa의 K-뷰티")} sub={tr("Korean brands as a whole, then Innisfree's products.", "K-뷰티 전체 현황, 이어서 Innisfree 제품.")} /><Loading what={tr("today's analysis", "오늘의 분석")} /></Shell>;
 
   /* ---------------- what changed: the Korean brands' moves, one line each, details on click */
   const anchorCats = new Set((shelf.data ?? []).filter((r) => same(r.brand, anchor)).map((r) => r.subcategory));
@@ -92,8 +92,8 @@ function Analysis() {
     const eg = fs.slice(0, 2).map(name).join(", ");
     merged.set(fs[0], { ...fs[0], id: `${key}-group`,
       headline: rule === "oos" ? tr(`${b}: ${fs.length} products out of stock`, `${b}: 제품 ${fs.length}개 품절`)
-        : tr(`${b}: ${Math.min(...offs)}–${Math.max(...offs)}% off on ${fs.length} products, MRP unchanged`, `${b}: 제품 ${fs.length}개 ${Math.min(...offs)}–${Math.max(...offs)}% 할인, 정가 그대로`),
-      soWhat: rule === "oos" ? tr(`e.g. ${eg}`, `예: ${eg}`) : tr(`A promotion to watch, not a new price. e.g. ${eg}`, `새 가격이 아닌 지켜볼 프로모션. 예: ${eg}`),
+        : tr(`${b}: ${Math.min(...offs)}–${Math.max(...offs)}% off on ${fs.length} products, MRP unchanged`, `${b}: 제품 ${fs.length}개 ${Math.min(...offs)}–${Math.max(...offs)}% 할인 (정가 유지)`),
+      soWhat: rule === "oos" ? tr(`e.g. ${eg}`, `예: ${eg}`) : tr(`A promotion to watch, not a new price. e.g. ${eg}`, `정가 인하 아닌 할인 프로모션. 예: ${eg}`),
       evidence: fs.map((f) => ({ label: `${name(f)}${f.category ? ` (${cat(f.category)})` : ""}`, value: f.evidence.map((e) => `${e.label} ${e.value}`).join(" · ") })) });
     fs.slice(1).forEach((f) => absorbed.add(f));
   }
@@ -136,17 +136,17 @@ function Analysis() {
   const asOf = shelf.data?.[0]?.scrape_date;
   return (
     <Shell active="Analysis" asOf={asOf}>
-      <PageHead eyebrow={tr("K-beauty", "K-뷰티")} title={tr("K-beauty on Nykaa", "Nykaa의 K-뷰티")} sub={tr(<>How big Korean brands are, where they sell and who leads; then {anchor}&rsquo;s products and range.</>, <>K-뷰티 규모, 판매 분포, 선두 브랜드. 그다음 {anchor} 제품과 라인업.</>)}
+      <PageHead eyebrow={tr("K-beauty", "K-뷰티")} title={tr("K-beauty on Nykaa", "Nykaa의 K-뷰티")} sub={tr(<>How big Korean brands are, where they sell and who leads; then {anchor}&rsquo;s products and range.</>, <>K-뷰티 규모·판매 분포·선두 브랜드, 이어서 {anchor} 제품·라인업.</>)}
         right={<BrandSelect value={anchor} onChange={setPicked} tiers={tiers} all={known} />} />
-      <ScopeLine uses={["top100", "followed"]} measure={tr("share of buying in each category's top 100; review growth on the same products, a year apart.", "카테고리 상위 100위 구매 점유율, 동일 제품 리뷰의 전년 대비 성장.")} />
+      <ScopeLine uses={["top100", "followed"]} measure={tr("share of buying in each category's top 100; review growth on the same products, a year apart.", "카테고리 상위 100위 판매 점유율, 동일 제품 리뷰의 전년 대비 성장.")} />
       <SectionNav items={NAV()} />
 
       <section id="summary" className="mt-6 scroll-mt-32"><KSummary k={k} anchor={anchor} /></section>
 
       <KTable k={k} anchor={anchor} rivals={rivals} />
 
-      <ActionSection id="changes" kicker={tr("What changed", "변화")} title={top5.length ? tr(`${top5.length} moves by Korean brands this fortnight.`, `최근 2주 K-뷰티 브랜드 움직임 ${top5.length}건.`) : tr("No Korean brand crossed a threshold this fortnight.", "최근 2주 기준을 넘은 K-뷰티 브랜드 움직임 없음.")}
-        note={tr("Over the last 14 days: shelf moves, demand, ads, discounts and stock. A discount at an unchanged MRP is a promotion to watch, not a new price. Click a line for the numbers.", "최근 14일: 진열·수요·광고·할인·재고. 정가가 그대로인 할인은 새 가격이 아니라 지켜볼 프로모션. 항목을 누르면 수치 표시.")}>
+      <ActionSection id="changes" kicker={tr("What changed", "주요 변동")} title={top5.length ? tr(`${top5.length} moves by Korean brands this fortnight.`, `최근 2주 K-뷰티 주요 변동 ${top5.length}건.`) : tr("No Korean brand crossed a threshold this fortnight.", "최근 2주 기준치를 넘은 K-뷰티 변동 없음.")}
+        note={tr("Over the last 14 days: shelf moves, demand, ads, discounts and stock. A discount at an unchanged MRP is a promotion to watch, not a new price. Click a line for the numbers.", "최근 14일 기준: 랭킹·수요·광고·할인·재고. 정가 유지 할인은 가격 인하가 아닌 프로모션으로 분류. 항목 클릭 시 상세 수치.")}>
         <div className="grid gap-2">
           {top5.map((f) => (
             <Card key={f.id} className="lift px-5 py-3">
@@ -177,8 +177,8 @@ function Analysis() {
         )}
       </ActionSection>
 
-      <ActionSection id="heroes" kicker={tr(`${anchor}'s hero products`, `${anchor} 히어로 제품`)} title={heroes.length ? tr(`Strongest: ${shortName(heroes[0].name, anchor)}.`, `가장 강한 제품: ${shortName(heroes[0].name, anchor)}.`) : tr(`${anchor} has no product on a tracked shelf or catalogue.`, `추적 중인 진열 목록·카탈로그에 ${anchor} 제품 없음.`)}
-        note={tr(<><Def k="hero">How heroes are picked</Def>: shelf rank, reviews in {win.recent}, rating and buyer base, each against the median product of the same category. Bars: reviews against the category&rsquo;s best sellers.</>, <><Def k="hero">히어로 선정 방법</Def>: 진열 순위, {win.recent} 리뷰 수, 평점, 구매자 규모를 같은 카테고리 중앙값 제품과 비교. 막대 = 카테고리 베스트셀러 대비 리뷰 수.</>)}>
+      <ActionSection id="heroes" kicker={tr(`${anchor}'s hero products`, `${anchor} 히어로 제품`)} title={heroes.length ? tr(`Strongest: ${shortName(heroes[0].name, anchor)}.`, `대표 제품: ${shortName(heroes[0].name, anchor)}.`) : tr(`${anchor} has no product on a tracked shelf or catalogue.`, `추적 중인 랭킹 목록·카탈로그에 ${anchor} 제품 없음.`)}
+        note={tr(<><Def k="hero">How heroes are picked</Def>: shelf rank, reviews in {win.recent}, rating and buyer base, each against the median product of the same category. Bars: reviews against the category&rsquo;s best sellers.</>, <><Def k="hero">히어로 선정 방법</Def>: 랭킹 순위, {win.recent} 리뷰 수, 평점, 구매자 규모를 같은 카테고리 중앙값 제품과 비교. 막대 = 카테고리 베스트셀러 대비 리뷰 수.</>)}>
         {heroes.length ? (
           <div className="grid gap-3 lg:grid-cols-2">
             {heroes.map((h, i) => {
@@ -196,7 +196,7 @@ function Analysis() {
                     <span className="font-display text-[13px] font-semibold tabular text-muted">{i + 1}</span>
                     <button onClick={() => open({ product_id: h.product_id, name: h.name, brand: h.brand, price: h.price })} className="text-left text-[14px] font-medium leading-snug hover:underline">{shortName(h.name, anchor)} ›</button>
                   </div>
-                  <Basis className="mt-1">{cat(h.category)}{(() => { const rk = m.shelf.find((r) => r.product_id === h.product_id && r.subcategory === h.category)?.rank ?? h.rank; return rk ? tr(` · shelf #${rk}`, ` · 진열 ${rk}위`) : ""; })()}{h.rating ? ` · ★ ${h.rating.toFixed(1)}` : ""}{h.ratingCount ? tr(` · ${compact(h.ratingCount)} ratings`, ` · 평가 ${compact(h.ratingCount)}건`) : ""}</Basis>
+                  <Basis className="mt-1">{cat(h.category)}{(() => { const rk = m.shelf.find((r) => r.product_id === h.product_id && r.subcategory === h.category)?.rank ?? h.rank; return rk ? tr(` · shelf #${rk}`, ` · 랭킹 ${rk}위`) : ""; })()}{h.rating ? ` · ★ ${h.rating.toFixed(1)}` : ""}{h.ratingCount ? tr(` · ${compact(h.ratingCount)} ratings`, ` · 평가 ${compact(h.ratingCount)}건`) : ""}</Basis>
                   {shown.length > 1 ? (<>
                     <div className="mb-1 mt-3 text-[11.5px] font-medium text-ink-2">{tr(<>Reviews in {win.recent}{pos ? ` · #${pos} of ${peers.length}` : ""}</>, <>{win.recent} 리뷰 수{pos ? ` · ${peers.length}개 중 ${pos}위` : ""}</>)}</div>
                     <ProductBars rows={shown} anchor={anchor} highlight={h.product_id} />
@@ -237,9 +237,9 @@ function Analysis() {
       <GoodToKnow items={good} />
 
       <MethodNotes parts={{
-        sources: [tr("Nykaa's top 100 of each tracked category (nightly), written reviews of the tracked products (monthly, years back), brand catalogues (weekly).", "추적 카테고리별 Nykaa 상위 100위(매일), 추적 제품 작성 리뷰(월별), 브랜드 카탈로그(주간)."),
+        sources: [tr("Nykaa's top 100 of each tracked category (nightly), written reviews of the tracked products (monthly, years back), brand catalogues (weekly).", "추적 카테고리별 Nykaa 상위 100위(매일), 추적 제품 리뷰(월별), 브랜드 카탈로그(주간)."),
           tr("Korean brands = brands from Korea (Admin › Brand origins). Indian brands \"formulated in Korea\" are Indian. Rivals = the Korean brands in Admin › Brand tiers.", "K-뷰티 브랜드 = 한국 본사 브랜드(관리 › 브랜드 국적). \"한국 제조\" 인도 브랜드는 인도로 분류. 경쟁사 = 관리 › 브랜드 등급의 K-뷰티 브랜드.")],
-        calc: [...BUYING_METHOD().calc, tr("K-beauty share: Korean brands' buying out of all buying in the category. Of Korean buying: Korean brands only = 100%.", "K-뷰티 점유율: 카테고리 전체 구매 중 K-뷰티 비중. K-뷰티 구매 중: K-뷰티만 100%.")],
+        calc: [...BUYING_METHOD().calc, tr("K-beauty share: Korean brands' buying out of all buying in the category. Of Korean buying: Korean brands only = 100%.", "K-뷰티 점유율: 카테고리 전체 판매 중 K-뷰티 비중. K-뷰티 판매 중: K-뷰티만 100%.")],
         assume: BUYING_METHOD().assume,
         limits: [...BUYING_METHOD().limits, tr("Review growth covers the products we follow for review history, not every product.", "리뷰 성장은 리뷰 이력을 추적하는 제품만 포함.")],
       }} />

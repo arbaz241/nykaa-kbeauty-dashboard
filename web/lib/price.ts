@@ -119,6 +119,13 @@ export function shelfUnit(r: ShelfRow, perSheet: boolean, std: number | null): {
   return { value: (p / ml) * 100, size: `${ml} ml/g` };
 }
 
+/** A product's full-size variant nearest the usual size, as MRP per 100 ml/g. */
+function nearestSize(vs: { pack_size: string | null; mrp: number | null }[], std: number) {
+  const c = vs.map((v) => ({ ml: packMl(v.pack_size), mrp: v.mrp })).filter((v): v is { ml: number; mrp: number } => !!v.ml && v.ml >= MINI_ML && !!v.mrp)
+    .sort((a, b) => Math.abs(a.ml - std) - Math.abs(b.ml - std))[0];
+  return c ? { value: (c.mrp / c.ml) * 100, size: `${c.ml} ml/g`, mrp: c.mrp } : null;
+}
+
 /** The K-beauty product with the most buying in the category's top 100 (the anchor's own excluded), or null when the list has no buying yet. */
 export function kBeautyLeaderId(shelf: ShelfRow[], cat: string, anchor: string, buying: Map<string, number>): string | null {
   let best: string | null = null; let v = 0;
@@ -131,7 +138,8 @@ export function kBeautyLeaderId(shelf: ShelfRow[], cat: string, anchor: string, 
  *  21 Oct 2026: picking it by lifetime reviews made COSRX's Aloe Sun Cream (#77, ₹37k of buying) the sunscreen leader
  *  over Beauty of Joseon's Relief Sunscreen (#3, ₹17.6 lakh). Reviews decide only on lists with no buying yet. If the
  *  leader's size can't be found, there is no benchmark rather than a lesser one. */
-export function kBeautyBenchmark(shelf: ShelfRow[], cat: string, anchor: string, std: number | null, buying?: Map<string, number>, sizeOf?: (r: ShelfRow) => string | null): Bench | null {
+export function kBeautyBenchmark(shelf: ShelfRow[], cat: string, anchor: string, std: number | null, buying?: Map<string, number>, sizeOf?: (r: ShelfRow) => string | null,
+  variantsOf?: (pid: string) => { pack_size: string | null; mrp: number | null }[]): Bench | null {
   const perSheet = PER_SHEET.has(cat);
   const seen = new Set<string>(); const vals: number[] = [];
   const top = buying ? kBeautyLeaderId(shelf, cat, anchor, buying) : null;
@@ -141,11 +149,22 @@ export function kBeautyBenchmark(shelf: ShelfRow[], cat: string, anchor: string,
     seen.add(r.product_id);
     // a listing without a pack size on Nykaa's list takes it from its own product page, when given
     const fill = !r.pack_size && sizeOf ? sizeOf(r) : null;
-    const u = shelfUnit(fill ? { ...r, pack_size: fill } : r, perSheet, std); if (!u) continue;
-    vals.push(u.value);
+    const row = fill ? { ...r, pack_size: fill } : r;
+    const u = shelfUnit(row, perSheet, std);
+    if (u) vals.push(u.value);
     const reviews = r.review_count ?? r.rating_count ?? 0;
-    const isLead = top ? r.product_id === top : r.origin === "kbeauty" && r.brand !== anchor && (!lead || reviews > lead.reviews);
-    if (isLead) { lead = { product_id: r.product_id, brand: r.brand, name: r.name, url: r.url, reviews, buying: top ? buying!.get(top) ?? null : null, mrp: (r.mrp ?? r.price)!, size: u.size }; leadVal = u.value; }
+    const isLead: boolean = top ? r.product_id === top : !!u && r.origin === "kbeauty" && r.brand !== anchor && (!lead || reviews > lead.reviews);
+    // the top seller is the leader at whatever size it sells (audit 21 Oct: TONYMOLY's 500 ml Mochi Toner fell outside
+    // the usual-size band, so toner had "no K-beauty product" to compare with); the band only shapes the median
+    // like the compared products, the leader is priced at its size nearest the category's usual one (a 500 ml jumbo
+    // bottle is cheaper per ml and made a 160 ml toner look "+202%")
+    // sizes of the leader: its product-page variants, else its sibling listings that share its rating count (Nykaa lists
+    // TONYMOLY's Mochi Toner as a 500 ml and a 100 ml listing with one set of ratings)
+    const sizes: { pack_size: string | null; mrp: number | null }[] = isLead && !perSheet && std ? [...(variantsOf?.(r.product_id) ?? []),
+      ...shelf.filter((x) => x.subcategory === cat && x.brand === r.brand && !!r.rating_count && x.rating_count === r.rating_count).map((x) => ({ pack_size: x.pack_size ?? (packMl(x.name) ? `${packMl(x.name)}ml` : null), mrp: x.mrp }))] : [];
+    const near: { value: number; size: string; mrp: number } | null = sizes.length && std ? nearestSize(sizes, std) : null;
+    const lu: { value: number; size: string; mrp?: number } | null = !isLead ? null : near ?? u ?? (top ? shelfUnit(row, perSheet, null) : null);
+    if (isLead && lu) { lead = { product_id: r.product_id, brand: r.brand, name: r.name, url: r.url, reviews, buying: top ? buying!.get(top) ?? null : null, mrp: lu.mrp ?? (r.mrp ?? r.price)!, size: lu.size }; leadVal = lu.value; }
   }
   if (!lead) return null;
   return { value: leadVal, unit: perSheet ? "sheet" : "100 ml/g", leader: lead, median: vals.length >= 3 ? med(vals) : null,

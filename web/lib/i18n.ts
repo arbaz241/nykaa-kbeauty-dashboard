@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 /** Korean / English (owner request 14 Oct 2026). The Korean wording sits next to the English at every call site,
- *  `tr("Share of shelf", "진열 점유율")`, so the two never drift apart and a missing translation is visible in the code.
+ *  `tr("Share of shelf", "상위 100위 점유율")`, so the two never drift apart and a missing translation is visible in the code.
  *  Brand names, product names and English-only terms (SPF, BHA, PA++++, Nykaa, Hot Pink sale) stay in English;
  *  text the owner types (events, data notes) is shown as typed.
  *

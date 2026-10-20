@@ -176,6 +176,7 @@ async def _scrape_category_via(fetcher, page: Page, category: config.Category,
     result = CategoryResult(category=category)
     n_pages = -(-top_n // config.PAGE_SIZE)  # ceil
     seen: set[str] = set()
+    last_rank = 0
     for page_no in range(1, n_pages + 1):
         try:
             pr = await _fetch_page_with_retry(fetcher, page, category, page_no)
@@ -193,7 +194,11 @@ async def _scrape_category_via(fetcher, page: Page, category: config.Category,
         if pr.brands and not result.brands:
             result.brands = pr.brands
         for i, raw in enumerate(pr.products):
-            rank = (page_no - 1) * config.PAGE_SIZE + i + 1
+            # positions run on across pages: some lists serve 21 tiles on page 1, and page-anchored numbering gave
+            # two products #21 every night (toner, sheet mask, eye care, lip tint since 27 Sep; audit 21 Oct 2026).
+            # Still anchored to the page start, so a failed page leaves a gap rather than shifting later ranks.
+            rank = max(last_rank + 1, (page_no - 1) * config.PAGE_SIZE + i + 1)
+            last_rank = rank
             row = normalize(raw, category, rank, scraped_at, pr.source)
             if row["product_id"] in ("None", "", None) or not row.get("brand"):
                 # Some shelves carry non-product tiles (banners, widgets). They occupy a position

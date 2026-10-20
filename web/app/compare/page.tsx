@@ -41,7 +41,7 @@ const NAV = (): NavItem[] => [
   { id: "summary", label: tr("Product verdict", "제품 결론") },
   { id: "price", label: tr("Price", "가격") },
   { id: "buyers", label: tr("What buyers say", "구매자 반응") },
-  { id: "visibility", label: tr("Shelf and search", "진열·검색") },
+  { id: "visibility", label: tr("Shelf and search", "랭킹·검색") },
   { id: "demand", label: tr("Demand", "수요") },
   { id: "message", label: tr("Message", "메시지") },
 ];
@@ -143,7 +143,7 @@ function CompetitivePage() {
   const stdMl = useMemo(() => standardSize(rows, cat), [rows, cat]);
   // the leader's pack size from its product page when Nykaa's list leaves it out: the size at its MRP, or its only size
   const sizeOf = useMemo(() => (r: ShelfRow) => { const vs = variants.data?.get(r.product_id) ?? []; return (vs.find((v) => v.mrp === r.mrp) ?? (vs.length === 1 ? vs[0] : undefined))?.pack_size ?? null; }, [variants.data]);
-  const bench = useMemo(() => kBeautyBenchmark(rows, cat, anchor, stdMl, buyingHere, sizeOf), [rows, cat, anchor, stdMl, buyingHere, sizeOf]);
+  const bench = useMemo(() => kBeautyBenchmark(rows, cat, anchor, stdMl, buyingHere, sizeOf, (pid) => variants.data?.get(pid) ?? []), [rows, cat, anchor, stdMl, buyingHere, sizeOf, variants.data]);
   const lastPrices = useLastPrices(useMemo(() => ids.filter((id) => !rows.some((r) => r.product_id === id) && !cat0.some((r) => r.product_id === id)), [ids, rows, cat0]));
   const win = useMemo(() => monthsWindow(12), []);
   const monthsBy = useMemo(() => { const m = new Map<string, ReviewMonth[]>(); (months.data ?? []).forEach((r) => push(m, r.product_id, r)); return m; }, [months.data]);
@@ -182,22 +182,22 @@ function CompetitivePage() {
   return (
     <Shell active="Competitive Analysis" asOf={asOf ? dayMonthYear(asOf) : undefined}>
       <PageHead eyebrow={tr("Competitive analysis", "경쟁 분석")} title={tr("Competitive analysis", "경쟁 분석")} sub={tr(<>Part 1 compares Innisfree with the main rival brands, across every category. Part 2 picks one category and one Innisfree hero product and puts it against the rival products. Click anything with › for the detail.</>, <>1부: Innisfree vs 주요 경쟁 브랜드, 전체 카테고리. 2부: 카테고리와 Innisfree 히어로 제품을 골라 경쟁 제품과 비교. › 표시를 누르면 상세 표시.</>)} />
-      <ScopeLine uses={["top100", "followed"]} measure={tr("Part 1, brands: places in the top 100s, written reviews and growth, and a like-for-like price basket. Part 2, products in one category: rank, price per ml or g, written reviews, and what each product page claims.", "1부 브랜드: 상위 100위 자리, 작성 리뷰·성장률, 동일 조건 가격 바스켓. 2부 한 카테고리 제품: 순위, ml·g당 가격, 작성 리뷰, 상품 페이지 주장.")} />
+      <ScopeLine uses={["top100", "followed"]} measure={tr("Part 1, brands: places in the top 100s, written reviews and growth, and a like-for-like price basket. Part 2, products in one category: rank, price per ml or g, written reviews, and what each product page claims.", "1부 브랜드: 상위 100위 제품 수, 리뷰·성장률, 동일 조건 가격 바스켓. 2부 한 카테고리 제품: 순위, ml·g당 가격, 리뷰, 상품 페이지 주장.")} />
       {err && <div className="mt-6 rounded-xl bg-[#fbecea] px-4 py-3 text-[13px] text-bad">{tr("Could not load data", "데이터 불러오기 실패")}: {String(err.message ?? err)}</div>}
       {loading && !err ? <Loading what={tr("the comparison", "비교 데이터")} /> : !err && (
         <>
           <SectionNav items={NAV()} />
 
-          <PartHead id="part-brands" n={1} kind="brands" title={tr("Brand to brand", "브랜드 대 브랜드")} sub={tr(<>Innisfree against up to five main brands, across every category: the scorecard, the categories where they meet, and a like-for-like price basket. It opens on the main brands with the most top-100 places in Innisfree&rsquo;s categories; change them in the scorecard.</>, <>Innisfree vs 주요 브랜드 최대 5곳, 전체 카테고리 기준: 스코어카드, 맞붙는 카테고리, 동일 조건 가격 바스켓. 기본값은 Innisfree 카테고리에서 상위 100위 자리가 가장 많은 주요 브랜드, 스코어카드에서 변경 가능.</>)} />
+          <PartHead id="part-brands" n={1} kind="brands" title={tr("Brand to brand", "브랜드 대 브랜드")} sub={tr(<>Innisfree against up to five main brands, across every category: the scorecard, the categories where they meet, and a like-for-like price basket. It opens on the main brands with the most top-100 places in Innisfree&rsquo;s categories; change them in the scorecard.</>, <>Innisfree vs 주요 브랜드 최대 5곳, 전체 카테고리 기준: 스코어카드, 맞붙는 카테고리, 동일 조건 가격 바스켓. 기본값은 Innisfree 카테고리에서 상위 100위 제품 수가 가장 많은 주요 브랜드, 스코어카드에서 변경 가능.</>)} />
           <Brands facts={bfacts} anchor={anchor} cat={cat} colors={colors} brands={brands} known={known} rows={rows} isDefault={!brandOverride} focusSet={[tiers.pinned, ...tiers.focus]} inSet={tiers.inSet} buy={buy} productsOf={productsOf}
             onToggle={toggleBrand} onReset={() => setBrandOverride(null)} />
           <WhereCompete anchor={anchor} rows={rows} catalog={cat0} colors={colors} brands={brands}
             onPickCat={(c) => { setCat(c); setHeroPick(null); setTimeout(() => document.getElementById("part-products")?.scrollIntoView({ behavior: "smooth" }), 50); }} />
           <PriceBasket facts={bfacts} anchor={anchor} />
 
-          <PartHead id="part-products" n={2} kind="products" title={tr(`Product to product · ${CATEGORY_LABEL[cat]}`, `제품 대 제품 · ${CATEGORY_LABEL[cat]}`)} sub={tr(<>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} against its rival products</> : plain && plainName ? <>{shortTitle(plainName, "Innisfree")} against each main brand&rsquo;s best-ranked product</> : <>Each brand&rsquo;s best-ranked product in {CATEGORY_LABEL[cat]}</>}: the verdict, then price, what buyers say, shelf and demand side by side, then the message. Drop a rival or add any product with the bar below.</>, <>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품</> : <>{CATEGORY_LABEL[cat]} 브랜드별 최고 순위 제품</>}: 결론, 가격·구매자 반응·진열·수요 비교표, 그다음 메시지 순. 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
+          <PartHead id="part-products" n={2} kind="products" title={tr(`Product to product · ${CATEGORY_LABEL[cat]}`, `제품 대 제품 · ${CATEGORY_LABEL[cat]}`)} sub={tr(<>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} against its rival products</> : plain && plainName ? <>{shortTitle(plainName, "Innisfree")} against each main brand&rsquo;s best-ranked product</> : <>Each brand&rsquo;s best-ranked product in {CATEGORY_LABEL[cat]}</>}: the verdict, then price, what buyers say, shelf and demand side by side, then the message. Drop a rival or add any product with the bar below.</>, <>{hero ? <>{shortTitle(hero.anchor_name, "Innisfree")} vs 경쟁 제품</> : <>{CATEGORY_LABEL[cat]} 브랜드별 최고 순위 제품</>}: 결론, 가격·구매자 반응·랭킹·수요 비교표, 그다음 메시지 순. 아래 막대에서 경쟁 제품을 빼거나 원하는 제품 추가 가능.</>)} />
           {hero && productIds.some((p) => !tiers.inSet(p.brand)) && <p className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] text-ink-2">{tr(<>{[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")} {productIds.filter((p) => !tiers.inSet(p.brand)).length === 1 ? "is" : "are"} compared here because the comparison was made before your main brands were chosen; it is not one of them.</>,
-            <>이 히어로의 경쟁 제품은 주요 브랜드 목록이 생기기 전에 AI 비교용으로 고른 것. {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")}는 주요 브랜드가 아님. 비교 결과는 분석된 그대로 두고, </>)}</p>}
+            <>이 히어로의 경쟁 제품은 주요 브랜드 설정 전 AI 비교용으로 선정. {[...new Set(productIds.filter((p) => !tiers.inSet(p.brand)).map((p) => p.brand))].join(", ")}: 주요 브랜드 외, 분석 결과는 그대로 유지.</>)}</p>}
           <Card className="mt-5 px-4 py-3.5 ring-2 ring-brand/30">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("Category", "카테고리")}</div>
             <div className="flex flex-wrap gap-1.5">
@@ -237,12 +237,13 @@ function CompetitivePage() {
             onReset={() => changeEdit(() => null)} />
           <Summary hero={hero} products={products} bench={bench} cat={cat} />
           <ProductTable products={products} colors={colors} bench={bench} std={stdMl} cat={cat} loading={reviews.isLoading}
+            leaderName={leaderId ? (() => { const r = rows.find((x) => x.product_id === leaderId); return r ? `${r.brand} ${shortTitle(r.name, r.brand)}` : null; })() : null}
             optionsFor={hero ? null : (b) => productOptions(b, cat, rows, cat0)} onSwap={(b, pid) => setSwap({ ...swap, [`${cat}|${b}`]: pid })} />
           <Message hero={hero} products={products} colors={colors} />
         </>
       )}
       <MethodNotes parts={{
-        sources: [tr("Each product's Nykaa page (price per pack size, offers, claims, ingredients, buyers' review highlights), its written reviews, Nykaa's top 100 and search results. The written comparison of messages was made earlier with AI (paused since October) and is shown as analysed.", "제품별 Nykaa 페이지(용량별 가격, 프로모션, 소구점, 성분, 리뷰 요약), 작성 리뷰, Nykaa 상위 100위와 검색 결과. 메시지 비교 글은 이전 AI 분석 결과(10월부터 중단)를 그대로 표시.")],
+        sources: [tr("Each product's Nykaa page (price per pack size, offers, claims, ingredients, buyers' review highlights), its written reviews, Nykaa's top 100 and search results. The written comparison of messages was made earlier with AI (paused since October) and is shown as analysed.", "제품별 Nykaa 페이지(용량별 가격, 프로모션, 소구점, 성분, 리뷰 요약), 리뷰, Nykaa 상위 100위와 검색 결과. 메시지 비교 글은 이전 AI 분석 결과(10월부터 중단)를 그대로 표시.")],
         calc: [tr("Price per 100 ml/g: the closest standard pack (minis, kits and combos left out), so different pack sizes compare fairly.", "100 ml/g당 가격: 가장 가까운 표준 용량 기준(미니·키트·세트 제외), 용량이 달라도 공정하게 비교."),
           tr("Rank: place among the category's own products (Nykaa files them under the category); reviews: last 3 complete months.", "순위: 카테고리 자체 제품 중 위치(Nykaa가 해당 카테고리로 분류); 리뷰: 최근 완결된 3개월.")],
         assume: [tr("What buyers repeat in reviews reflects what the product is bought for.", "리뷰에서 반복되는 표현 = 구매 이유로 봄.")],

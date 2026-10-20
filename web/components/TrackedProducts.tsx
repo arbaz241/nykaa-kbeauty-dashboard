@@ -16,9 +16,9 @@ import { tr } from "@/lib/i18n";
 export function TrackedLink({ children }: { children?: React.ReactNode }) {
   const open = useDetail();
   return (
-    <button type="button" onClick={() => open({ kicker: tr("What “all tracked products” means", "‘추적 전체 제품’이란"), title: tr("The products whose reviews we follow", "리뷰를 추적하는 제품"), body: <TrackedPanel /> })}
+    <button type="button" onClick={() => open({ kicker: tr("What “all tracked products” means", "‘추적 제품 전체’이란"), title: tr("The products whose reviews we follow", "리뷰를 추적하는 제품"), body: <TrackedPanel /> })}
       className="cursor-pointer underline decoration-line-2 decoration-dotted underline-offset-2 hover:decoration-ink">
-      {children ?? tr("all tracked products", "추적 전체 제품")}
+      {children ?? tr("all tracked products", "추적 제품 전체")}
     </button>
   );
 }
@@ -54,13 +54,13 @@ function TrackedPanel() {
   return (
     <div className="space-y-4 text-[13px] leading-relaxed">
       <p>{tr(<>The products whose written reviews we read from Nykaa, each review with its date: <b>{data.products} products from {data.brands} brands</b> (sizes that share one set of reviews count once). They started with Innisfree, the main brands and their rivals; every list&rsquo;s top 100 is being added, biggest sellers first. Nykaa shows only a product&rsquo;s latest 40 pages of reviews, so a fast seller&rsquo;s oldest months are cut off.</>,
-        <>Nykaa에서 작성 리뷰(리뷰마다 작성일 포함)를 읽는 제품: <b>{data.brands}개 브랜드, {data.products}개 제품</b> (같은 리뷰를 공유하는 용량은 1개로 집계). Innisfree·주요 브랜드·경쟁 브랜드로 시작, 목록별 상위 100위를 많이 팔리는 순으로 추가 중. Nykaa는 제품당 최근 리뷰 40페이지만 보여 줘서 많이 팔리는 제품은 오래된 달이 잘림.</>)}</p>
+        <>Nykaa에서 리뷰(리뷰마다 작성일 포함)를 읽는 제품: <b>{data.brands}개 브랜드, {data.products}개 제품</b> (같은 리뷰를 공유하는 용량은 1개로 집계). Innisfree·주요 브랜드·경쟁 브랜드로 시작, 목록별 상위 100위를 많이 팔리는 순으로 추가 중. Nykaa는 제품당 최근 리뷰 40페이지만 보여 줘서 많이 팔리는 제품은 오래된 달이 잘림.</>)}</p>
       <div className="rounded-xl bg-sunken px-4 py-3">
         <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">{tr("Their growth", "성장률")}</div>
-        <div className="mt-1"><b className="text-[18px] tabular">{signed(data.growth)}</b> {tr(`written reviews in ${w.recentLabel} vs ${w.baseLabel}, counting the ${data.counted} products that already had reviews a year earlier.`, `${w.recentLabel} 작성 리뷰 vs ${w.baseLabel}, 1년 전에도 리뷰가 있던 ${data.counted}개 제품 기준.`)}</div>
+        <div className="mt-1"><b className="text-[18px] tabular">{signed(data.growth)}</b> {tr(`written reviews in ${w.recentLabel} vs ${w.baseLabel}, counting the ${data.counted} products that already had reviews a year earlier.`, `${w.recentLabel} 리뷰 vs ${w.baseLabel}, 1년 전에도 리뷰가 있던 ${data.counted}개 제품 기준.`)}</div>
       </div>
       <p className="text-ink-2">{tr(<>This is the bar a brand has to beat <b>inside our data</b>, not Nykaa&rsquo;s growth. Most of these products are Korean, and the {data.counted} products in the growth figure are {data.cover !== null ? <b>{pct(data.cover, 0)}</b> : "a small part"} of the buying on today&rsquo;s top-100 lists. Nykaa&rsquo;s own reported growth is on the Brief.</>,
-        <>우리 데이터 <b>안에서</b> 브랜드가 넘어야 할 기준선일 뿐 Nykaa 성장률 아님. 대부분 K-뷰티 제품이고, 성장률에 들어간 {data.counted}개 제품은 오늘 상위 100위 구매의 {data.cover !== null ? <b>{pct(data.cover, 0)}</b> : "일부"}. Nykaa 공식 성장률은 브리핑 참고.</>)}</p>
+        <>당사 데이터 <b>안에서</b> 브랜드가 넘어야 할 기준선일 뿐 Nykaa 성장률 아님. 대부분 K-뷰티 제품이고, 성장률에 들어간 {data.counted}개 제품은 오늘 상위 100위 판매의 {data.cover !== null ? <b>{pct(data.cover, 0)}</b> : "일부"}. Nykaa 공식 성장률은 브리핑 참고.</>)}</p>
       {groups.map((g) => (
         <div key={g.o}>
           <div className="mb-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">{ORIGIN_LABEL[g.o]} · {tr(`${g.rows.length} brands, ${g.rows.reduce((a, b) => a + b.products, 0)} products`, `브랜드 ${g.rows.length}개, 제품 ${g.rows.reduce((a, b) => a + b.products, 0)}개`)}</div>

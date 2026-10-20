@@ -78,10 +78,10 @@ export default function MovesWithReasons() {
   );
 
   return (
-    <ActionSection id="why" kicker={tr("What moved and why", "무엇이 왜 움직였나")}
+    <ActionSection id="why" kicker={tr("What moved and why", "변동 내역 및 요인")}
       title={tr(`The biggest rank moves in the ${spanLabel(m.period.days)}, and what changed on the same dates`, `${spanLabel(m.period.days)} 가장 큰 순위 변동과 같은 기간의 변화`)}
       note={tr(<>Each line is the listing&rsquo;s daily rank from {dayMonth(win.start)} to {dayMonth(win.end)} (higher = better; shaded days carried an offer tag); the move compares its typical rank over the first three days with the last three, because single days jump around. Reasons are checked on the same dates (a sale or banner counts only if the listing moved that way while it ran): a real price cut (MRP unchanged), an offer, a paid slot, stock, a burst of ratings, a recent launch, a Nykaa sale or homepage banner, or rivals above dropping out. They are likely causes, not proof. {explained} of {total} moves have at least one.</>,
-        <>선 = {dayMonth(win.start)}–{dayMonth(win.end)} 일별 제품 순위(위쪽 = 상위, 음영 = 프로모션 표시일). 하루 순위는 출렁이기 때문에 처음 3일과 마지막 3일의 대표 순위를 비교. 같은 기간의 가격 인하(정가 동일), 프로모션, 광고 자리, 재고, 평가 급증, 신제품, Nykaa 세일·홈페이지 배너(같은 방향으로 움직였을 때만), 위 순위 제품 이탈을 확인. 원인 후보일 뿐 증명 아님. {total}건 중 {explained}건에 이유 1개 이상.</>)}
+        <>선 = {dayMonth(win.start)}–{dayMonth(win.end)} 일별 제품 순위(위쪽 = 상위, 음영 = 프로모션 표시일). 하루 순위는 출렁이기 때문에 처음 3일과 마지막 3일의 대표 순위를 비교. 같은 기간의 가격 인하(정가 동일), 프로모션, 광고 구좌, 재고, 평가 급증, 신제품, Nykaa 세일·홈페이지 배너(같은 방향으로 움직였을 때만), 위 순위 제품 이탈을 확인. 원인 후보일 뿐 증명 아님. {total}건 중 {explained}건에 이유 1개 이상.</>)}
       right={<div className="flex flex-col items-end gap-2"><PeriodBar /><div className="flex gap-1.5"><button className={pill(scope === "set", "sm")} onClick={() => setScope("set")}>{tr("Focus & K-beauty", "주요·K-뷰티")}</button><button className={pill(scope === "all", "sm")} onClick={() => setScope("all")}>{tr("All brands", "전체 브랜드")}</button></div></div>}>
       <div className="grid gap-3">
         <Card className="px-5 py-3">

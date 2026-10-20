@@ -183,10 +183,10 @@ export interface CategoryCell {
 const quad = (label: [string, string], read: [string, string], tone: "good" | "bad" | "accent" | "muted") =>
   ({ get label() { return tr(...label); }, get read() { return tr(...read); }, tone });
 export const QUAD: Record<NonNullable<CategoryCell["quadrant"]>, { label: string; read: string; tone: "good" | "bad" | "accent" | "muted" }> = {
-  opportunity: quad(["Faster growth · outside the top 5", "빠른 성장 · 상위 5위 밖"], ["Growing faster than all tracked products, and the anchor is not among the category's 5 biggest brands", "추적 전체보다 빠르게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드 밖"], "accent"),
-  invest: quad(["Faster growth · top-5 brand", "빠른 성장 · 상위 5위"], ["Growing faster than all tracked products, and the anchor is among the category's 5 biggest brands", "추적 전체보다 빠르게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드"], "good"),
-  maintain: quad(["Slower growth · top-5 brand", "느린 성장 · 상위 5위"], ["Growing slower than all tracked products; the anchor is among the category's 5 biggest brands", "추적 전체보다 느리게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드"], "muted"),
-  low: quad(["Slower growth · outside the top 5", "느린 성장 · 상위 5위 밖"], ["Growing slower than all tracked products, and the anchor is not among the category's 5 biggest brands", "추적 전체보다 느리게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드 밖"], "muted"),
+  opportunity: quad(["Faster growth · outside the top 5", "빠른 성장 · 상위 5위 밖"], ["Growing faster than all tracked products, and the anchor is not among the category's 5 biggest brands", "추적 제품 전체보다 빠르게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드 밖"], "accent"),
+  invest: quad(["Faster growth · top-5 brand", "빠른 성장 · 상위 5위"], ["Growing faster than all tracked products, and the anchor is among the category's 5 biggest brands", "추적 제품 전체보다 빠르게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드"], "good"),
+  maintain: quad(["Slower growth · top-5 brand", "느린 성장 · 상위 5위"], ["Growing slower than all tracked products; the anchor is among the category's 5 biggest brands", "추적 제품 전체보다 느리게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드"], "muted"),
+  low: quad(["Slower growth · outside the top 5", "느린 성장 · 상위 5위 밖"], ["Growing slower than all tracked products, and the anchor is not among the category's 5 biggest brands", "추적 제품 전체보다 느리게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드 밖"], "muted"),
 };
 
 /** Category map (round 6 sweep, owner 20 Oct 2026: numbers that hold up in front of others). Across: the anchor's share
@@ -217,9 +217,9 @@ export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: stri
     const placeIdx = ranked.findIndex(([b, v]) => same(b, anchor) && v > 0);
     const lead = ranked.find(([b]) => !same(b, anchor)) ?? ["", 0];
     const fl = ranked.find(([b]) => !same(b, anchor) && isFocus(b));
-    const thin = !buying ? tr("no buying counted in this list yet", "이 목록은 아직 구매 집계 없음")
+    const thin = !buying ? tr("no buying counted in this list yet", "이 목록은 아직 판매 집계 없음")
       : g.growth === null || g.products < 6 ? tr(`growth rests on ${g.products} product${g.products === 1 ? "" : "s"}`, `성장률이 제품 ${g.products}개에 기댐`)
-      : coverage < 0.25 ? tr(`growth covers ${Math.round(coverage * 100)}% of the category's buying`, `성장률이 카테고리 구매의 ${Math.round(coverage * 100)}%만 반영`) : null;
+      : coverage < 0.25 ? tr(`growth covers ${Math.round(coverage * 100)}% of the category's buying`, `성장률이 카테고리 판매의 ${Math.round(coverage * 100)}%만 반영`) : null;
     const anchorShare = buying ? anchorBuy / buying : 0;
     const fast = g.growth !== null && market.growth !== null && g.growth >= market.growth;
     cells.push({

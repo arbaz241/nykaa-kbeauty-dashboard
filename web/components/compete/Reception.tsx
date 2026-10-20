@@ -80,7 +80,7 @@ export function buyersPart({ products, loading }: { products: ProductFacts[]; lo
       has: (p) => !!p.themes?.n, missing: () => (loading ? tr("Loading…", "불러오는 중…") : tr("No reviews collected", "수집된 리뷰 없음")),
       render: (p) => p.themes!.complaints.length ? <Opens detail={themesDetail(p, "complaint")}><span className="flex flex-wrap gap-1">{themeChips(p.themes!.complaints, "bad")}</span></Opens>
         : <Opens detail={themesDetail(p, "complaint")}><Missing>{tr(`No complaint theme in ${p.themes!.n} reviews`, `리뷰 ${p.themes!.n}건에 불만 주제 없음`)}</Missing></Opens> },
-    { key: "nykaa", after: "rating", label: tr("Nykaa's tags", "Nykaa 태그"), help: tr("Tags reviewers pick on Nykaa (% of tagged reviews) and Nykaa's own summary phrases. Not every product gets them, and tagged reviews are mostly positive, so they are shown apart from our count", "리뷰어가 Nykaa에서 고르는 태그(태그 단 리뷰 중 %)와 Nykaa 요약 문구. 모든 제품에 있진 않고, 태그 단 리뷰는 대부분 긍정적이라 우리 집계와 따로 표시"),
+    { key: "nykaa", after: "rating", label: tr("Nykaa's tags", "Nykaa 태그"), help: tr("Tags reviewers pick on Nykaa (% of tagged reviews) and Nykaa's own summary phrases. Not every product gets them, and tagged reviews are mostly positive, so they are shown apart from our count", "리뷰어가 Nykaa에서 고르는 태그(태그 단 리뷰 중 %)와 Nykaa 요약 문구. 모든 제품에 있진 않고, 태그 단 리뷰는 대부분 긍정적이라 당사 집계와 따로 표시"),
       has: (p) => !!p.themes?.tagged || p.phrases.length > 0, missing: () => (loading ? tr("Loading…", "불러오는 중…") : tr("Nykaa shows no tags for this product", "Nykaa에 이 제품 태그 없음")),
       render: (p) => (
         <div className="space-y-1">
@@ -122,7 +122,7 @@ export function shelfPart({ products, colors, cat }: { products: ProductFacts[];
       render: (p) => <div className="flex flex-wrap gap-1"><Chip>{SHOT(p.thumb!.shot_type)}</Chip><Chip>{p.thumb!.text_density === "heavy" ? tr("text-heavy", "문구 많음") : p.thumb!.text_density === "light" ? tr("light text", "문구 적음") : tr("no text", "문구 없음")}</Chip>{p.thumb!.model_present && <Chip>{tr("shows a person", "인물 있음")}</Chip>}</div> },
     { key: "spark", after: "momentum", label: tr("By month · month on month", "월별 · 전월 대비"), help: momHelp(), has: (p) => !!p.spark?.some((v) => v !== null),
       missing: () => tr("No review history tracked", "추적 중인 리뷰 이력 없음"), render: (p) => <MonthOnMonthButton values={p.spark!} win={win} open={p.sparkOpen} color={colors[p.brand] ?? "#8a8880"}
-        kicker={tr(`${p.brand} · written reviews by month`, `${p.brand} · 월별 작성 리뷰`)} title={shortTitle(p.name, p.brand)} /> },
+        kicker={tr(`${p.brand} · written reviews by month`, `${p.brand} · 월별 리뷰`)} title={shortTitle(p.name, p.brand)} /> },
   ];
   const higher = a ? products.filter((p) => p !== a && p.rank && (!a.rank || p.rank < a.rank)).length : 0;
   const top = [...products].filter((p) => p.recent !== null).sort((x, y) => y.recent! - x.recent!)[0];
@@ -131,6 +131,6 @@ export function shelfPart({ products, colors, cat }: { products: ProductFacts[];
       `${a.rank ? `오늘 ${CATEGORY_LABEL[cat]} ${a.rank}위` : `오늘 ${CATEGORY_LABEL[cat]} 100위 밖`}. 경쟁 제품 ${products.length - 1}개 중 ${higher}개가 더 높음. ${a.search ? `K-뷰티 검색어 ${a.search}개에서 노출` : "추적 중인 K-뷰티 검색어엔 노출 안 됨"}.`) : null;
   const demandTitle = a && a.recent !== null ? tr(`${shortTitle(a.name, a.brand)} drew ${a.recent} reviews in 3 months${top && top !== a ? `; ${top.brand} leads with ${top.recent}` : ", the most in the group"}${mom ? `; ${monthShort(mom.month)} ${signed(mom.mom)} on the month before` : ""}.`,
       `${shortTitle(a.name, a.brand)}: 3개월 리뷰 ${a.recent}건${top && top !== a ? `. 선두: ${top.brand}(${top.recent}건)` : ". 그룹 내 최다"}${mom ? `. ${monthShort(mom.month)} 전월 대비 ${signed(mom.mom)}` : ""}.`) : null;
-  const note = tr("Green where Innisfree beats that rival, red where it trails, grey on par (within 3 places or 5%); LEAD marks a clear best. Demand = written reviews: Nykaa does not publish sales, and new reviews per month track them closely.", "초록 = Innisfree가 그 경쟁 제품보다 앞섬, 빨강 = 뒤짐, 회색 = 비슷 (3계단 또는 5% 이내). ‘선두’ = 확실한 1위. 수요 = 작성 리뷰: Nykaa는 판매량을 공개하지 않고, 월별 신규 리뷰가 판매를 잘 따라감.");
+  const note = tr("Green where Innisfree beats that rival, red where it trails, grey on par (within 3 places or 5%); LEAD marks a clear best. Demand = written reviews: Nykaa does not publish sales, and new reviews per month track them closely.", "초록 = Innisfree가 그 경쟁 제품보다 앞섬, 빨강 = 뒤짐, 회색 = 비슷 (3계단 또는 5% 이내). ‘선두’ = 확실한 1위. 수요 = 리뷰: Nykaa는 판매량을 공개하지 않고, 월별 신규 리뷰가 판매를 잘 따라감.");
   return { criteria: [...VIS_CRITERIA, ...DEMAND_CRITERIA], extra, shelfTitle, demandTitle, note };
 }

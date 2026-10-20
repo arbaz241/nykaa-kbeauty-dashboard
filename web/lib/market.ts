@@ -472,7 +472,7 @@ export function explainMove(args: {
     if ((ch < 0) === up) out.push({ kind: "price", strength: 3, text: ch < 0 ? tr(`sold ${Math.round(-ch * 100)}% cheaper (${inr(b.price)}, was ${inr(a.price)})`, `${Math.round(-ch * 100)}% 더 싸게 판매 (${inr(b.price)}, 이전 ${inr(a.price)})`)
       : tr(`discount cut: now ${inr(b.price)}, was ${inr(a.price)}`, `할인 축소: 현재 ${inr(b.price)}, 이전 ${inr(a.price)}`) });
   }
-  if (a.is_ad !== b.is_ad && b.is_ad === up) out.push({ kind: "paid", strength: 3, text: b.is_ad ? tr("the brand paid for a sponsored spot", "브랜드가 광고 자리를 구매") : tr("its sponsored spot ended", "광고 자리 종료") });
+  if (a.is_ad !== b.is_ad && b.is_ad === up) out.push({ kind: "paid", strength: 3, text: b.is_ad ? tr("the brand paid for a sponsored spot", "브랜드가 광고 구좌를 구매") : tr("its sponsored spot ended", "광고 구좌 종료") });
   if (a.has_offer !== b.has_offer && b.has_offer === up) out.push({ kind: "offer", strength: 2, text: b.has_offer ? tr("an offer started on it", "프로모션 시작") : tr("its offer ended", "프로모션 종료") });
   const oos = s.some((r) => r.in_stock === false);
   if (!up && oos) out.push({ kind: "stock", strength: 3, text: tr("ran out of stock", "품절") });

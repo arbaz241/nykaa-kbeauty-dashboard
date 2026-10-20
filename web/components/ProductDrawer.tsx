@@ -87,12 +87,12 @@ function Drawer({ p, onClose }: { p: ProductRef; onClose: () => void }) {
 
           {error && <p className="mt-6 text-[13px] text-bad">{tr("Could not load history", "이력 불러오기 실패")}: {String(error.message)}</p>}
 
-          <Block title={tr("Demand: reviews per month", "월별 작성 리뷰 수")} note={tr("Last 12 complete months. Months before the product's reliable history are blank.", "최근 완결된 12개월. 신뢰할 수 있는 이력 이전 달은 빈칸.")}>
+          <Block title={tr("Demand: reviews per month", "월별 리뷰 수")} note={tr("Last 12 complete months. Months before the product's reliable history are blank.", "최근 완결된 12개월. 신뢰할 수 있는 이력 이전 달은 빈칸.")}>
             {monthly.some((v) => v !== null) ? <><LineChart labels={win.map((m) => monthYY(m))} series={[{ name: tr("Reviews", "리뷰"), color: "#2a78d6", values: monthly }]} height={200} /><MoMStrip values={monthly} win={win} open={openEnded((data?.months ?? []).map((r) => [r.month, r.reviews] as [string, number]), win[win.length - 1])} /></>
               : <p className="text-[13px] text-muted">{data ? tr("This product is not in the review-history set (tracked for the focus brands' leading products and the most visible competitors).", "리뷰 이력 수집 대상이 아닌 제품 (주요 브랜드 대표 제품과 노출이 많은 경쟁 제품만 추적).") : tr("Loading…", "불러오는 중…")}</p>}
           </Block>
 
-          <Block title={tr("Rank on the shelf", "진열 순위")} note={tr("Daily position in each category's top 100 (1 = top). Gaps are days it was outside the top 100.", "카테고리별 상위 100위 안의 일별 순위 (1 = 최상위). 끊긴 구간 = 100위 밖이었던 날.")}>
+          <Block title={tr("Rank on the shelf", "랭킹 순위")} note={tr("Daily position in each category's top 100 (1 = top). Gaps are days it was outside the top 100.", "카테고리별 상위 100위 안의 일별 순위 (1 = 최상위). 끊긴 구간 = 100위 밖이었던 날.")}>
             {byCat.size ? <LineChart labels={days.map((d) => dayMonth(d))} invert height={200}
               series={[...byCat.entries()].map(([cat, hs], i) => ({ name: CATEGORY_LABEL[cat] ?? tr("Korean store", "K-뷰티 스토어"), color: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"][i % 4], values: days.map((d) => hs.find((h) => h.scrape_date === d)?.rank ?? null) }))} />
               : <p className="text-[13px] text-muted">{data ? tr("Not in any tracked top 100 during the collected period.", "수집 기간 동안 추적 상위 100위에 든 적 없음.") : tr("Loading…", "불러오는 중…")}</p>}

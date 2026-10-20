@@ -1,5 +1,7 @@
 "use client";
 
+import { tx } from "@/lib/dict";
+
 import { useMemo, useState } from "react";
 import { useIsAdmin, useSession } from "./AuthGate";
 import { Card } from "./ui";
@@ -78,12 +80,12 @@ function EventRow({ e, admin, onChange }: { e: MarketEvent; admin: boolean; onCh
       <span className="w-[150px] shrink-0 text-[12.5px] tabular-nums text-muted">
         {when}{until ? ` – ${until}` : ""}
       </span>
-      <span className="text-[13.5px] font-medium">{e.label}</span>
+      <span className="text-[13.5px] font-medium">{tx(e.label)}</span>
       {e.brand && <span className="text-[12.5px] text-ink-2">{e.brand}</span>}
       {e.status === "estimated" && <span className="rounded bg-[#fbeee4] px-1.5 py-px text-[10.5px] font-semibold uppercase text-[#a8521c]">{tr("estimated", "추정")}</span>}
       {e.source === "homepage" && <span className="rounded bg-sunken px-1.5 py-px text-[10.5px] font-semibold uppercase text-muted">{tr("from Nykaa's homepage", "Nykaa 홈페이지")}</span>}
       {admin && e.status === "estimated" && <button onClick={confirm} className="text-[12px] font-medium text-accent-strong underline underline-offset-2">{tr("Confirm dates", "날짜 확인")}</button>}
-      {e.note && <span className="w-full pl-[166px] text-[12.5px] text-muted">{e.note}</span>}
+      {e.note && <span className="w-full pl-[166px] text-[12.5px] text-muted">{tx(e.note)}</span>}
     </li>
   );
 }

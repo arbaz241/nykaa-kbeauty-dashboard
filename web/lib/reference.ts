@@ -25,7 +25,7 @@ export const NYKAA_QUARTERS = (): QuarterGrowth[] => [
   { start: "2026-01-01", label: tr("Jan–Mar 2026", "2026년 1–3월"), fy: "Q4 FY26", url: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-5/Investor-Presentation-Q4-2026.pdf", gmv: 3892, value: 0.27, doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기") },
   { start: "2026-04-01", label: tr("Apr–Jun 2026", "2026년 4–6월"), fy: "Q1 FY27", url: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-8/NykaaInvestorPresentation-v1.pdf", gmv: 4105, value: 0.28, doc: tr("Investor presentation Q1 FY27", "투자자 자료 FY27 1분기") },
   { start: "2026-07-01", label: tr("Jul–Sep 2026", "2026년 7–9월"), fy: "Q2 FY27", url: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-10/NykaaQ2FY27Revenueupdate.pdf", gmv: null, value: null, doc: tr("Quarterly update, 4 Oct 2026", "분기 업데이트, 2026년 10월 4일"),
-    note: tr("Provisional: beauty sales after returns grew in the \"late twenties\"; festive sales moved into Oct–Dec", "잠정: 반품 후 뷰티 매출 \"20% 후반\" 성장, 축제 시즌 매출은 10–12월로 이동") },
+    note: tr("Provisional: beauty sales after returns grew in the \"late twenties\"; some festive growth moved from Jul–Sep into Oct–Dec", "잠정: 반품 후 뷰티 매출 \"20% 후반\" 성장. 페스티브 시즌 성장 일부가 7–9월에서 10–12월로 이동") },
 ];
 
 export const DOC = {
@@ -82,8 +82,9 @@ export const IR_CLAIMS = (): IrClaim[] => [
   { says: tr("House of Nykaa beauty ₹2,788 cr in FY26 (+64%); Dot & Key 13×+ and Kay Beauty 3×+ over FY23–26", "House of Nykaa 뷰티 FY26 ₹2,788 cr (+64%); Dot & Key 13배 이상, Kay Beauty 3배 이상 (FY23–26)"), doc: "Q4 FY26", check: "hon_growth", url: DOC.q4fy26 },
   { says: tr("45% of House of Nykaa sales are on Nykaa's own app and site, 9% in Nykaa stores (FY26)", "House of Nykaa 매출의 45%가 Nykaa 앱·웹, 9%가 Nykaa 매장 (FY26)"), doc: "Q4 FY26", check: "hon", url: DOC.q4fy26 },
   { says: tr("Derma brands grew 40% in FY26 and are 20% of skincare", "더마 브랜드 FY26 40% 성장, 스킨케어의 20%"), doc: "Q4 FY26", check: "derma", url: DOC.q4fy26 },
-  { says: tr("6,000+ brands on Nykaa", "Nykaa 입점 브랜드 6,000개 이상"), doc: "Q4 FY26", check: "brands_6000", url: DOC.q4fy26 },
-  { says: tr("1,280 new brands launched in FY26", "FY26 신규 브랜드 1,280개 출시"), doc: "Q4 FY26", check: "new_brands", url: DOC.q4fy26 },
+  // audit 21 Oct 2026: "6,000+ brands" and "1,280 new brands" are Nykaa Fashion's figures (presentation p.7, p.34);
+  // beauty's are "200+ new brands launched in FY26" and "27 Korean beauty launches" (p.13)
+  { says: tr("200+ new beauty brands launched in FY26, 27 of them Korean", "FY26 신규 뷰티 브랜드 200개 이상, 그중 K-뷰티 27개"), doc: "Q4 FY26", check: "new_brands", url: DOC.q4fy26 },
   { says: tr("Pink Summer Sale (May 2026) and the Birthday Sale drove Apr–Jun; Pink Summer GMV ~40% up", "핑크 서머 세일(2026년 5월)과 생일 세일이 4–6월 견인, 핑크 서머 GMV 약 40% 증가"), doc: "Q1 FY27", check: "sales", url: DOC.q1fy27 },
 ];
 

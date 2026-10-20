@@ -22,16 +22,16 @@ const DW = () => demandWindow();
 const rupee100 = (v: number) => `₹${Math.round(v).toLocaleString("en-IN")}`;
 
 export const VIS_CRITERIA: Criterion<ProductFacts>[] = [
-  crit({ key: "rank", label: ["Shelf position today", "오늘 진열 순위"], help: ["Position in this category's top 100 on Nykaa today (1 = top of the page)", "오늘 Nykaa 이 카테고리 상위 100위 안의 순위 (1 = 페이지 맨 위)"], better: "low", value: (p) => p.rank ?? 101,
-    show: (p) => (p.rank ? `#${p.rank}` : tr("Not in top 100", "100위 밖")), sub: (p) => (p.paid ? tr("paid (ad) slot", "광고 자리") : p.rank ? tr("unpaid", "비광고") : null),
-    up: ["Ranks higher on the shelf than", "진열 순위가 더 높음"], down: ["Ranks lower on the shelf than", "진열 순위가 더 낮음"] }),
+  crit({ key: "rank", label: ["Shelf position today", "오늘 랭킹 순위"], help: ["Position in this category's top 100 on Nykaa today (1 = top of the page)", "오늘 Nykaa 이 카테고리 상위 100위 안의 순위 (1 = 페이지 맨 위)"], better: "low", value: (p) => p.rank ?? 101,
+    show: (p) => (p.rank ? `#${p.rank}` : tr("Not in top 100", "100위 밖")), sub: (p) => (p.paid ? tr("paid (ad) slot", "광고 구좌") : p.rank ? tr("unpaid", "자연 검색") : null),
+    up: ["Ranks higher on the shelf than", "랭킹 순위가 더 높음"], down: ["Ranks lower on the shelf than", "랭킹 순위가 더 낮음"] }),
   crit({ key: "rankmove", label: ["Change in 7 days", "7일 변화"], help: ["Places gained or lost on the shelf since a week ago", "일주일 전보다 오르거나 내린 순위"], better: "high", value: (p) => (p.rank && p.rank7 ? p.gain7 ?? 0 : null),
     show: (p) => (!p.gain7 ? tr("No change", "변화 없음") : tr(`${p.gain7 > 0 ? "▲" : "▼"} ${Math.abs(p.gain7)} place${Math.abs(p.gain7) === 1 ? "" : "s"}`, `${p.gain7 > 0 ? "▲" : "▼"} ${Math.abs(p.gain7)}계단`)),
     sub: (p) => (p.rank7 ? tr(`#${p.rank7} a week ago`, `일주일 전 #${p.rank7}`) : null),
     missing: (p) => (p.rank && p.rank7 ? null : p.rank ? tr("New in the top 100 this week", "이번 주 100위 신규 진입") : p.rank7 ? tr(`Dropped out (was #${p.rank7})`, `100위 밖으로 이탈 (이전 #${p.rank7})`) : tr("Not in the top 100 either week", "두 주 모두 100위 밖")),
     up: ["Climbing faster than", "더 빠르게 상승"], down: ["Slipping more than", "더 많이 하락"] }),
-  crit({ key: "search", label: ["K-beauty searches", "K-뷰티 검색"], help: ["Tracked Korean-beauty searches where it shows in the first 10 unpaid results today", "오늘 비광고 상위 10개 결과에 나오는 추적 K-뷰티 검색어 수"], better: "high", value: (p) => p.search,
-    show: (p) => (p.search ? tr(`${p.search} search${p.search === 1 ? "" : "es"}`, `검색어 ${p.search}개`) : tr("In none", "없음")), sub: (p) => (p.search ? tr("top 10, unpaid", "비광고 상위 10") : tr("of the tracked searches", "추적 검색어 중")),
+  crit({ key: "search", label: ["K-beauty searches", "K-뷰티 검색"], help: ["Tracked Korean-beauty searches where it shows in the first 10 unpaid results today", "오늘 자연 검색 상위 10개 결과에 나오는 추적 K-뷰티 검색어 수"], better: "high", value: (p) => p.search,
+    show: (p) => (p.search ? tr(`${p.search} search${p.search === 1 ? "" : "es"}`, `검색어 ${p.search}개`) : tr("In none", "없음")), sub: (p) => (p.search ? tr("top 10, unpaid", "자연 검색 상위 10") : tr("of the tracked searches", "추적 검색어 중")),
     up: ["Shows up in more K-beauty searches than", "K-뷰티 검색 노출이 더 많음"], down: ["Shows up in fewer K-beauty searches than", "K-뷰티 검색 노출이 더 적음"] }),
 ];
 
@@ -42,7 +42,7 @@ export const DEMAND_CRITERIA: Criterion<ProductFacts>[] = [
     sub: () => tr(`vs ${DW().prior}`, `${DW().prior} 대비`), missing: (p) => (p.momentum === null ? (p.recent === null ? tr("Not in review tracking", "리뷰 추적 대상 아님") : tr("Too new to compare", "비교하기엔 너무 새 제품")) : null),
     up: ["Reviews growing faster than", "리뷰가 더 빠르게 증가"], down: ["Reviews growing slower than", "리뷰 증가가 더 느림"] }),
   crit({ key: "ratings", label: ["Ratings, all time", "누적 평가 수"], help: ["Number of star ratings: lifetime popularity", "별점 평가 수: 누적 인기도"], better: "high", value: (p) => p.ratings, show: (p) => compact(p.ratings), bar: true,
-    sub: (p) => [p.reviewsTotal ? tr(`${compact(p.reviewsTotal)} written reviews`, `작성 리뷰 ${compact(p.reviewsTotal)}건`) : null, sharedNote(p)].filter(Boolean).join(" · ") || null, missing: (p) => (p.ratings === null ? tr("No ratings yet", "아직 평가 없음") : null),
+    sub: (p) => [p.reviewsTotal ? tr(`${compact(p.reviewsTotal)} written reviews`, `리뷰 ${compact(p.reviewsTotal)}건`) : null, sharedNote(p)].filter(Boolean).join(" · ") || null, missing: (p) => (p.ratings === null ? tr("No ratings yet", "아직 평가 없음") : null),
     up: ["More lifetime ratings than", "누적 평가가 더 많음"], down: ["Fewer lifetime ratings than", "누적 평가가 더 적음"] }),
 ];
 
@@ -86,7 +86,7 @@ function evidence(c: Criterion<ProductFacts>, a: ProductFacts, rivals: ProductFa
       <ul className="space-y-1.5">{rivals.map((r) => { const t = tone(c.value(a), c.value(r), c.better, c.key.startsWith("rank") ? "rank" : "ratio"); return (
         <li key={r.pid} className="flex items-start justify-between gap-3"><span><b className="font-medium">{r.brand}</b> {shortTitle(r.name, r.brand)}: {v(r)}</span>
           {t && <span className={`shrink-0 rounded px-1.5 py-px text-[11px] ${TONE_CLASS[t]}`}>{TONE_WORD[t]}</span>}</li>); })}</ul>
-      <p className="mt-4 text-[12px] text-muted">{tr("On par = within 5% (or 3 shelf places).", "비슷함 = 차이 5% 이내 (진열 순위는 3계단 이내).")}</p>
+      <p className="mt-4 text-[12px] text-muted">{tr("On par = within 5% (or 3 shelf places).", "비슷함 = 차이 5% 이내 (랭킹 순위는 3계단 이내).")}</p>
     </>),
   };
 }
@@ -142,12 +142,12 @@ export function Summary({ hero, products, bench, cat }: { hero: UspComparison | 
       good: tr("rated higher than most rivals", "대부분의 경쟁 제품보다 높은 평점"), bad: tr("rated lower than most rivals", "대부분의 경쟁 제품보다 낮은 평점"),
       point: tr(<>{a.rating ? <>★ <b>{a.rating.toFixed(1)}</b>{rivalMed ? <> (rivals ★ {rivalMed.toFixed(1)})</> : null}</> : "No rating yet"}{praise ? <> · most praised: {praise.label.toLowerCase()} ({Math.round(praise.share * 100)}%)</> : null}{complaint ? <> · top complaint: {complaint.label.toLowerCase()} ({Math.round(complaint.share * 100)}%)</> : null}</>,
         <>{a.rating ? <>★ <b>{a.rating.toFixed(1)}</b>{rivalMed ? <> (경쟁 ★ {rivalMed.toFixed(1)})</> : null}</> : "아직 평점 없음"}{praise ? <> · 최다 칭찬: {praise.label} ({Math.round(praise.share * 100)}%)</> : null}{complaint ? <> · 최다 불만: {complaint.label} ({Math.round(complaint.share * 100)}%)</> : null}</>) },
-    { id: "reach", label: tr("Shelf and demand", "진열·수요"), href: "#visibility",
+    { id: "reach", label: tr("Shelf and demand", "랭킹·수요"), href: "#visibility",
       tone: most(rank) === "ahead" && most(dem) !== "behind" ? "good" : most(rank) === "behind" && most(dem) !== "ahead" ? "bad" : undefined,
-      good: (a.momentum ?? 0) > 0.05 ? tr("a strong shelf position and rising demand", "강한 진열 순위와 늘어나는 수요") : tr("a strong shelf position", "강한 진열 순위"),
-      bad: (a.momentum ?? 0) < -0.05 ? tr("a weak shelf position and falling demand", "약한 진열 순위와 줄어드는 수요") : tr("a weak shelf position", "약한 진열 순위"),
+      good: (a.momentum ?? 0) > 0.05 ? tr("a strong shelf position and rising demand", "강한 랭킹 순위와 늘어나는 수요") : tr("a strong shelf position", "강한 랭킹 순위"),
+      bad: (a.momentum ?? 0) < -0.05 ? tr("a weak shelf position and falling demand", "약한 랭킹 순위와 줄어드는 수요") : tr("a weak shelf position", "약한 랭킹 순위"),
       point: tr(<>{a.rank ? <>#{a.rank} on the shelf</> : <>Not in the top 100</>} ({rivals.filter((r) => r.rank && (!a.rank || r.rank < a.rank)).length} of {rivals.length} rivals higher){a.recent !== null ? <> · {compact(a.recent)} reviews in 3 months{a.momentum !== null ? <> ({signed(a.momentum)})</> : null}</> : null}</>,
-        <>{a.rank ? <>진열 {a.rank}위</> : <>100위 밖</>} (경쟁 제품 {rivals.length}개 중 {rivals.filter((r) => r.rank && (!a.rank || r.rank < a.rank)).length}개가 더 높음){a.recent !== null ? <> · 3개월 리뷰 {compact(a.recent)}건{a.momentum !== null ? <> ({signed(a.momentum)})</> : null}</> : null}</>) },
+        <>{a.rank ? <>랭킹 {a.rank}위</> : <>100위 밖</>} (경쟁 제품 {rivals.length}개 중 {rivals.filter((r) => r.rank && (!a.rank || r.rank < a.rank)).length}개가 더 높음){a.recent !== null ? <> · 3개월 리뷰 {compact(a.recent)}건{a.momentum !== null ? <> ({signed(a.momentum)})</> : null}</> : null}</>) },
   ];
   const goods = dims.filter((d) => d.tone === "good").map((d) => d.good!);
   const bads = dims.filter((d) => d.tone === "bad").map((d) => d.bad!);
@@ -187,7 +187,7 @@ const SHOT = (s: string | null) => (s === "pack_shot" ? tr("pack shot", "제품 
 export function thumbDetail(p: ProductFacts): DetailContent {
   const t = p.thumb;
   return {
-    kicker: tr(`${p.brand} · how it looks on the shelf`, `${p.brand} · 진열 화면에서 보이는 모습`), title: shortTitle(p.name, p.brand),
+    kicker: tr(`${p.brand} · how it looks on the shelf`, `${p.brand} · 목록 화면에서 보이는 모습`), title: shortTitle(p.name, p.brand),
     body: (<>
       <div className="grid aspect-square w-full max-w-[360px] place-items-center overflow-hidden rounded-2xl bg-surface ring-1 ring-line">
         {/* eslint-disable-next-line @next/next/no-img-element -- Nykaa CDN image */}
@@ -216,7 +216,7 @@ export function ProductHead({ p, color, options, onSwap }: { p: ProductFacts; co
         {color && <span className="h-2 w-2 rounded-full" style={{ background: color }} />}{ROLE_LABEL[p.role] ?? ""}
       </div>
       <div className="mt-2 flex items-start gap-2.5">
-        <button onClick={() => detail(thumbDetail(p))} title={tr("Larger image and how it looks on the shelf", "큰 이미지와 진열 화면에서의 모습")}
+        <button onClick={() => detail(thumbDetail(p))} title={tr("Larger image and how it looks on the shelf", "큰 이미지와 목록 화면에서의 모습")}
           className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-page ring-1 ring-line transition hover:ring-brand">
           {/* eslint-disable-next-line @next/next/no-img-element -- Nykaa CDN image */}
           {p.image ? <img src={p.image} alt="" className="h-12 w-12 object-contain" /> : <span className="text-[10px] text-muted">{tr("No image", "이미지 없음")}</span>}
