@@ -190,7 +190,7 @@ function Brand() {
 
       <ActionSection id="deeper" kicker={tr("Go deeper", "더 보기")} title={tr("Where to look next", "추가 확인 항목")}>
         <div className="flex flex-wrap gap-2 text-[13.5px]">
-          {inSet && <Link href={`/analysis/?brand=${encodeURIComponent(brand)}`} className="rounded-full bg-brand px-3.5 py-2 font-medium text-on-brand">{tr(`Full ${brand} brief: scoreboard, range gaps, next steps →`, `${brand} 전체 보고서: 스코어보드, 라인업 공백, 다음 단계 →`)}</Link>}
+          {inSet && <Link href={`/analysis/?brand=${encodeURIComponent(brand)}`} className="rounded-full bg-brand px-3.5 py-2 font-medium text-on-brand">{tr(`K-beauty tab: where Korean brands sell, ${brand}'s heroes and range gaps →`, `K-뷰티 탭: K-뷰티 판매 분포, ${brand} 히어로 제품·라인업 공백 →`)}</Link>}
           {cats[0] && <Link href={`/compare/?cat=${cats[0]}`} className="rounded-full px-3.5 py-2 ring-1 ring-line hover:bg-sunken">{tr(`Head-to-head in ${catName(cats[0]).toLowerCase()} →`, `${catName(cats[0])} 일대일 비교 →`)}</Link>}
           <Link href="/offers/" className="rounded-full px-3.5 py-2 ring-1 ring-line hover:bg-sunken">{tr("All offers & events →", "전체 프로모션·이벤트 →")}</Link>
           <Link href="/categories/" className="rounded-full px-3.5 py-2 ring-1 ring-line hover:bg-sunken">{tr("Market: all categories →", "시장: 전체 카테고리 →")}</Link>
