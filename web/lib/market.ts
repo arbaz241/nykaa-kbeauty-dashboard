@@ -21,7 +21,7 @@ export const MAKEUP = new Set(["lipstick", "foundation", "lip_tint", "bb_cream",
 /** What counts in each list (plan v4, owner 18 Oct 2026: "own category only, and ranks also as per that"). Nykaa's
  *  page for a category also shows products Nykaa itself files elsewhere (a sheet mask on "Masks & peels" keeps the
  *  label "Sheet Masks"). A listing counts when Nykaa's label for it that day is one of these; a listing Nykaa gave no
- *  label counts too (we don't guess). Ranks are renumbered among the products that count; Nykaa's own position is
+ *  label is placed by its name when the name clearly says (owner 21 Oct 2026), else it counts. Ranks are renumbered among the products that count; Nykaa's own position is
  *  kept as nykaa_rank. */
 export const HOME_L3: Record<string, string[]> = {
   face_moisturizer: ["Face Moisturizer & Day Cream", "Night Cream"], serum: ["Serums & Essence"], sunscreen: ["Face Sunscreen"],
@@ -30,7 +30,46 @@ export const HOME_L3: Record<string, string[]> = {
   lip_care: ["Lip Balm", "Lip Masks"], lipstick: ["Lipstick", "Lip Crayon"], foundation: ["Foundation"], lip_tint: ["Lip Tint"],
   bb_cream: ["BB & CC Cream", "Tinted Moisturizer"], blush: ["Blush"], lip_gloss: ["Lip Gloss", "Lip Plumper"],
 };
-export const countsIn = (cat: string, l3: string | null | undefined) => !l3 || !HOME_L3[cat] || HOME_L3[cat].includes(l3);
+/** Where a listing Nykaa gave no label belongs, from its name (owner yes, 21 Oct 2026: the 40–60 unlabelled listings
+ *  counted in every list they appeared on, e.g. acne patches and a face pack in sheet masks, a lip balm in lipstick).
+ *  Ordered most specific first; "other" = none of our categories (patches, nose strips, kits). null = can't tell. */
+const NAME_RULES: [string, RegExp][] = [
+  ["eye_care", /\bunder[- ]?eye\b|\beye (cream|serum|gel|mask|masks|patch|patches|contour)\b/i],
+  ["other", /\bpatch(es)?\b|\bnose strips?\b|\bmakeup kit\b/i],
+  ["sunscreen", /\bsun ?screen\b|\bsun ?(cream|stick|serum|gel|fluid|lotion|block)\b|\bsunblock\b/i],
+  ["sheet_mask", /\bsheet masks?\b/i],
+  ["bb_cream", /\b(bb|cc)\b|\bskin tint\b|\btinted moisturi[sz]er\b/i],
+  ["lip_care", /\blips? balm\b|\blip (mask|sleeping mask|serum|scrub|treatment)\b|\btinted lip (balm|serum)\b/i],
+  ["lip_tint", /\b(lip )?tint\b|\blip stain\b/i],
+  ["lip_gloss", /\blip gloss\b|\bgloss\b|\blip oil\b/i],
+  ["lipstick", /\blipsticks?\b|\blip crayon\b/i],
+  ["masks", /\bface pack\b|\bclay mask\b|\bpeel[- ]off\b|\bmud mask\b/i],
+  ["face_wash", /\bface ?wash\b|\bcleanser\b|\bcleansing (foam|gel|lotion|milk)\b|\bfoaming\b/i],
+  ["toner", /\btoner\b|\bmist\b|\brose water\b/i],
+  ["foundation", /\bfoundation\b|\bcushion\b/i],
+  ["blush", /\bblush\b/i],
+  ["serum", /\bserum\b|\bessence\b|\bampoule\b/i],
+  ["face_moisturizer", /\bmoisturi[sz]er\b|\b(face|day|night|gel) cream\b/i],
+];
+/** Words that keep an unlabelled listing in a list even when its name also points elsewhere (a "Lip Color Balm
+ *  (Lipstick)" stays in lip care; a primer-moisturiser stays in BB & CC). */
+const KEEP: Record<string, RegExp> = {
+  bb_cream: /primer|foundation|strobe|illuminat|colou?r correct|balm/i, lip_care: /balm/i, lip_gloss: /\blip gloss\b|\bgloss\b|plump/i,
+  lipstick: /lipstick|lip colou?r/i, sheet_mask: /\bsheet\b/i, masks: /\bmasks?\b|\bface pack\b|\bpeel/i, toner: /toner|mist/i, eye_care: /\beye\b|patch/i,
+  face_wash: /cleans|wash/i, lip_tint: /\btint/i,
+};
+export function nameHome(name: string | null | undefined): string | null {
+  if (!name) return null;
+  for (const [cat, re] of NAME_RULES) if (re.test(name)) return cat;
+  return null;
+}
+/** Whether a listing counts in a list: Nykaa's label decides; without one, the name decides when it clearly points to
+ *  another category; otherwise it counts. */
+export const countsIn = (cat: string, l3: string | null | undefined, name?: string | null) => {
+  if (l3) return !HOME_L3[cat] || HOME_L3[cat].includes(l3);
+  const home = nameHome(name);
+  return !home || home === cat || !HOME_L3[cat] || (!!KEEP[cat] && KEEP[cat].test(name!));
+};
 export type Vertical = "skin" | "makeup";
 export const verticalOf = (cat: string): Vertical => (MAKEUP.has(cat) ? "makeup" : "skin");
 export const VERTICAL_LABEL = () => ({ skin: tr("Skin", "스킨케어"), makeup: tr("Makeup", "메이크업") });
@@ -245,12 +284,12 @@ export interface DailyIndex {
    *  Nykaa pins 77-104 products a day, so a pin starting or ending read as a move with no cause). */
   pinned?: Set<string>;
 }
-export function indexDaily(all: ShelfDay[]): DailyIndex {
+export function indexDaily(all: ShelfDay[], nameOf?: (pid: string) => string | null | undefined): DailyIndex {
   const byDay = new Map<string, Map<string, ShelfDay>>(); const catStart = new Map<string, string>(); const series = new Map<string, ShelfDay[]>();
   // own category only, ranks renumbered per day and category (Nykaa's position kept); the Korean store is a store
   const groups = new Map<string, ShelfDay[]>();
   for (const r of all) {
-    if (r.subcategory !== STORE && !countsIn(r.subcategory, r.nykaa_l3)) continue;
+    if (r.subcategory !== STORE && !countsIn(r.subcategory, r.nykaa_l3, nameOf?.(r.product_id))) continue;
     push(groups, `${r.scrape_date}|${r.subcategory}`, r);
   }
   const daily: ShelfDay[] = [];

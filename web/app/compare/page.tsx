@@ -21,6 +21,7 @@ import { monthsWindow } from "@/lib/metrics";
 import { demandRows } from "@/lib/analysis";
 import { useTiers } from "@/lib/tiers";
 import { kBeautyBenchmark, kBeautyLeaderId } from "@/lib/price";
+import { brandGrowth, fillContext, productFill } from "@/lib/fill";
 import type { ReviewMonth, ShelfRow } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
 import { push } from "@/lib/group";
@@ -161,14 +162,24 @@ function CompetitivePage() {
     cat, rows, catalog: cat0, demand: new Map((demand.data ?? []).map((d) => [d.product_id, d])), movement: movement.data ?? [], months: monthsBy, win,
     search: searchCounts(search.data ?? []), thumbs: new Map((thumbs.data ?? []).map((t) => [t.product_id, t])), usp: uspBy, reviews: reviews.data, variants: variants.data, stdMl, lastPrices: lastPrices.data, hero, pooled,
   }), [cat, rows, cat0, demand.data, movement.data, monthsBy, win, search.data, thumbs.data, uspBy, reviews.data, variants.data, stdMl, lastPrices.data, hero, pooled, readMap]);
-  const products = useMemo(() => productIds.map(({ pid, brand, role }) => productFacts(pid, brand, role, src)), [productIds, src]);
+  const products = useMemo(() => {
+    const fx = market.latest ? fillContext(market.pool, market.latest) : null;
+    const poolOfPid = (pid: string) => market.pool.find((p) => p.product_id === pid || !!p.members?.includes(pid));
+    return productIds.map(({ pid, brand, role }) => ({ ...productFacts(pid, brand, role, src), fill: fx ? productFill(fx, poolOfPid(pid)) : null }));
+  }, [productIds, src, market.pool, market.latest]);
   const productsOf = useMemo(() => {
     const by = new Map<string, ReviewMonth[]>(); for (const r of poolMonths) push(by, r.product_id, r);
     return (b: string) => [...by.values()].filter((ms) => norm(ms[0].brand) === norm(b))
       .map((ms) => ({ pid: ms[0].product_id, name: shortTitle(ms[0].name, ms[0].brand), values: productSpark(ms, win) ?? [] }))
       .filter((p) => p.values.some((v) => v));
   }, [poolMonths, win]);
-  const bfacts = useMemo(() => brandFacts(brands, anchor, cat, rows, cat0, poolMonths, search.data ?? [], assort.data ?? []), [brands, anchor, cat, rows, cat0, poolMonths, search.data, assort.data]);
+  const bfacts = useMemo(() => {
+    const base = brandFacts(brands, anchor, cat, rows, cat0, poolMonths, search.data ?? [], assort.data ?? []);
+    // no blank growth (owner 21 Oct 2026): a brand's cut-off big sellers count at an estimated year-ago level
+    if (!market.latest) return base;
+    const fx = fillContext(market.pool, market.latest);
+    return base.map((f) => { const g = brandGrowth(fx, market.pool, f.brand); return g.estimated && g.change !== null ? { ...f, growth: g.change, growthEst: g.estimated } : f; });
+  }, [brands, anchor, cat, rows, cat0, poolMonths, search.data, assort.data, market.pool, market.latest]);
 
   // share of all top-100 buying, the site's one share measure (owner 20 Oct 2026)
   const buy = useMemo(() => {

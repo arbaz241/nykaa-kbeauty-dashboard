@@ -1,5 +1,6 @@
 "use client";
 
+import { brandGrowth, fillContext } from "@/lib/fill";
 import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -105,6 +106,10 @@ function Brand() {
   points.push(own.day ? (brandOwn.length ? tr(<>Running its own offer: {(brandOwn[0].description || brandOwn[0].title || "").replace(/\s+/g, " ").slice(0, 90)}.{hp ? ` On Nykaa's homepage ${hp} days.` : " Not on Nykaa's homepage in the period."}</>, <>자체 프로모션 진행: {(brandOwn[0].description || brandOwn[0].title || "").replace(/\s+/g, " ").slice(0, 90)}.{hp ? ` 홈페이지 노출 ${hp}일.` : " 기간 중 홈페이지 노출 없음."}</>)
     : tr(<>No brand-own offer on its pages{own.offers.length ? ` (only Nykaa-wide ones, such as "${(own.offers[0].title ?? "").slice(0, 40)}")` : ""}.{hp ? ` On Nykaa's homepage ${hp} days.` : " Not on Nykaa's homepage in the period."}</>, <>상품 페이지에 브랜드 자체 프로모션 없음{own.offers.length ? ` (Nykaa 전체 프로모션만)` : ""}.{hp ? ` 홈페이지 노출 ${hp}일.` : " 기간 중 홈페이지 노출 없음."}</>))
     : tr(<>{hp ? `On Nykaa's homepage ${hp} days in the period. ` : ""}Its offers are not read nightly (focus brands and the 40 brands with most places are).</>, <>{hp ? `기간 중 홈페이지 노출 ${hp}일. ` : ""}매일 프로모션을 읽는 브랜드가 아님.</>));
+  // no blank growth (owner 21 Oct 2026): the brand with its cut-off big sellers at an estimated year-ago level
+  const est = m.latest ? brandGrowth(fillContext(m.pool, m.latest), m.pool, brand) : null;
+  if (est && est.estimated && est.change !== null) points.push(tr(<>Including {est.estimated} big seller{est.estimated === 1 ? "" : "s"} whose older reviews Nykaa no longer shows (at an estimated year-ago level): <b>{signed(est.change)}</b>.</>,
+    <>과거 리뷰가 보이지 않는 대형 제품 {est.estimated}개를 추정 전년 수준으로 포함하면: <b>{signed(est.change)}</b>.</>));
   if (trend && trend.change !== null) points.push(tr(<>Written reviews: <b>{trend.recent.toLocaleString("en-IN")}</b> in {trend.recentLabel} vs {trend.base.toLocaleString("en-IN")} a year earlier (<b>{signed(trend.change)}</b>, the same {trend.products} products{trend.launches ? `; ${trend.launches} launched since are not counted` : ""}). For scale: Nykaa beauty {signed(nykaa.value)} ({nykaa.label}){origin === "kbeauty" ? `, Korean beauty on Nykaa ${signed(kReported.value)} (FY26)` : ""}.</>,
     <>리뷰: {trend.recentLabel} <b>{trend.recent.toLocaleString("en-IN")}건</b>, 1년 전 {trend.base.toLocaleString("en-IN")}건 (<b>{signed(trend.change)}</b>, 동일 제품 {trend.products}개{trend.launches ? `; 이후 출시 ${trend.launches}개 제외` : ""}). 참고: Nykaa 뷰티 {signed(nykaa.value)} ({nykaa.label}){origin === "kbeauty" ? `, Nykaa K-뷰티 ${signed(kReported.value)} (FY26)` : ""}.</>));
 

@@ -21,11 +21,11 @@ export function useMarket() {
   const dims = useMemo(() => productDims(products.data ?? [], shelf.data ?? []), [products.data, shelf.data]);
   const pins = usePinned();
   const ix = useMemo(() => {
-    const base = indexDaily(daily.data ?? []);
+    const base = indexDaily(daily.data ?? [], (pid) => dims.get(pid)?.name);
     const pinned = new Set((pins.data ?? []).map((r) => `${r.scrape_date}|${r.subcategory}|${r.product_id}`));
     for (const r of shelf.data ?? []) if (r.is_pinned) pinned.add(`${r.scrape_date}|${r.subcategory}|${r.product_id}`);
     return { ...base, pinned };
-  }, [daily.data, shelf.data, pins.data]);
+  }, [daily.data, shelf.data, pins.data, dims]);
   /** Today's shelf. Lists added on 18 Oct (BB & CC cream, blush, lip gloss) are kept out of the live site's views
    *  until round 4 goes live (migration 027), so their rows are rebuilt here from the daily data. */
   const today = useMemo(() => {

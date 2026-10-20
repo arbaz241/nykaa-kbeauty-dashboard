@@ -23,6 +23,7 @@ import { demandRows, demandWindow, growthOf, type DemandRow } from "@/lib/analys
 import { compact, inr, shortName } from "@/lib/format";
 import { demandLines, momentumWord, monthsWindow, type DemandLine } from "@/lib/metrics";
 import { tx } from "@/lib/dict";
+import { brandGrowth, fillContext, fillText, poolFromMonths, productFill } from "@/lib/fill";
 import { noteMarkers, unusual, useDataNotes } from "@/lib/notes";
 import { useBrandSelection } from "@/lib/selection";
 import { fetchAll } from "@/lib/supabase";
@@ -106,10 +107,18 @@ function DemandPage() {
   const focus = useMemo(() => [tiers.pinned, ...tiers.focus].filter((b) => known.includes(b)), [tiers, known]);
   const { selected, colors, toggle } = useBrandSelection(known);
   const [mode, setMode] = useState<"reviews" | "index">("reviews");
-  const brands = useMemo(() => demandLines(data, "brand").map((b) => {
+  // no blank growth (owner 21 Oct 2026): review pools from this tab's own data; brands count their cut-off big sellers
+  // at an estimated year-ago level, products without a year of history show their share of category reviews instead
+  const fillPool = useMemo(() => (months.data && demandView.data ? poolFromMonths(months.data, demandView.data) : []), [months.data, demandView.data]);
+  const fillDay = shelf.data?.[0]?.scrape_date ?? null;
+  const fx = useMemo(() => (fillDay ? fillContext(fillPool, fillDay) : null), [fillPool, fillDay]);
+  const fillFor = useMemo(() => { const by = new Map<string, (typeof fillPool)[number]>(); for (const q of fillPool) for (const m of q.members ?? [q.product_id]) by.set(m, q); return (pid: string) => (fx ? productFill(fx, by.get(pid)) : null); }, [fillPool, fx]);
+  const brands = useMemo(() => demandLines(data, "brand").map((b): DemandLine & { est?: number } => {
     const rs = aggBy.get(norm(b.brand)) ?? []; if (!rs.length) return b; const g = growthOf(rs);
+    const e = fx ? brandGrowth(fx, fillPool, b.brand) : null;
+    if (e && e.estimated && e.change !== null) return { ...b, last3: rs.reduce((a, r) => a + r.recent, 0), prev3: Math.round(e.base), same3: Math.round(e.recent), growth: e.change, est: e.estimated };
     return { ...b, last3: rs.reduce((a, r) => a + r.recent, 0), prev3: g.products ? g.prior : null, same3: g.products ? g.recent : null, growth: g.growth };
-  }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, aggBy]);
+  }).sort((a, b) => (b.last3 ?? -1) - (a.last3 ?? -1)), [data, aggBy, fx, fillPool]);
   const readMap = useReviewRead();
   // readMap: openEnded reads the review read dates, so the lists recompute when they arrive
   const products = useMemo(() => (void readMap, demandLines(data, "product")).map((p) => {
@@ -308,7 +317,7 @@ function DemandPage() {
                         <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: colors[b.brand] ?? "#d9d7cf" }} /><span className={`text-[13.5px] ${isA(b.brand) ? "font-semibold" : "font-medium"}`}>{b.brand} <span className="text-muted">›</span></span><span className="text-[11px] text-muted">{tiers.inSet(b.brand) ? ORIGIN_LABEL[origin.get(b.brand) ?? "unknown"] : tr("not a main brand", "주요 브랜드 외")}</span></span>
                         <Sparkline values={b.spark} color={c} width={96} height={24} />
                         <span className="flex items-center gap-2 pr-4"><b className="w-12 text-[13.5px] tabular">{b.last3 === null ? <Missing>{tr("partial", "일부")}</Missing> : compact(b.last3)}</b><span className="h-1.5 flex-1 rounded-full bg-sunken"><span className="block h-1.5 rounded-full" style={{ width: `${Math.min(100, ((b.last3 ?? 0) / maxL) * 100)}%`, background: c }} /></span></span>
-                        <span className="text-right text-[12.5px] text-ink-2 tabular">{b.prev3 === null ? <Missing>{tr("partial", "일부")}</Missing> : `${compact(b.prev3)} → ${compact(b.same3 ?? b.last3)}`}</span>
+                        <span className="text-right text-[12.5px] text-ink-2 tabular">{b.prev3 === null ? <Missing>{tr("partial", "일부")}</Missing> : `${compact(b.prev3)} → ${compact(b.same3 ?? b.last3)}`}{"est" in b && b.est ? <span className="block text-[10.5px] text-muted" title={tr("Big sellers whose older reviews Nykaa no longer shows count at an estimated year-ago level", "과거 리뷰가 보이지 않는 대형 제품은 추정 전년 수준으로 포함")}>{tr(`incl. ${b.est} estimated`, `추정 ${b.est}개 포함`)}</span> : null}</span>
                         <span className="pl-3"><Change g={b.growth} vol={b.last3} market={mkt} /></span>
                       </button>
                     );
@@ -325,7 +334,7 @@ function DemandPage() {
                       <span className="text-[11.5px] text-muted tabular">{i + 1}</span>
                       <Thumb src={imgFor(p.key)} />
                       <span className="min-w-0"><span className="block text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-2">{p.brand}</span><span className="block truncate text-[12.5px] leading-snug">{shortName(p.label, p.brand)}</span></span>
-                      <span className="text-right text-[12.5px] tabular"><b>{compact(p.last3)}</b><span className={`block text-[11px] ${p.growth === null ? "text-muted" : mkt !== null && p.growth >= mkt ? "text-good" : "text-bad"}`}>{p.growth === null ? (p.prev3 === null ? tr(`history doesn't reach ${dw.prior}`, `이력이 ${dw.prior}까지 안 닿음`) : tr(`new: no ${dw.prior}`, `신규: ${dw.prior} 없음`)) : signed(p.growth)}</span><MoMInline values={p.monthly ?? p.spark} win={win} open={p.open} /></span>
+                      <span className="text-right text-[12.5px] tabular"><b>{compact(p.last3)}</b><span className={`block text-[11px] ${p.growth === null ? "text-muted" : mkt !== null && p.growth >= mkt ? "text-good" : "text-bad"}`}>{p.growth === null ? (fillFor(p.key) ? fillText(fillFor(p.key)!) : (p.prev3 === null ? tr(`history doesn't reach ${dw.prior}`, `이력이 ${dw.prior}까지 안 닿음`) : tr(`new: no ${dw.prior}`, `신규: ${dw.prior} 없음`)) ): signed(p.growth)}</span><MoMInline values={p.monthly ?? p.spark} win={win} open={p.open} /></span>
                     </button>
                   )} />
                 </Card>

@@ -22,7 +22,7 @@ export function useNykaaShelf() {
 }
 export function ownCategory(rows: ShelfRow[]): ShelfRow[] {
   const by = new Map<string, ShelfRow[]>();
-  for (const r of rows) if (countsIn(r.subcategory, r.nykaa_l3)) { const g = by.get(r.subcategory) ?? []; g.push(r); by.set(r.subcategory, g); }
+  for (const r of rows) if (countsIn(r.subcategory, r.nykaa_l3, r.name)) { const g = by.get(r.subcategory) ?? []; g.push(r); by.set(r.subcategory, g); }
   return [...by.values()].flatMap((g) => g.sort((a, b) => a.rank - b.rank).map((r, i) => ({ ...r, rank: i + 1, nykaa_rank: r.rank })));
 }
 export function useKoreanStore() {

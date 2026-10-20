@@ -10,6 +10,7 @@ import { norm } from "@/lib/brands";
 import { CATEGORIES, CATEGORY_LABEL, pct, shortName, signed } from "@/lib/format";
 import { catsOn, placesOn, type FlowRow } from "@/lib/market";
 import { reviewTrend } from "@/lib/profile";
+import { brandGrowth, fillContext } from "@/lib/fill";
 import { useMarket } from "@/lib/useMarket";
 import { dayMonth, tr } from "@/lib/i18n";
 
@@ -30,7 +31,7 @@ export interface KCat {
 }
 export interface KBrand {
   b: string; value: number; ofKorean: number; places: number; placesD: number; before: number; isNew: boolean;
-  strong: { c: string; s: number } | null; best: FlowRow | null; bestShare: number; growth: number | null;
+  strong: { c: string; s: number } | null; best: FlowRow | null; bestShare: number; growth: number | null; estimated: number;
 }
 
 /** Everything the K-beauty tab shows, from the shared market data (same buying window and rules as every tab). */
@@ -66,6 +67,7 @@ export function useKBeauty(anchor: string) {
     const c0 = catsOn(ix, win.start); const c1 = catsOn(ix, win.end); const both = new Set([...c1].filter((c) => c0.has(c)));
     const p0 = placesOn(ix, dims, win.start, both); const p1 = placesOn(ix, dims, win.end, both); const pAll = placesOn(ix, dims, win.end);
     const pick = (p: Map<string, number>, b: string) => [...p.entries()].find(([k]) => same(k, b))?.[1] ?? 0;
+    const fx = latest ? fillContext(pool, latest) : null;
     const names = new Map<string, string>();
     for (const r of shelf) if (r.origin === "kbeauty") names.set(norm(r.brand), r.brand);
     for (const r of flow) if (r.origin === "kbeauty" && !names.has(norm(r.brand))) names.set(norm(r.brand), r.brand);
@@ -75,10 +77,11 @@ export function useKBeauty(anchor: string) {
       const byCat = new Map<string, number>(); for (const r of own) byCat.set(r.subcategory, (byCat.get(r.subcategory) ?? 0) + r.value);
       const strong = [...byCat.entries()].map(([c, v]) => ({ c, s: v / (catTotal.get(c) || 1) })).sort((x, y) => y.s - x.s)[0] ?? null;
       const best = [...own].sort((x, y) => y.value - x.value)[0] ?? null;
-      const t = latest ? reviewTrend(pool.filter((p) => same(p.brand, b)), latest) : null;
+      // owner 21 Oct 2026, no blank growth: cut-off big sellers count at an estimated year-ago base (lib/fill)
+      const t = fx ? brandGrowth(fx, pool, b) : null;
       const before = pick(p0, b); const now = pick(p1, b);
       return { b, value, ofKorean: kValue ? value / kValue : 0, places: pick(pAll, b), placesD: now - before, before, isNew: before === 0 && now > 0 && value === 0, strong, best,
-        bestShare: best ? best.value / (catTotal.get(best.subcategory) || 1) : 0, growth: t && t.products >= 2 && t.base >= 30 ? t.change : null };
+        bestShare: best ? best.value / (catTotal.get(best.subcategory) || 1) : 0, growth: t && t.products + t.estimated >= 2 && t.base >= 30 ? t.change : null, estimated: t?.estimated ?? 0 };
     }).sort((a, b) => b.value - a.value || b.places - a.places);
     const kTrend = latest ? reviewTrend(pool.filter((p) => isK(p.brand)), latest) : null;
     const allTrend = latest ? reviewTrend(pool, latest) : null;
@@ -137,7 +140,7 @@ export function KTable({ k, anchor, rivals }: { k: KBeauty; anchor: string; riva
         <td className="px-2 py-2.5 tabular"><b>{r.places}</b>{r.placesD !== 0 && <span className={`ml-1.5 text-[11.5px] ${r.placesD > 0 ? "text-good" : "text-bad"}`}>{r.placesD > 0 ? "+" : ""}{r.placesD}</span>}</td>
         <td className="px-2 py-2.5">{r.strong ? <>{catName(r.strong.c)} <span className="tabular text-muted">{pct(r.strong.s, 0)}</span></> : <span className="text-muted">–</span>}</td>
         <td className="max-w-[260px] truncate px-2 py-2.5" title={r.best?.name}>{r.best ? short(r.best.name, r.b) : <span className="text-muted">–</span>}</td>
-        <td className="px-2 py-2.5 tabular">{r.growth !== null ? <span className={r.growth >= (k.allGrowth ?? 0) ? "text-good" : "text-bad"}>{signed(r.growth)}</span> : <span className="text-muted">–</span>}</td>
+        <td className="px-2 py-2.5 tabular">{r.growth !== null ? <span className={r.growth >= (k.allGrowth ?? 0) ? "text-good" : "text-bad"} title={r.estimated ? tr(`includes ${r.estimated} big seller${r.estimated === 1 ? "" : "s"} at an estimated year-ago level`, `추정 전년 수준 적용 대형 제품 ${r.estimated}개 포함`) : undefined}>{signed(r.growth)}{r.estimated ? <sup className="ml-0.5 text-[10px] text-muted">{tr("est.", "추정")}</sup> : null}</span> : <span className="text-muted">–</span>}</td>
         <td className="px-4 py-2.5 text-right"><DetailsButton open={open === r.b} onClick={() => setOpen(open === r.b ? null : r.b)} /></td>
       </tr>
       {open === r.b && <tr><td colSpan={7} className="px-4 pb-3"><BrandQuick brand={r.b} /></td></tr>}
@@ -148,8 +151,8 @@ export function KTable({ k, anchor, rivals }: { k: KBeauty; anchor: string; riva
       title={view === "cat"
         ? tr(<>Korean brands are strongest in {top ? catName(top.cat).toLowerCase() : "–"} ({top ? pct(top.kShare, 0) : "–"} of its buying).</>, <>K-뷰티 강세 카테고리: {top ? catName(top.cat) : "–"} (판매의 {top ? pct(top.kShare, 0) : "–"}).</>)
         : tr(<>{k.brands[0]?.b} leads Korean buying; {anchor} and its {rivals.length} Korean rivals first.</>, <>K-뷰티 판매 1위 {k.brands[0]?.b}. {anchor}·K-뷰티 경쟁사 {rivals.length}곳 우선 표시.</>)}
-      note={tr(<><Def k="ratingFlow">Buying</Def> = new ratings × MRP in each category&rsquo;s top 100, {k.span} (Nykaa froze rating counts on 10 Oct). K-beauty share = Korean brands&rsquo; part of all buying in the category; &ldquo;of Korean buying&rdquo; = Korean brands only = 100%. Review growth: same products, latest 3 months vs a year earlier, green when faster than <TrackedLink /> ({signed(k.allGrowth)}). Top-100 change counts lists tracked since {dayMonth(k.start)}.</>,
-        <><Def k="ratingFlow">판매</Def> = 카테고리 상위 100위의 신규 평가 × 정가, {k.span} (Nykaa 10월 10일 평가 수 갱신 중단). K-뷰티 점유율 = 카테고리 전체 판매 중 K-뷰티 비중. &ldquo;K-뷰티 판매 중&rdquo; = K-뷰티만 100%. 리뷰 성장: 동일 제품, 최근 3개월 vs 전년, <TrackedLink />({signed(k.allGrowth)})보다 빠르면 초록. 상위 100위 변화 = {dayMonth(k.start)}부터 추적한 목록 기준.</>)}>
+      note={tr(<><Def k="ratingFlow">Buying</Def> = new ratings × MRP in each category&rsquo;s top 100, {k.span} (Nykaa froze rating counts on 10 Oct). K-beauty share = Korean brands&rsquo; part of all buying in the category; &ldquo;of Korean buying&rdquo; = Korean brands only = 100%. Review growth: latest 3 months vs a year earlier on the same products; a big seller whose older reviews Nykaa no longer shows counts at an estimated year-ago level (marked est.). Green when faster than <TrackedLink /> ({signed(k.allGrowth)}). Top-100 change counts lists tracked since {dayMonth(k.start)}.</>,
+        <><Def k="ratingFlow">판매</Def> = 카테고리 상위 100위의 신규 평가 × 정가, {k.span} (Nykaa 10월 10일 평가 수 갱신 중단). K-뷰티 점유율 = 카테고리 전체 판매 중 K-뷰티 비중. &ldquo;K-뷰티 판매 중&rdquo; = K-뷰티만 100%. 리뷰 성장: 동일 제품 최근 3개월 vs 전년. Nykaa가 과거 리뷰를 더 이상 보여주지 않는 대형 제품은 추정 전년 수준으로 포함(추정 표시). <TrackedLink />({signed(k.allGrowth)})보다 빠르면 초록. 상위 100위 변화 = {dayMonth(k.start)}부터 추적한 목록 기준.</>)}>
       <Card className="overflow-x-auto">
         {view === "cat" ? (
           <table className="w-full min-w-[880px] text-[13px]">

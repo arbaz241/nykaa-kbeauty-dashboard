@@ -1,6 +1,7 @@
 /** Competitive Analysis data assembly: every product and brand fact the old USP and Compare tabs showed, in one
  *  shape per product and per brand (docs/restructure-v2-plan.md §2 inventory). Pure functions, no fetching. */
 
+import type { Fill } from "./fill";
 import { norm } from "./brands";
 import { openEnded } from "./metrics";
 import { PER_SHEET, clause, inr, packMl, packPieces, sheetCount, shortName } from "./format";
@@ -28,6 +29,8 @@ export const ROLE_LABEL: Record<string, string> = labels({
 export const shortTitle = (name: string, brand: string) => shortName(name, brand).split(/,| [-–|] | SPF | For /i)[0];
 
 export interface ProductFacts {
+  /** what shows where year-on-year growth is blank (lib/fill, owner 21 Oct 2026) */
+  fill?: Fill | null;
   pid: string; brand: string; name: string; url: string | null; image: string | null; role: string;
   price: number | null; mrp: number | null; discount: number | null; offer: string | null; perHundred: number | null; pack: string | null; priceNote: string | null;
   rank: number | null; paid: boolean; rank7: number | null; rank14: number | null; gain7: number | null;
@@ -53,7 +56,8 @@ export interface ProductFacts {
   groupRead?: UspComparison["comparison"]["products"][number];
 }
 
-export type BrandFacts = BrandScore & { basket: BasketPrice; catPrice: { price: number; perHundred: number | null; n: number } | null };
+export type BrandFacts = BrandScore & { basket: BasketPrice; catPrice: { price: number; perHundred: number | null; n: number } | null;
+  /** big sellers counted at an estimated year-ago level in `growth` (lib/fill, owner 21 Oct 2026) */ growthEst?: number };
 
 /** Every product a brand sells in a category: today's top 100 first (by rank), then its wider catalogue by ratings. */
 export function productOptions(brand: string, cat: string, rows: ShelfRow[], catalog: CatalogRow[]) {

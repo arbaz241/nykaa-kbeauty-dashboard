@@ -1,5 +1,6 @@
 "use client";
 
+import { fillText } from "@/lib/fill";
 import { Chip } from "@/components/CompareGrid";
 import { DetailHead, LEVEL_SCORE, LEVEL_WORD, Opens, Points, useDetail, type DetailContent } from "@/components/Detail";
 import { useOpenProduct } from "@/components/ProductDrawer";
@@ -39,7 +40,7 @@ export const DEMAND_CRITERIA: Criterion<ProductFacts>[] = [
   crit({ key: "demand", label: ["Reviews, last 3 months", "최근 3개월 리뷰"], help: ["Dated reviews in the last 3 complete months (sizes of one product pooled): a stand-in for recent sales", "최근 완결된 3개월 동안 작성된 리뷰 (같은 제품의 다른 용량 합산). 최근 판매의 대리 지표"], better: "high", value: (p) => p.recent, show: (p) => compact(p.recent), sub: () => DW().recent, bar: true,
     missing: (p) => (p.recent === null ? tr("Not in review tracking", "리뷰 추적 대상 아님") : null), up: ["More recent reviews (a sales signal) than", "최근 리뷰가 더 많음 (판매 신호)"], down: ["Fewer recent reviews (a sales signal) than", "최근 리뷰가 더 적음 (판매 신호)"] }),
   crit({ key: "momentum", label: ["Review growth", "리뷰 성장률"], help: () => tr(`Reviews ${DW().recent} against ${DW().prior}; products with complete history only`, `${DW().recent} 리뷰 vs ${DW().prior} 리뷰. 이력이 완전한 제품만`), better: "high", value: (p) => p.momentum, show: (p) => signed(p.momentum),
-    sub: () => tr(`vs ${DW().prior}`, `${DW().prior} 대비`), missing: (p) => (p.momentum === null ? (p.recent === null ? tr("Not in review tracking", "리뷰 추적 대상 아님") : tr("Too new to compare", "비교하기엔 너무 새 제품")) : null),
+    sub: () => tr(`vs ${DW().prior}`, `${DW().prior} 대비`), missing: (p) => (p.momentum === null ? (p.fill ? fillText(p.fill) : p.recent === null ? tr("Not in review tracking", "리뷰 추적 대상 아님") : tr("Too new to compare", "비교하기엔 너무 새 제품")) : null),
     up: ["Reviews growing faster than", "리뷰가 더 빠르게 증가"], down: ["Reviews growing slower than", "리뷰 증가가 더 느림"] }),
   crit({ key: "ratings", label: ["Ratings, all time", "누적 평가 수"], help: ["Number of star ratings: lifetime popularity", "별점 평가 수: 누적 인기도"], better: "high", value: (p) => p.ratings, show: (p) => compact(p.ratings), bar: true,
     sub: (p) => [p.reviewsTotal ? tr(`${compact(p.reviewsTotal)} written reviews`, `리뷰 ${compact(p.reviewsTotal)}건`) : null, sharedNote(p)].filter(Boolean).join(" · ") || null, missing: (p) => (p.ratings === null ? tr("No ratings yet", "아직 평가 없음") : null),

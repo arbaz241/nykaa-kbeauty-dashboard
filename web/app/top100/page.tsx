@@ -9,7 +9,7 @@ import { Missing, Points } from "@/components/Detail";
 import { ORIGIN_LABEL, marketSet, norm } from "@/lib/brands";
 import { useTiers } from "@/lib/tiers";
 import { useNykaaShelf } from "@/lib/data";
-import { countsIn } from "@/lib/market";
+import { countsIn, nameHome } from "@/lib/market";
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, PER_SHEET, compact, inr, median, packMl, sheetCount, shortName } from "@/lib/format";
 import type { ShelfRow } from "@/lib/types";
 import { push } from "@/lib/group";
@@ -89,10 +89,10 @@ function TopPage() {
   const catRows = useMemo(() => rows.filter((r) => r.subcategory === cat).sort((a, b) => a.rank - b.rank), [rows, cat]);
   // with ads hidden, positions are renumbered so they read as the order a shopper sees without sponsored slots
   const base = useMemo(() => {
-    const list = catRows.filter((r) => (!noAds || !r.is_ad) && (!ownOnly || countsIn(r.subcategory, r.nykaa_l3)));
+    const list = catRows.filter((r) => (!noAds || !r.is_ad) && (!ownOnly || countsIn(r.subcategory, r.nykaa_l3, r.name)));
     return list.map((r, i) => ({ r, pos: noAds || ownOnly ? i + 1 : r.rank }));
   }, [catRows, noAds, ownOnly]);
-  const elsewhere = catRows.filter((r) => !countsIn(r.subcategory, r.nykaa_l3)).length;
+  const elsewhere = catRows.filter((r) => !countsIn(r.subcategory, r.nykaa_l3, r.name)).length;
   const concerns = useMemo(() => {
     const c = new Map<string, number>(); catRows.forEach((r) => (r.concerns ?? []).forEach((x) => c.set(x, (c.get(x) ?? 0) + 1)));
     return [...c.entries()].sort((a, b) => b[1] - a[1]).slice(0, 9).map(([k]) => k);
@@ -185,7 +185,7 @@ function TopPage() {
             <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search brand or product", "브랜드 또는 제품 검색")} className="w-64 rounded-xl border border-line bg-page px-3.5 py-2 text-[13px] outline-none focus:border-accent-strong" />
               <button onClick={() => setNoAds(!noAds)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${noAds ? "bg-[#fbecea] text-bad ring-bad/40" : "text-ink-2 ring-line hover:bg-sunken"}`}>⊘ {tr("Hide sponsored slots", "광고 구좌 숨기기")}</button>
-              {elsewhere > 0 && <button onClick={() => setOwnOnly(!ownOnly)} title={tr("Nykaa files these products under another category; the Market tab counts them there", "Nykaa가 다른 카테고리로 분류한 제품. 시장 탭은 그 카테고리에서 집계")} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${ownOnly ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>{tr(`Hide ${elsewhere} filed under another category`, `다른 카테고리 ${elsewhere}개 숨기기`)}</button>}
+              {elsewhere > 0 && <button onClick={() => setOwnOnly(!ownOnly)} title={tr("Nykaa files these products under another category (or, with no label, their name says so); the Market tab counts them there", "Nykaa가 다른 카테고리로 분류한 제품(분류 없으면 상품명 기준). 시장 탭은 그 카테고리에서 집계")} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${ownOnly ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>{tr(`Hide ${elsewhere} filed under another category`, `다른 카테고리 ${elsewhere}개 숨기기`)}</button>}
               <Chips value={origin} onChange={setOrigin} options={[["all", tr("All origins", "전체 국적")], ["kbeauty", tr("K-beauty", "K-뷰티")], ["local", tr("Indian", "인도")], ["global", tr("Global", "글로벌")]]} />
               <Chips value={badge} onChange={setBadge} options={[["all", tr("All", "전체")], ["bestseller", tr("Bestseller", "베스트셀러")], ["new", tr("New", "신상품")], ["paid", tr("Sponsored", "광고")]]} />
               <button onClick={() => setInView(!inView)} className={`rounded-full px-3.5 py-1.5 text-[12.5px] ring-1 transition ${inView ? "bg-brand text-on-brand ring-brand" : "text-ink-2 ring-line hover:bg-sunken"}`}>{tr("Focus brands only", "주요 브랜드만")}</button>
@@ -216,7 +216,7 @@ function TopPage() {
                         <td className="px-2 py-2.5"><span className="rounded border border-line px-1.5 text-[11px] text-muted tabular">P{page(r.rank)}</span></td>
                         <td className="px-2 py-2.5"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${ORIGIN_CHIP[r.origin]}`}>{ORIGIN_LABEL[r.origin]}</span></td>
                         <td className="px-3 py-2.5 font-medium">{r.brand}{tag && <div className={`text-[10px] font-semibold uppercase tracking-[0.05em] ${tag === "Focus" || tag === "Anchor" ? "text-accent-strong" : "text-muted"}`}>{TAG_WORD(tag)}</div>}</td>
-                        <td className="max-w-[340px] px-3 py-2.5 leading-snug">{shortName(r.name, r.brand)}{!countsIn(r.subcategory, r.nykaa_l3) && <div className="text-[11px] text-muted">{tr(`Nykaa files it under ${r.nykaa_l3}`, `Nykaa 분류: ${r.nykaa_l3}`)}</div>}</td>
+                        <td className="max-w-[340px] px-3 py-2.5 leading-snug">{shortName(r.name, r.brand)}{!countsIn(r.subcategory, r.nykaa_l3, r.name) && <div className="text-[11px] text-muted">{r.nykaa_l3 ? tr(`Nykaa files it under ${r.nykaa_l3}`, `Nykaa 분류: ${r.nykaa_l3}`) : tr(`No Nykaa label; by its name: ${nameHome(r.name) === "other" ? "not one of our categories" : CATEGORY_LABEL[nameHome(r.name) ?? ""] ?? "elsewhere"}`, `Nykaa 분류 없음, 상품명 기준: ${nameHome(r.name) === "other" ? "추적 카테고리 외" : CATEGORY_LABEL[nameHome(r.name) ?? ""] ?? "다른 카테고리"}`)}</div>}</td>
                         <td className="px-2 py-2.5"><div className="flex flex-col items-start gap-1">
                           {r.is_ad && <span className="rounded bg-[#fff4d6] px-1.5 text-[10.5px] font-semibold text-[#8a6100]">{tr("SPONSORED", "광고")}</span>}
                           {r.is_bestseller && <span className="rounded bg-[#fce8f1] px-1.5 text-[10.5px] font-semibold text-[#b03a72]">{tr("BESTSELLER", "베스트셀러")}</span>}
