@@ -3,6 +3,7 @@ import type { AssortmentRow, ReviewAspect, ReviewMonth, SearchRow, ShelfRow } fr
 import { push } from "@/lib/group";
 import { tr } from "./i18n";
 import { onePerRatingPool } from "./pools";
+import { isCombo } from "./market";
 
 export interface BrandScore {
   brand: string; origin: string; kMarketing: boolean;
@@ -74,7 +75,9 @@ export function brandScore(brand: string, shelf: ShelfRow[], months: ReviewMonth
     medianPrice: median(prices), minPrice: prices.length ? Math.min(...prices) : null, maxPrice: prices.length ? Math.max(...prices) : null,
     avgDiscount: mean(g.map((r) => r.discount_pct)), offerShare: g.length ? g.filter((r) => r.has_offer).length / g.length : null,
     paidShare: g.length ? g.filter((r) => r.is_ad || r.is_pinned).length / g.length : null,
-    rating: mean(pooled.map((r) => r.rating)), ratings: pooled.reduce((a, r) => a + (r.rating_count ?? 0), 0),
+    // combos carry the ratings of the products inside them (Nykaa Skin's monthly sheet-mask pack showed 8.0M), so they
+    // are left out of the total, as they are of buying
+    rating: mean(pooled.map((r) => r.rating)), ratings: pooled.filter((r) => !isCombo(r.name)).reduce((a, r) => a + (r.rating_count ?? 0), 0),
     last3, prev3, growth: yBase > 0 ? yRecent / yBase - 1 : null, spark, demandProducts: covered.size,
     searchTerms: terms, bestSearch: best, adSlots: ads,
     range, conversion: range ? distinct.size / range : null,
