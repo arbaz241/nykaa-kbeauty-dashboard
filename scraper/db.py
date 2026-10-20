@@ -168,6 +168,37 @@ def fetch_country_map(client) -> dict[str, str]:
         return {}
 
 
+def fetch_variant_sizes(client) -> dict[str, list[tuple[float, str]]]:
+    """product_id -> [(MRP, pack size)] from each product's own page (product_details.variants); empty if none yet."""
+    try:
+        data = fetch_all(lambda: client.table("product_details").select("product_id,variants").order("product_id"))
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not load variant sizes: %s", e)
+        return {}
+    out: dict[str, list[tuple[float, str]]] = {}
+    for d in data:
+        vs = [(float(v["mrp"]), str(v["pack_size"]).strip()) for v in (d.get("variants") or []) if v.get("mrp") and v.get("pack_size")]
+        if vs:
+            out[d["product_id"]] = vs
+    return out
+
+
+def fill_pack_sizes(rows: list[dict], sizes: dict[str, list[tuple[float, str]]]) -> int:
+    """Nykaa's listing leaves the pack size out for about half the products (owner, 20 Oct 2026: "is that us or Nykaa?").
+    Their own page has it: take the variant with the listing's MRP, or the only size the page shows. Returns rows filled."""
+    n = 0
+    for r in rows:
+        if r.get("pack_size") or r["product_id"] not in sizes:
+            continue
+        vs = sizes[r["product_id"]]
+        mrp = r.get("mrp")
+        same = {s for m, s in vs if mrp is not None and abs(m - float(mrp)) < 1}
+        pick = same.pop() if len(same) == 1 else (vs[0][1] if len({s for _, s in vs}) == 1 else None)
+        if pick:
+            r["pack_size"] = pick; n += 1
+    return n
+
+
 def _upsert(client, table: str, rows: list[dict], on_conflict: str) -> int:
     n = 0
     for i in range(0, len(rows), 200):

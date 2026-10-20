@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import config
 from .brands import classify_all, to_rows
-from .db import build_brand_payload, build_row_payload, build_run_payload, connect, fetch_country_map, ingest
+from .db import build_brand_payload, build_row_payload, build_run_payload, connect, fetch_country_map, fetch_variant_sizes, fill_pack_sizes, ingest
 from .reviews import load_cache
 
 log = logging.getLogger("ingest")
@@ -42,6 +42,11 @@ def payloads_for_day(day_dir: Path, country_by_product: dict[str, str] | None = 
 def ingest_day(day_dir: Path, client=None) -> int:
     client = client or connect()
     run_payload, row_payload, brand_payload = payloads_for_day(day_dir, fetch_country_map(client))
+    try:  # a fill-in only: never let it stop the night's ingest
+        filled = fill_pack_sizes(row_payload, fetch_variant_sizes(client))
+        log.info("pack size taken from the product page for %d listings that left it out", filled)
+    except Exception as e:  # noqa: BLE001
+        log.warning("pack-size fill skipped: %s", e)
     if not row_payload:
         log.warning("%s has no rows; recording the run only", day_dir)
     run_id = ingest(client, run_payload, row_payload, brand_payload)
