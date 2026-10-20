@@ -100,12 +100,16 @@ export function Def({ k, children }: { k: MetricKey; children?: React.ReactNode 
 }
 
 /** Opens every metric definition in the side panel. */
+/** The measures the site shows today, in reading order (audit 21 Oct 2026: the list also carried a review-based
+ *  "demand share", a "usual share" and value growth that no page uses any more). */
+const SHOWN = ["ratingFlow", "growth", "marketGrowth", "shelf", "search", "paid", "hero", "rangeGap", "brandCount"] as const;
+
 export function DefinitionsButton({ className = "" }: { className?: string }) {
   const open = useDetail();
   return (
     <button onClick={() => open({ kicker: tr("Definitions", "용어 정의"), title: tr("How every measure is calculated", "모든 지표의 계산 방법"), body: (
       <div className="space-y-5">
-        {Object.values(GLOSSARY).map((m) => (
+        {SHOWN.map((k) => GLOSSARY[k]).map((m) => (
           <div key={m.name}>
             <div className="text-[14px] font-semibold">{m.name}</div>
             <p className="mt-0.5 text-ink-2">{m.plain}</p>

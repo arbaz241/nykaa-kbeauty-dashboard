@@ -16,9 +16,9 @@ import { tr } from "@/lib/i18n";
 export function TrackedLink({ children }: { children?: React.ReactNode }) {
   const open = useDetail();
   return (
-    <button type="button" onClick={() => open({ kicker: tr("What “all tracked products” means", "‘추적 제품 전체 제품’이란"), title: tr("The products whose reviews we follow", "리뷰를 추적하는 제품"), body: <TrackedPanel /> })}
+    <button type="button" onClick={() => open({ kicker: tr("What “all tracked products” means", "‘추적 제품 전체’이란"), title: tr("The products whose reviews we follow", "리뷰를 추적하는 제품"), body: <TrackedPanel /> })}
       className="cursor-pointer underline decoration-line-2 decoration-dotted underline-offset-2 hover:decoration-ink">
-      {children ?? tr("all tracked products", "추적 제품 전체 제품")}
+      {children ?? tr("all tracked products", "추적 제품 전체")}
     </button>
   );
 }
