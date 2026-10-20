@@ -2,7 +2,7 @@
 
 import { Chip, type ExtraRow } from "@/components/CompareGrid";
 import { DetailHead, Level, Missing, Opens, Points, type DetailContent } from "@/components/Detail";
-import { MonthOnMonth, latestMoM, momHelp } from "@/components/MonthOnMonth";
+import { MonthOnMonthButton, latestMoM, momHelp } from "@/components/MonthOnMonth";
 import { monthsWindow } from "@/lib/metrics";
 import { shortTitle, type ProductFacts } from "@/lib/competeData";
 import { CATEGORY_LABEL, signed } from "@/lib/format";
@@ -121,7 +121,8 @@ export function shelfPart({ products, colors, cat }: { products: ProductFacts[];
       missing: () => tr("Image not analysed yet", "이미지 미분석"),
       render: (p) => <div className="flex flex-wrap gap-1"><Chip>{SHOT(p.thumb!.shot_type)}</Chip><Chip>{p.thumb!.text_density === "heavy" ? tr("text-heavy", "문구 많음") : p.thumb!.text_density === "light" ? tr("light text", "문구 적음") : tr("no text", "문구 없음")}</Chip>{p.thumb!.model_present && <Chip>{tr("shows a person", "인물 있음")}</Chip>}</div> },
     { key: "spark", after: "momentum", label: tr("By month · month on month", "월별 · 전월 대비"), help: momHelp(), has: (p) => !!p.spark?.some((v) => v !== null),
-      missing: () => tr("No review history tracked", "추적 중인 리뷰 이력 없음"), render: (p) => <MonthOnMonth values={p.spark!} win={win} open={p.sparkOpen} color={colors[p.brand] ?? "#8a8880"} /> },
+      missing: () => tr("No review history tracked", "추적 중인 리뷰 이력 없음"), render: (p) => <MonthOnMonthButton values={p.spark!} win={win} open={p.sparkOpen} color={colors[p.brand] ?? "#8a8880"}
+        kicker={tr(`${p.brand} · written reviews by month`, `${p.brand} · 월별 작성 리뷰`)} title={shortTitle(p.name, p.brand)} /> },
   ];
   const higher = a ? products.filter((p) => p !== a && p.rank && (!a.rank || p.rank < a.rank)).length : 0;
   const top = [...products].filter((p) => p.recent !== null).sort((x, y) => y.recent! - x.recent!)[0];

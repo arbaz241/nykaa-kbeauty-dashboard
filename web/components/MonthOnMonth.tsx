@@ -1,6 +1,7 @@
 "use client";
 
 import Sparkline from "./Sparkline";
+import { DetailHead, useDetail } from "./Detail";
 import { monthShort, tr } from "@/lib/i18n";
 import { signed } from "@/lib/format";
 export { openEnded } from "@/lib/metrics";
@@ -50,6 +51,67 @@ export function MonthOnMonth({ values, win, color, open = false }: { values: (nu
           ))}</tbody>
         </table>
       )}
+    </div>
+  );
+}
+
+/** The same cell, clickable (owner 21 Oct 2026): opens a panel with all 12 months as bars, each month's change, and for
+ *  a brand the products its reviews come from. */
+export function MonthOnMonthButton({ values, win, color, open = false, kicker, title, products }: {
+  values: (number | null)[]; win: string[]; color: string; open?: boolean; kicker: string; title: string;
+  products?: { pid: string; name: string; values: (number | null)[] }[];
+}) {
+  const show = useDetail();
+  const total = (v: (number | null)[]) => v.reduce<number>((a, x) => a + (x ?? 0), 0);
+  const all = total(values);
+  const panel = () => show({
+    kicker, title,
+    body: (<>
+      <MonthBars values={values} win={win} color={color} open={open} />
+      {products && products.length > 0 && (<>
+        <DetailHead>{tr(`Where the reviews come from · ${products.length} product${products.length === 1 ? "" : "s"}`, `리뷰 출처 · 제품 ${products.length}개`)}</DetailHead>
+        <div className="space-y-1">
+          {[...products].sort((a, b) => total(b.values) - total(a.values)).slice(0, 12).map((p) => {
+            const last = monthSteps(p.values, win, 3, open);
+            return (
+              <div key={p.pid} className="grid grid-cols-[minmax(0,1fr)_96px_44px_minmax(150px,auto)] items-center gap-2 px-1 py-1 text-[12px]">
+                <span className="truncate" title={p.name}>{p.name}</span>
+                <Sparkline values={p.values} color={color} width={90} height={20} />
+                <span className="text-right tabular"><b className="font-medium">{all ? Math.round((total(p.values) / all) * 100) : 0}%</b></span>
+                <span className="whitespace-nowrap text-right text-[11px] tabular text-muted">{last.map((s) => `${monthShort(s.month)} ${s.n}`).join(" · ")}</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-[11.5px] text-muted">{tr("% = the product's part of the brand's reviews over these 12 months.", "% = 12개월 동안 브랜드 리뷰 중 이 제품 비중.")}</p>
+      </>)}
+    </>),
+  });
+  return (
+    <button type="button" onClick={panel} className="group w-full rounded-lg text-left hover:bg-sunken/60" title={tr("Open the 12-month chart", "12개월 차트 보기")}>
+      <MonthOnMonth values={values} win={win} color={color} open={open} />
+      <span className="mt-0.5 block text-[11px] font-medium text-accent-strong group-hover:underline">{tr("12 months ›", "12개월 ›")}</span>
+    </button>
+  );
+}
+
+/** Twelve months as bars, the count on top and the change on the month before underneath. */
+export function MonthBars({ values, win, color, open = false }: { values: (number | null)[]; win: string[]; color: string; open?: boolean }) {
+  const steps = new Map(monthSteps(values, win, values.length, open).map((s) => [s.month, s]));
+  const max = Math.max(1, ...values.map((v) => v ?? 0));
+  return (
+    <div className="overflow-x-auto">
+      <div className="grid min-w-[520px] items-end gap-1.5" style={{ gridTemplateColumns: `repeat(${win.length}, minmax(0, 1fr))` }}>
+        {win.map((m, i) => { const v = values[i]; const s = steps.get(m); return (
+          <div key={m} className="flex flex-col items-center gap-1 text-[11px] tabular">
+            <span className="font-medium">{v ?? "–"}</span>
+            <span className="flex h-28 w-full items-end rounded-sm bg-sunken/60">{v !== null && v !== undefined && <span className="block w-full rounded-sm" style={{ height: `${Math.max(2, (v / max) * 100)}%`, background: color, opacity: s?.open ? 0.45 : 0.85 }} />}</span>
+            <span className="text-muted">{monthShort(m)}</span>
+            <span className="h-4">{s ? <Pct s={s} /> : null}</span>
+          </div>
+        ); })}
+      </div>
+      <p className="mt-2 text-[11.5px] text-muted">{tr(`Written reviews per month; under each bar, the change on the month before. * = under ${SMALL} reviews the month before. – = before our history starts.`, `월별 작성 리뷰. 막대 아래 = 전월 대비. * = 전월 리뷰 ${SMALL}건 미만. – = 이력 시작 전.`)}</p>
     </div>
   );
 }

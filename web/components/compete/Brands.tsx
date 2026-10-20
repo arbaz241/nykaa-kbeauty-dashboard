@@ -4,7 +4,7 @@ import BrandPicker from "@/components/BrandPicker";
 import CompareGrid, { type ExtraRow, type GridCol } from "@/components/CompareGrid";
 import PresenceMatrix from "@/components/PresenceMatrix";
 import { ActionSection } from "@/components/Report";
-import { MonthOnMonth, momHelp } from "@/components/MonthOnMonth";
+import { MonthOnMonthButton, momHelp } from "@/components/MonthOnMonth";
 import { monthsWindow } from "@/lib/metrics";
 import { Card } from "@/components/ui";
 import { Missing, Points, useDetail } from "@/components/Detail";
@@ -70,9 +70,11 @@ const GROUPS = () => ({ price: tr("Price and promotion", "가격·프로모션")
 /* ---------------------------------------------------------------- §7 brands */
 
 const DW = () => demandWindow();
-export function Brands({ facts, anchor, cat, colors, brands, known, rows, isDefault, onToggle, onReset, focusSet, inSet, buy }: {
+export function Brands({ facts, anchor, cat, colors, brands, known, rows, isDefault, onToggle, onReset, focusSet, inSet, buy, productsOf }: {
   facts: BrandFacts[]; anchor: string; cat: string; colors: Record<string, string>; brands: string[]; known: string[]; rows: ShelfRow[];
   isDefault: boolean; onToggle: (b: string) => void; onReset: () => void; focusSet: string[]; inSet: (b: string) => boolean; buy: BuyingShare;
+  /** each tracked product of a brand with its 12-month review series, for the month-by-month panel */
+  productsOf: (brand: string) => { pid: string; name: string; values: (number | null)[] }[];
 }) {
   const criteria = criteriaFor(cat, anchor, buy);
   const a = facts.find((f) => f.brand === anchor);
@@ -94,7 +96,8 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isDefa
     </div>
   ) }));
   const extra: ExtraRow<BrandFacts>[] = [
-    { after: "momentum", label: tr("By month · month on month", "월별 · 전월 대비"), help: momHelp(), has: (f) => f.spark.some((v) => v !== null), missing: () => tr("Not in review tracking", "리뷰 추적 대상 아님"), render: (f) => <MonthOnMonth values={f.spark} win={monthsWindow(12)} color={colors[f.brand]} /> },
+    { after: "momentum", label: tr("By month · month on month", "월별 · 전월 대비"), help: momHelp(), has: (f) => f.spark.some((v) => v !== null), missing: () => tr("Not in review tracking", "리뷰 추적 대상 아님"), render: (f) => <MonthOnMonthButton values={f.spark} win={monthsWindow(12)} color={colors[f.brand]}
+      kicker={tr(`${f.brand} · written reviews by month`, `${f.brand} · 월별 작성 리뷰`)} title={tr(`${f.brand}: the last 12 months`, `${f.brand}: 최근 12개월`)} products={productsOf(f.brand)} /> },
   ];
 
   return (
@@ -143,22 +146,31 @@ export function WhereCompete({ anchor, rows, catalog, colors, brands, onPickCat 
   ];
   const n = (k: string) => lines.filter((l) => l.group === k);
   const un = n("unranked");
-  const title = un.length ? tr(`${anchor} sells in ${un.length} categor${un.length === 1 ? "y" : "ies"} where none of its products reaches the top 100 but these brands' do (${un.slice(0, 3).map((l) => CATEGORY_LABEL[l.c].toLowerCase()).join(", ")}); it ranks highest of them in ${n("lead").length}.`,
-      `${anchor}는 제품을 팔지만 상위 100위에 없고 이 브랜드들은 있는 카테고리 ${un.length}곳 (${un.slice(0, 3).map((l) => CATEGORY_LABEL[l.c]).join(", ")}). 이 중 최고 순위인 곳은 ${n("lead").length}곳.`)
-    : tr(`${anchor} ranks highest of these brands in ${n("lead").length} categories and trails in ${n("trail").length}.`, `${anchor}: 이 브랜드들 중 최고 순위 ${n("lead").length}곳, 뒤처짐 ${n("trail").length}곳.`);
+  // owner 21 Oct 2026 ("isn't that clear already from the other information?"): the scorecard already says where
+  // Innisfree leads or trails; the one fact found only here is where it sells but nothing reaches the top 100. That
+  // stays in view; leads, trails and the full grid are one click away.
+  const title = un.length ? tr(`${anchor} sells in ${un.length} categor${un.length === 1 ? "y" : "ies"} without a top-100 product, where these brands rank.`, `${anchor}가 팔지만 상위 100위 제품이 없고 이 브랜드들은 순위권인 카테고리 ${un.length}곳.`)
+    : tr(`${anchor} has a top-100 product in every category it sells.`, `${anchor}는 판매하는 모든 카테고리에 상위 100위 제품 있음.`);
+  const rest = [G[1], G[0], G[3]].filter((g) => n(g.k).length);
   return (
-    <ActionSection id="compete" kicker={tr("Where they compete · category by category", "경쟁 지점 · 카테고리별")} title={title}
-      note={tr("Places in each category's top 100 tonight (own-category rank, best product). Click a category to compare its products in Part 2. The full grid, with prices and ranges, is below.", "오늘 카테고리별 상위 100위 자리(카테고리 자체 순위, 최고 제품 기준). 카테고리를 누르면 2부에서 제품 비교. 가격·라인업까지 있는 전체 표는 아래.")}>
-      <div className="grid items-start gap-3 md:grid-cols-2">
-        {[G[2], G[1], G[0], G[3]].map((g) => { const xs = n(g.k); if (!xs.length) return null; return (
-          <Card key={g.k} className="px-4 py-3.5">
-            <div className="flex items-center justify-between gap-2"><span className="text-[13.5px] font-semibold">{g.t}</span><span className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold tabular ${g.tone}`}>{xs.length}</span></div>
-            <ul className="mt-2 space-y-1.5">{xs.map((l) => (
-              <li key={l.c}><button onClick={() => onPickCat(l.c)} className="w-full text-left text-[13px] leading-snug hover:underline"><b className="font-medium">{CATEGORY_LABEL[l.c]}</b> <span className="text-ink-2">· {g.line(l)}</span></button></li>))}</ul>
-          </Card>); })}
-      </div>
+    <ActionSection id="compete" kicker={tr("Where they compete", "경쟁 지점")} title={title}
+      note={tr("Places in each category's top 100 tonight (own-category rank, best product). Click a category to compare its products in Part 2.", "오늘 카테고리별 상위 100위 자리(카테고리 자체 순위, 최고 제품). 카테고리를 누르면 2부에서 제품 비교.")}>
+      {un.length > 0 && (
+        <Card className="px-4 py-3.5">
+          <ul className="space-y-1.5">{un.map((l) => (
+            <li key={l.c}><button onClick={() => onPickCat(l.c)} className="w-full text-left text-[13.5px] leading-snug hover:underline"><b className="font-medium">{CATEGORY_LABEL[l.c]}</b> <span className="text-ink-2">· {G[2].line(l)}</span></button></li>))}</ul>
+        </Card>
+      )}
       <details className="mt-3">
-        <summary className="cursor-pointer text-[13px] font-medium text-accent-strong">{tr("Show the full grid (places, best rank, price, range for every brand)", "전체 표 보기 (브랜드별 자리, 최고 순위, 가격, 라인업)")}</summary>
+        <summary className="cursor-pointer text-[13px] font-medium text-accent-strong">{tr(`Every category: ${rest.map((g) => `${g.t.toLowerCase()} (${n(g.k).length})`).join(", ")}, and the full grid`, `전체 카테고리: ${rest.map((g) => `${g.t} (${n(g.k).length})`).join(", ")}, 전체 표`)}</summary>
+        <div className="mt-3 grid items-start gap-3 md:grid-cols-2">
+          {rest.map((g) => (
+            <Card key={g.k} className="px-4 py-3.5">
+              <div className="flex items-center justify-between gap-2"><span className="text-[13.5px] font-semibold">{g.t}</span><span className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold tabular ${g.tone}`}>{n(g.k).length}</span></div>
+              <ul className="mt-2 space-y-1.5">{n(g.k).map((l) => (
+                <li key={l.c}><button onClick={() => onPickCat(l.c)} className="w-full text-left text-[13px] leading-snug hover:underline"><b className="font-medium">{CATEGORY_LABEL[l.c]}</b> <span className="text-ink-2">· {g.line(l)}</span></button></li>))}</ul>
+            </Card>))}
+        </div>
         <div className="mt-3"><PresenceMatrix shelf={rows} catalog={catalog} anchor={anchor} brands={brands} colors={colors} onPick={onPickCat} categories={cats} /></div>
       </details>
     </ActionSection>

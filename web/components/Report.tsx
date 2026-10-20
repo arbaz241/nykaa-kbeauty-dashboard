@@ -49,7 +49,16 @@ export function ActionSection({ id, kicker, title, note, children, right }: {
         <div className="max-w-[920px]">
           <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-accent-strong">{kicker}</div>
           <h2 className="mt-2 font-display text-[22px] font-semibold leading-snug tracking-[-0.015em] md:text-[25px]">{title}</h2>
-          {note && <p className="mt-2 text-[13px] leading-relaxed text-muted">{note}</p>}
+          {/* owner 21 Oct 2026: "too much information in every place… make it clickable, information when needed": the
+              method note under every section title is one click away instead of always on the page */}
+          {note && (
+            <details className="group mt-1.5">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] font-medium text-muted hover:text-ink-2 [&::-webkit-details-marker]:hidden">
+                <span className="grid h-4 w-4 place-items-center rounded-full text-[10px] ring-1 ring-line-2">i</span>{tr("How to read this", "읽는 법")}<span className="transition group-open:rotate-90">›</span>
+              </summary>
+              <p className="mt-1.5 max-w-[820px] rounded-lg bg-sunken/60 px-3 py-2 text-[12.5px] leading-relaxed text-ink-2">{note}</p>
+            </details>
+          )}
         </div>
         {right}
       </div>

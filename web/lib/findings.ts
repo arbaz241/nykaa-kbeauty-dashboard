@@ -178,20 +178,21 @@ export function buildFindings({ anchor, movement, shares, demand: demandAll, ava
     });
   }
 
-  /* 6. A real price cut — never a pack swap (MRP must be unchanged). */
+  /* 6. A deeper discount at the same MRP (never a pack swap). Owner 21 Oct 2026: LANEIGE's "12 price cuts" were all
+     10-20% off with the MRP unchanged, i.e. a promotion that ends, so it is a watch item, not a threat. */
   for (const m of movement) {
     if (!hasPast(m.category)) continue;
     if (m.price_change_14d === null || m.price_change_14d > -0.1 || !m.same_pack) continue;
     if (!anchorCats.has(m.category) && anchorCats.size > 0) continue;
     out.push({
       id: `price-${m.product_id}-${m.category}`,
-      soWhat: same(m.brand, anchor) ? tr(`Check the margin impact of this cut.`, `이번 인하가 마진에 미치는 영향 확인 필요.`)
-        : tr(`${anchor}'s products in ${cat(m.category)} now look relatively more expensive.`, `${cat(m.category)}에서 ${anchor} 제품이 상대적으로 비싸 보이게 됨.`),
-      tone: same(m.brand, anchor) ? "watch" : "threat",
+      soWhat: same(m.brand, anchor) ? tr(`A discount, not a new MRP.`, `정가 변경이 아닌 할인.`)
+        : tr(`A discount with the MRP unchanged: a promotion to watch, not a new price.`, `정가는 그대로인 할인: 새 가격이 아니라 지켜볼 프로모션.`),
+      tone: "watch",
       weight: 45 + Math.abs(m.price_change_14d) * 100,
-      headline: tr(`${m.brand} cut the price of ${shorten(m.name, m.brand)} by ${Math.round(Math.abs(m.price_change_14d) * 100)}% in ${cat(m.category)}`, `${m.brand}, ${cat(m.category)} ${shorten(m.name, m.brand)} 가격 ${Math.round(Math.abs(m.price_change_14d) * 100)}% 인하`),
-      detail: tr(`₹${m.price_14d} to ₹${m.price} at the same MRP, so this is a genuine discount rather than Nykaa switching the pack size shown.`,
-        `정가(MRP)는 그대로인데 ₹${m.price_14d} → ₹${m.price}. Nykaa 표시 용량 변경이 아니라 실제 할인.`),
+      headline: tr(`${m.brand} is selling ${shorten(m.name, m.brand)} ${Math.round(Math.abs(m.price_change_14d) * 100)}% cheaper (MRP unchanged)`, `${m.brand} ${shorten(m.name, m.brand)} ${Math.round(Math.abs(m.price_change_14d) * 100)}% 할인 판매 (정가 그대로)`),
+      detail: tr(`₹${m.price_14d} to ₹${m.price} at the same MRP: a discount, not a change of price list or pack size.`,
+        `정가(MRP)는 그대로인데 ₹${m.price_14d} → ₹${m.price}. 가격표·용량 변경이 아닌 할인.`),
       evidence: [
         { label: tr("Was", "이전"), value: `₹${m.price_14d}` },
         { label: tr("Now", "현재"), value: `₹${m.price}` },
