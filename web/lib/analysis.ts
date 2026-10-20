@@ -171,6 +171,8 @@ export interface CategoryCell {
   coverage: number;
   /** The category's buying (₹, new ratings × MRP) and the anchor's share of it: the site's one share measure. */
   buying: number; anchorShare: number; anchorProducts: number;
+  /** The anchor's place among the brands with buying in the category (null = no buying counted for it), out of `brandsCounted`. */
+  anchorPlace: number | null; brandsCounted: number;
   leader: { brand: string; share: number }; focusLeader: { brand: string; share: number } | null;
   thin: string | null;
   quadrant: "opportunity" | "invest" | "maintain" | "low" | null;
@@ -181,10 +183,10 @@ export interface CategoryCell {
 const quad = (label: [string, string], read: [string, string], tone: "good" | "bad" | "accent" | "muted") =>
   ({ get label() { return tr(...label); }, get read() { return tr(...read); }, tone });
 export const QUAD: Record<NonNullable<CategoryCell["quadrant"]>, { label: string; read: string; tone: "good" | "bad" | "accent" | "muted" }> = {
-  opportunity: quad(["Faster growth · smaller share", "빠른 성장 · 점유율 낮음"], ["Growing faster than all tracked products, and the anchor's share of buying here is below its share across all lists", "추적 전체보다 빠르게 성장, 기준 브랜드의 구매 점유율은 전체 목록 평균보다 낮은 곳"], "accent"),
-  invest: quad(["Faster growth · larger share", "빠른 성장 · 점유율 높음"], ["Growing faster than all tracked products, and the anchor's share of buying here is above its share across all lists", "추적 전체보다 빠르게 성장, 기준 브랜드의 구매 점유율도 전체 목록 평균보다 높은 곳"], "good"),
-  maintain: quad(["Slower growth · larger share", "느린 성장 · 점유율 높음"], ["Growing slower than all tracked products; the anchor's share of buying here is above its share across all lists", "추적 전체보다 느리게 성장, 기준 브랜드의 구매 점유율은 전체 목록 평균보다 높은 곳"], "muted"),
-  low: quad(["Slower growth · smaller share", "느린 성장 · 점유율 낮음"], ["Growing slower than all tracked products, and the anchor's share of buying here is below its share across all lists", "추적 전체보다 느리게 성장, 기준 브랜드의 구매 점유율도 전체 목록 평균보다 낮은 곳"], "muted"),
+  opportunity: quad(["Faster growth · outside the top 5", "빠른 성장 · 상위 5위 밖"], ["Growing faster than all tracked products, and the anchor is not among the category's 5 biggest brands", "추적 전체보다 빠르게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드 밖"], "accent"),
+  invest: quad(["Faster growth · top-5 brand", "빠른 성장 · 상위 5위"], ["Growing faster than all tracked products, and the anchor is among the category's 5 biggest brands", "추적 전체보다 빠르게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드"], "good"),
+  maintain: quad(["Slower growth · top-5 brand", "느린 성장 · 상위 5위"], ["Growing slower than all tracked products; the anchor is among the category's 5 biggest brands", "추적 전체보다 느리게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드"], "muted"),
+  low: quad(["Slower growth · outside the top 5", "느린 성장 · 상위 5위 밖"], ["Growing slower than all tracked products, and the anchor is not among the category's 5 biggest brands", "추적 전체보다 느리게 성장, 기준 브랜드는 카테고리 상위 5개 브랜드 밖"], "muted"),
 };
 
 /** Category map (round 6 sweep, owner 20 Oct 2026: numbers that hold up in front of others). Across: the anchor's share
@@ -212,6 +214,7 @@ export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: stri
     const brand = new Map<string, number>(); fs.forEach((f) => brand.set(f.brand, (brand.get(f.brand) ?? 0) + f.value));
     const ranked = [...brand.entries()].sort((a, b) => b[1] - a[1]);
     const anchorBuy = ranked.find(([b]) => same(b, anchor))?.[1] ?? 0;
+    const placeIdx = ranked.findIndex(([b, v]) => same(b, anchor) && v > 0);
     const lead = ranked.find(([b]) => !same(b, anchor)) ?? ["", 0];
     const fl = ranked.find(([b]) => !same(b, anchor) && isFocus(b));
     const thin = !buying ? tr("no buying counted in this list yet", "이 목록은 아직 구매 집계 없음")
@@ -221,10 +224,12 @@ export function categoryMap(anchor: string, rows: DemandRow[], isFocus: (b: stri
     const fast = g.growth !== null && market.growth !== null && g.growth >= market.growth;
     cells.push({
       category, recent, products: rs.length, brands: brand.size, growth: g.growth, growthBase: g, coverage, buying,
-      anchorShare, anchorProducts: fs.filter((f) => same(f.brand, anchor)).length,
+      anchorShare, anchorProducts: fs.filter((f) => same(f.brand, anchor)).length, anchorPlace: placeIdx >= 0 ? placeIdx + 1 : null, brandsCounted: ranked.length,
       leader: { brand: lead[0], share: buying ? lead[1] / buying : 0 },
       focusLeader: fl ? { brand: fl[0], share: buying ? fl[1] / buying : 0 } : null,
-      thin, quadrant: thin ? null : fast ? (anchorShare >= usual ? "invest" : "opportunity") : anchorShare >= usual ? "maintain" : "low",
+      // owner 20 Oct 2026: the old dividing line (the anchor's share across all 15 lists, 0.3%) mixed in lists it doesn't
+      // sell in and meant little; its place among the category's brands reads plainly
+      thin, quadrant: thin ? null : fast ? (placeIdx >= 0 && placeIdx < 5 ? "invest" : "opportunity") : placeIdx >= 0 && placeIdx < 5 ? "maintain" : "low",
     });
   }
   return { cells: cells.sort((a, b) => b.buying - a.buying || b.recent - a.recent), usual, market };

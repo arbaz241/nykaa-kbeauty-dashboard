@@ -118,16 +118,49 @@ export function Brands({ facts, anchor, cat, colors, brands, known, rows, isDefa
 export function WhereCompete({ anchor, rows, catalog, colors, brands, onPickCat }: {
   anchor: string; rows: ShelfRow[]; catalog: CatalogRow[]; colors: Record<string, string>; brands: string[]; onPickCat: (c: string) => void;
 }) {
+  // owner 20 Oct 2026: the brand × category grid was "cluttered… so many numbers, so many blank spaces… no clear-cut
+  // insight". Each category is now put in one of four plain groups, with the one fact that decides it; the grid stays
+  // one click away.
   const cats = [...SKINCARE, ...CATEGORIES.filter((c) => !SKINCARE.includes(c))].filter((c) => SKINCARE.includes(c) || brands.some((b) => productOptions(b, c, rows, catalog).length));
-  const anchorSells = (c: string) => productOptions(anchor, c, rows, catalog).length > 0;
-  const shared = cats.filter((c) => anchorSells(c) && brands.some((b) => b !== anchor && productOptions(b, c, rows, catalog).length));
-  const gaps = cats.filter((c) => !anchorSells(c) && brands.some((b) => b !== anchor && rows.some((r) => r.brand === b && r.subcategory === c)));
-  const title = tr(`Innisfree and these brands both sell in ${shared.length} categor${shared.length === 1 ? "y" : "ies"}${gaps.length ? `; Innisfree sells nothing in ${gaps.map((c) => CATEGORY_LABEL[c].toLowerCase()).join(", ")}, where they rank` : ""}.`,
-    `Innisfree와 이 브랜드들이 함께 파는 카테고리 ${shared.length}곳${gaps.length ? `. 이들이 순위에 오른 ${gaps.map((c) => CATEGORY_LABEL[c]).join(", ")}에선 Innisfree 판매 제품 없음` : ""}.`);
+  const rivals = brands.filter((b) => b !== anchor);
+  const best = (b: string, c: string) => { const g = rows.filter((r) => r.subcategory === c && r.brand === b); return g.length ? { n: g.length, best: Math.min(...g.map((r) => r.rank)) } : null; };
+  const lines = cats.map((c) => {
+    const a = best(anchor, c); const sells = productOptions(anchor, c, rows, catalog).length;
+    const ranked = rivals.map((b) => ({ b, x: best(b, c) })).filter((r): r is { b: string; x: { n: number; best: number } } => !!r.x).sort((p, q) => p.x.best - q.x.best);
+    const group = a ? (!ranked.length || a.best < ranked[0].x.best ? "lead" : "trail") : sells ? (ranked.length ? "unranked" : null) : ranked.length ? "absent" : null;
+    return { c, a, sells, ranked, group };
+  }).filter((l) => l.group);
+  const who = (r: { b: string; x: { n: number; best: number } }[]) => r.slice(0, 3).map(({ b, x }) => tr(`${b} #${x.best}${x.n > 1 ? ` (${x.n} places)` : ""}`, `${b} #${x.best}${x.n > 1 ? ` (${x.n}개)` : ""}`)).join(", ");
+  const G = [
+    { k: "lead", t: tr(`${anchor} ranks highest of these brands`, `이 브랜드들 중 ${anchor} 최고 순위`), tone: "bg-good-soft text-good",
+      line: (l: (typeof lines)[number]) => tr(`best #${l.a!.best}${l.a!.n > 1 ? `, ${l.a!.n} places` : ""}${l.ranked.length ? `; next: ${who(l.ranked.slice(0, 1))}` : "; none of the others rank"}`, `최고 #${l.a!.best}${l.a!.n > 1 ? `, ${l.a!.n}개` : ""}${l.ranked.length ? `. 다음: ${who(l.ranked.slice(0, 1))}` : ". 다른 브랜드 순위 없음"}`) },
+    { k: "trail", t: tr(`${anchor} ranks, these brands rank higher`, `${anchor} 순위권, 이 브랜드들이 더 높음`), tone: "bg-warn-soft text-warn",
+      line: (l: (typeof lines)[number]) => tr(`${anchor} #${l.a!.best}; ahead: ${who(l.ranked.filter((r) => r.x.best < l.a!.best))}`, `${anchor} #${l.a!.best}. 앞선 곳: ${who(l.ranked.filter((r) => r.x.best < l.a!.best))}`) },
+    { k: "unranked", t: tr(`${anchor} sells here, nothing in the top 100`, `${anchor} 판매 중, 상위 100위 없음`), tone: "bg-bad-soft text-bad",
+      line: (l: (typeof lines)[number]) => tr(`${l.sells} ${anchor} product${l.sells === 1 ? "" : "s"} on Nykaa; ranking: ${who(l.ranked)}`, `${anchor} 제품 ${l.sells}개 판매. 순위권: ${who(l.ranked)}`) },
+    { k: "absent", t: tr(`${anchor} doesn't sell here; these brands rank`, `${anchor} 미판매, 이 브랜드들은 순위권`), tone: "bg-sunken text-ink-2",
+      line: (l: (typeof lines)[number]) => who(l.ranked) },
+  ];
+  const n = (k: string) => lines.filter((l) => l.group === k);
+  const un = n("unranked");
+  const title = un.length ? tr(`${anchor} sells in ${un.length} categor${un.length === 1 ? "y" : "ies"} where none of its products reaches the top 100 but these brands' do (${un.slice(0, 3).map((l) => CATEGORY_LABEL[l.c].toLowerCase()).join(", ")}); it ranks highest of them in ${n("lead").length}.`,
+      `${anchor}는 제품을 팔지만 상위 100위에 없고 이 브랜드들은 있는 카테고리 ${un.length}곳 (${un.slice(0, 3).map((l) => CATEGORY_LABEL[l.c]).join(", ")}). 이 중 최고 순위인 곳은 ${n("lead").length}곳.`)
+    : tr(`${anchor} ranks highest of these brands in ${n("lead").length} categories and trails in ${n("trail").length}.`, `${anchor}: 이 브랜드들 중 최고 순위 ${n("lead").length}곳, 뒤처짐 ${n("trail").length}곳.`);
   return (
-    <ActionSection id="compete" kicker={tr("Where they compete", "경쟁 지점")} title={title}
-      note={tr("Each cell: the brand's listings in that category's top 100 today, or how much it sells there without ranking (full range for tracked brands). Click a category row to compare its products in Part 2. The product pairings from the analysis are in Part 2.", "각 칸: 오늘 그 카테고리 상위 100위 제품 수, 또는 순위 밖에서 판매 중인 제품 수(추적 브랜드는 전체 라인업 기준). 카테고리 행을 누르면 2부에서 제품 비교. 분석된 제품 짝은 2부에 있음.")}>
-      <PresenceMatrix shelf={rows} catalog={catalog} anchor={anchor} brands={brands} colors={colors} onPick={onPickCat} categories={cats} />
+    <ActionSection id="compete" kicker={tr("Where they compete · category by category", "경쟁 지점 · 카테고리별")} title={title}
+      note={tr("Places in each category's top 100 tonight (own-category rank, best product). Click a category to compare its products in Part 2. The full grid, with prices and ranges, is below.", "오늘 카테고리별 상위 100위 자리(카테고리 자체 순위, 최고 제품 기준). 카테고리를 누르면 2부에서 제품 비교. 가격·라인업까지 있는 전체 표는 아래.")}>
+      <div className="grid gap-3 md:grid-cols-2">
+        {G.map((g) => { const xs = n(g.k); if (!xs.length) return null; return (
+          <Card key={g.k} className="px-4 py-3.5">
+            <div className="flex items-center justify-between gap-2"><span className="text-[13.5px] font-semibold">{g.t}</span><span className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold tabular ${g.tone}`}>{xs.length}</span></div>
+            <ul className="mt-2 space-y-1.5">{xs.map((l) => (
+              <li key={l.c}><button onClick={() => onPickCat(l.c)} className="w-full text-left text-[13px] leading-snug hover:underline"><b className="font-medium">{CATEGORY_LABEL[l.c]}</b> <span className="text-ink-2">· {g.line(l)}</span></button></li>))}</ul>
+          </Card>); })}
+      </div>
+      <details className="mt-3">
+        <summary className="cursor-pointer text-[13px] font-medium text-accent-strong">{tr("Show the full grid (places, best rank, price, range for every brand)", "전체 표 보기 (브랜드별 자리, 최고 순위, 가격, 라인업)")}</summary>
+        <div className="mt-3"><PresenceMatrix shelf={rows} catalog={catalog} anchor={anchor} brands={brands} colors={colors} onPick={onPickCat} categories={cats} /></div>
+      </details>
     </ActionSection>
   );
 }
