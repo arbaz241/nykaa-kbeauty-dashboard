@@ -20,6 +20,13 @@ logs/
 *.log
 *.har
 
+# Owner's private notes and instructions: kept on this Mac only, never committed (repo is public)
+docs/
+competitive_analysis_revision_instructions.md
+dashboard_restructure_instructions.md
+nykaa-dashboard-improvements.md
+nykaa-kbeauty-dashboard-instructions.md
+
 # OS / editor
 .DS_Store
 .idea/

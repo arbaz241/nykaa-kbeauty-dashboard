@@ -123,12 +123,6 @@ jobs:
           path: data/cache
           key: review-cache-${{ github.run_id }}
 
-      # Raw output for inspection / recovery if the DB ingest fails.
-      - name: Upload run output
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: scrape-${{ github.run_id }}
-          path: data/
-          retention-days: 14
-          if-no-files-found: warn
+      # No "upload run output" step (removed 20 Oct 2026 before the repo goes public): on a public repo anyone could
+      # download a run's data/ folder, and the owner's rule is no data as public files. Everything the run collects is
+      # in Supabase; a failed ingest is re-read the next night.
