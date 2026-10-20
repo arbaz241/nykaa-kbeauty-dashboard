@@ -149,8 +149,8 @@ export function WhereCompete({ anchor, rows, catalog, colors, brands, onPickCat 
   return (
     <ActionSection id="compete" kicker={tr("Where they compete · category by category", "경쟁 지점 · 카테고리별")} title={title}
       note={tr("Places in each category's top 100 tonight (own-category rank, best product). Click a category to compare its products in Part 2. The full grid, with prices and ranges, is below.", "오늘 카테고리별 상위 100위 자리(카테고리 자체 순위, 최고 제품 기준). 카테고리를 누르면 2부에서 제품 비교. 가격·라인업까지 있는 전체 표는 아래.")}>
-      <div className="grid gap-3 md:grid-cols-2">
-        {G.map((g) => { const xs = n(g.k); if (!xs.length) return null; return (
+      <div className="grid items-start gap-3 md:grid-cols-2">
+        {[G[2], G[1], G[0], G[3]].map((g) => { const xs = n(g.k); if (!xs.length) return null; return (
           <Card key={g.k} className="px-4 py-3.5">
             <div className="flex items-center justify-between gap-2"><span className="text-[13.5px] font-semibold">{g.t}</span><span className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold tabular ${g.tone}`}>{xs.length}</span></div>
             <ul className="mt-2 space-y-1.5">{xs.map((l) => (
