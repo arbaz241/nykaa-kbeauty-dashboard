@@ -63,7 +63,10 @@ jobs:
     needs: guard
     if: needs.guard.outputs.run == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 100  # time-boxed steps: reviews ~36 + top-30 reviews 15 + review counts 15 min; Nykaa throttles hard
+    # public repo since 21 Oct 2026 (unlimited Actions minutes): the top-100 review pass gets 3 hours (below) until the
+    # never-read backlog is done; afterwards it stops early on its own (never-read + 40 stalest per night). GitHub's
+    # job limit is 6 hours.
+    timeout-minutes: 300
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -94,9 +97,10 @@ jobs:
       - name: Run scraper
         id: run
         env:
-          # jitter only on the schedule, not on manual runs; 0-15 min (cut from 30 on 5 Oct: the sleep is billed
-          # against the private repo's 2,000 free Actions minutes and runs were nearing ~1,850/month)
+          # jitter only on the schedule, not on manual runs; 0-15 min
           SCRAPE_START_JITTER_SEC: ${{ github.event_name == 'schedule' && '900' || '0' }}
+          # owner 21 Oct 2026, repo public: read review history for every list's top 100 (was 15 min a night)
+          REVIEW_WIDE_MAX_MINUTES: "180"
         run: |
           ARGS=""
           if [ "${{ github.event.inputs.mode }}" = "dry-run" ]; then ARGS="--no-db --no-enrich"; fi
