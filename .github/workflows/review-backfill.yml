@@ -1,0 +1,54 @@
+name: Review backfill
+
+# Reads review history only (no top-100 lists, prices or search), so it never counts as a daily scrape and never
+# writes a second snapshot for a day. Started by hand (owner 21 Oct 2026: "use GitHub to get the rest of the data…
+# a temporary 4 to 5 hours run"). Never-read top-100 products first, best rank first; the same backoff on Nykaa's
+# "too many requests" as the nightly run. Shares the nightly run's queue, so the two never overlap.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Minutes for the top-100 review pass (max ~300)"
+        default: "270"
+
+concurrency:
+  group: nykaa-scrape
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reviews:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 345  # GitHub's job limit is 360
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SCRAPE_RUNNER: github-actions-backfill
+      LOG_LEVEL: INFO
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Read review history
+        id: run
+        env:
+          # the key products were all read on 20 Oct: a short refresh of the stalest, then the top-100 backlog
+          REVIEW_HISTORY_MAX_MINUTES: "15"
+          REVIEW_WIDE_MAX_MINUTES: ${{ inputs.minutes }}
+        run: python -m scraper.signals_run --only reviews
+
+      # the dashboard reads nightly copies: rebuild them so the new history shows without waiting for the next night
+      - name: Refresh dashboard copies
+        if: always() && steps.run.outcome != 'skipped'
+        run: python -m scraper.refresh
