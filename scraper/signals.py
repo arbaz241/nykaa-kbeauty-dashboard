@@ -172,7 +172,7 @@ async def review_history(page: Page, products: list[dict], cursors: dict[str, di
     hist_rows, cur_rows = [], []
     stats = {"products": 0, "requests": 0, "reviews": 0, "errors": 0}
     todo = products if max_products is None else products[:max_products]
-    deadline = None if not max_minutes else datetime.now(timezone.utc) + timedelta(minutes=max_minutes)
+    deadline = None if max_minutes is None else datetime.now(timezone.utc) + timedelta(minutes=max_minutes)  # 0 = no time at all (21 Oct: "0" read as unlimited ran 6 h)
     for p in todo:
         if deadline and datetime.now(timezone.utc) >= deadline:
             stats["out_of_time"] = len(todo) - stats["products"]
@@ -326,7 +326,7 @@ async def review_texts_only(page: Page, products: list[dict], on_product=None, m
     collected (newest first); `text_days` reaches further back than the nightly REVIEW_TEXT_DAYS window."""
     stats = {"products": 0, "requests": 0, "texts": 0, "errors": 0}
     cutoff = (datetime.now(timezone.utc) - timedelta(days=text_days or config.REVIEW_TEXT_DAYS)).strftime("%Y-%m-%d")
-    deadline = None if not max_minutes else datetime.now(timezone.utc) + timedelta(minutes=max_minutes)
+    deadline = None if max_minutes is None else datetime.now(timezone.utc) + timedelta(minutes=max_minutes)  # 0 = no time at all (21 Oct: "0" read as unlimited ran 6 h)
     for p in products:
         if deadline and datetime.now(timezone.utc) >= deadline:
             stats["out_of_time"] = len(products) - stats["products"]
