@@ -57,7 +57,7 @@ export interface ProductFacts {
 }
 
 export type BrandFacts = BrandScore & { basket: BasketPrice; catPrice: { price: number; perHundred: number | null; n: number } | null;
-  /** big sellers counted at an estimated year-ago level in `growth` (lib/fill, owner 21 Oct 2026) */ growthEst?: number };
+  /** big sellers counted at an estimated year-ago level in `growth` (lib/fill, owner 21 Oct 2026) */ growthEst?: number; growthNote?: string };
 
 /** Every product a brand sells in a category: today's top 100 first (by rank), then its wider catalogue by ratings. */
 export function productOptions(brand: string, cat: string, rows: ShelfRow[], catalog: CatalogRow[]) {

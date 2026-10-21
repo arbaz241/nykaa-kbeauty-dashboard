@@ -194,6 +194,7 @@ function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; sp
   const [openB, setOpenB] = useState<string | null>(null); const [openP, setOpenP] = useState<string | null>(null);
   const [allBrands, setAllBrands] = useState(false); const [allProducts, setAllProducts] = useState(false);
   const [filters, setFilters] = useState(false); const [origin, setOrigin] = useState<string>("all"); const [q, setQ] = useState("");
+  const [find, setFind] = useState<string | null>(null); const [ahead, setAhead] = useState(false);
   const win = m.win!;
   const today = useMemo(() => m.shelf.filter((r) => r.subcategory === cat).sort((a, b) => a.rank - b.rank), [m.shelf, cat]);
   const nykaaShown = Math.max(today.length, ...today.map((r) => r.nykaa_rank ?? r.rank));
@@ -212,7 +213,14 @@ function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; sp
       return { b, origin: mine[0]?.origin ?? m.originOf(b), share, units: units ? sh.rows.filter((r) => r.brand === b).reduce((a, r) => a + r.flow, 0) / units : 0, change, places: mine.length, seller };
     }).sort((a, b) => b.share - a.share || b.places - a.places);
   }, [sh, prev, today, m]);
-  const shownBrands = allBrands ? brands : brands.slice(0, 12);
+  // "Who is ahead of a brand" (owner, 21 Oct): its place in the buying order and the brands in front of it
+  const focus = find ?? brands.find((x) => tiers.isPinned(x.b))?.b ?? null;
+  const fi = focus ? brands.findIndex((x) => x.b === focus) : -1; const fx = fi >= 0 ? brands[fi] : null;
+  const withBuying = brands.filter((x) => x.share > 0).length;
+  const fRank = fx ? (fx.share > 0 ? fi + 1 : null) : null;
+  const aheadShare = fx ? brands.slice(0, fx.share > 0 ? fi : withBuying).reduce((a, x) => a + x.share, 0) : 0;
+  const shownBrands = ahead && fx ? brands.slice(0, fx.share > 0 ? fi + 1 : withBuying).concat(fx.share > 0 ? [] : [fx]) : allBrands ? brands : brands.slice(0, 12);
+  const cum = new Map<string, number>(); brands.reduce((a, x) => { cum.set(x.b, a + x.share); return a + x.share; }, 0);
   const products = today.filter((r) => (origin === "all" || r.origin === origin) && (!q || `${r.brand} ${r.name}`.toLowerCase().includes(q.toLowerCase())));
   const shownProducts = allProducts || q || origin !== "all" ? products : products.slice(0, 20);
   const leader = brands[0];
@@ -228,24 +236,40 @@ function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; sp
           `${catName(cat)} 1위 ${leader.b} (전체 판매의 ${pct(leader.share, 1)})${rivals[0] ? `, K-뷰티 경쟁사 1위 ${rivals[0].b} (${pct(rivals[0].share, 1)})` : ""}${ours ? `, ${ours.b} ${ours.share > 0 ? pct(ours.share, 1) : "집계 없음"}` : ""}`) : tr("Who leads", "선두 브랜드")}
         note={tr(<>Brands ranked by <Def k="ratingFlow">share of buying</Def>: their ₹ out of all brands in {catName(cat).toLowerCase()} (= 100%), {dayMonth(span.start)}–{dayMonth(span.end)}, single products filed under this category. Units = share of new ratings (items, not ₹). Buying decides who is winning; products in the top 100, price and offers explain why (press Details).</>,
           <>{catName(cat)} 전체 브랜드(= 100%) 중 금액 기준 <Def k="ratingFlow">판매 점유율</Def> 순 ({dayMonth(span.start)}–{dayMonth(span.end)}), 이 카테고리로 분류된 단일 제품. 수량 = 신규 평가 점유(금액이 아닌 개수). 승자는 판매로 판단, 상위 100위 제품 수·가격·프로모션은 이유 설명용.</>)}>
+        <Card className="mb-3 px-4 py-3 text-[13px]">
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="ahead-of" className="text-muted">{tr("Where does a brand stand?", "브랜드 순위 찾기")}</label>
+            <select id="ahead-of" value={focus ?? ""} onChange={(e) => { setFind(e.target.value || null); setAhead(true); }} className="rounded-full border border-line bg-page px-3 py-1 text-[12.5px]">
+              {brands.map((x, i) => <option key={x.b} value={x.b}>{x.share > 0 ? `#${i + 1} ` : ""}{x.b}</option>)}
+            </select>
+            {fx && <button onClick={() => setAhead(!ahead)} className={pill(ahead, "sm")}>{ahead ? tr("Show the usual list", "기본 목록") : fRank && fRank > 1 ? tr(`Show the ${fRank - 1} brands ahead`, `앞선 ${fRank - 1}개 브랜드 보기`) : tr("Show in the list", "목록에서 보기")}</button>}
+          </div>
+          {fx && <p className="mt-2">{fRank
+            ? tr(<><b>{fx.b}</b> is <b>#{fRank}</b> of {withBuying} brands with buying counted in {catName(cat).toLowerCase()}, with {pct(fx.share, 1)}. {fRank > 1 ? <>The {fRank - 1} brand{fRank > 2 ? "s" : ""} ahead hold <b>{pct(aheadShare, 1)}</b>.</> : "No brand is ahead."}</>,
+              <><b>{fx.b}</b>: {catName(cat)} 판매 집계 브랜드 {withBuying}개 중 <b>{fRank}위</b> ({pct(fx.share, 1)}). {fRank > 1 ? <>앞선 {fRank - 1}개 브랜드 합계 <b>{pct(aheadShare, 1)}</b>.</> : "1위."}</>)
+            : tr(<><b>{fx.b}</b> has no buying counted in {catName(cat).toLowerCase()} ({fx.places ? `${fx.places} product${fx.places > 1 ? "s" : ""} in today's top 100, no new ratings counted in the window` : "no product in the top 100 in the window"}); all {withBuying} brands with buying are ahead.</>,
+              <><b>{fx.b}</b>: {catName(cat)} 판매 집계 없음 ({fx.places ? `오늘 상위 100위 제품 ${fx.places}개, 기간 중 신규 평가 집계 없음` : "기간 중 상위 100위 제품 없음"}). 판매 집계 브랜드 {withBuying}개 모두 앞섬.</>)}</p>}
+          <p className="mt-1 text-[12px] text-muted">{tr(`An estimate from our data, not Nykaa's sales: new ratings each product gained ${dayMonth(span.start)}–${dayMonth(span.end)} × its MRP, counting only products in Nykaa's top 100 of this list. Brands outside the top 100 are not counted, so shares are of the top 100's buying.`, `Nykaa 매출이 아닌 자체 추정: ${dayMonth(span.start)}–${dayMonth(span.end)} 제품별 신규 평가 수 × 정가(MRP), 이 목록 Nykaa 상위 100위 제품만. 상위 100위 밖 브랜드는 미집계 → 점유율은 상위 100위 판매 기준.`)}</p>
+        </Card>
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-[13px]">
-            <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">#</th><th className="px-2">{tr("Brand", "브랜드")}</th><th className="px-2">{tr("Share of all buying", "전체 판매 점유율")}</th><th className="px-2">{tr("Units", "수량")}</th><th className="px-2">{tr("Products in the top 100", "상위 100위 제품")}</th><th className="px-2">{tr("Best seller", "베스트셀러")}</th><th className="px-4" /></tr></thead>
-            <tbody>{shownBrands.map((x, i) => (
+            <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">#</th><th className="px-2">{tr("Brand", "브랜드")}</th><th className="px-2">{tr("Share of all buying (est.)", "전체 판매 점유율 (추정)")}</th><th className="px-2">{tr("Running total", "누적")}</th><th className="px-2">{tr("Units", "수량")}</th><th className="px-2">{tr("Products in the top 100", "상위 100위 제품")}</th><th className="px-2">{tr("Best seller", "베스트셀러")}</th><th className="px-4" /></tr></thead>
+            <tbody>{shownBrands.map((x) => (
               <Fragment key={x.b}>
-                <tr className={`border-b border-line/60 align-top ${tiers.isPinned(x.b) ? "bg-accent-soft/40" : ""}`}>
-                  <td className="px-4 py-2.5 tabular text-muted">{i + 1}</td>
+                <tr className={`border-b border-line/60 align-top ${x.b === focus && ahead ? "bg-accent-soft" : tiers.isPinned(x.b) ? "bg-accent-soft/40" : ""}`}>
+                  <td className="px-4 py-2.5 tabular text-muted">{x.share > 0 ? brands.indexOf(x) + 1 : "–"}</td>
                   <td className="px-2 py-2.5"><b className="font-medium">{x.b}</b> <span className={`ml-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${ORIGIN_CHIP[x.origin] ?? ORIGIN_CHIP.unknown}`}>{ORIGIN_LABEL[x.origin] ?? x.origin}</span>{tiers.isPinned(x.b) ? <span className="ml-1 rounded bg-brand px-1.5 py-px text-[10px] font-semibold uppercase text-on-brand">{tr("ours", "자사")}</span> : tiers.inSet(x.b) ? <span className="ml-1 text-[10.5px] font-semibold uppercase text-accent-strong">{tiers.group(x.b) === "korean" ? tr("K-beauty rival", "K-뷰티 경쟁사") : tr("main brand", "주요 브랜드")}</span> : null}</td>
                   <td className="px-2 py-2.5 tabular"><div className="flex items-center gap-2"><span className="w-12">{x.share > 0 ? pct(x.share, 1) : "–"}</span><span className="h-1.5 rounded-full bg-brand" style={{ width: `${Math.max(2, (x.share / (leader?.share || 1)) * 120)}px` }} /></div>{x.change !== null && <Basis>{pts(x.change)} {tr("vs the period before", "직전 기간 대비")}</Basis>}</td>
+                  <td className="px-2 py-2.5 tabular text-muted">{x.share > 0 ? pct(cum.get(x.b) ?? 0, 1) : "–"}</td>
                   <td className="px-2 py-2.5 tabular text-ink-2">{x.units > 0 ? pct(x.units, 1) : "–"}</td>
                   <td className="px-2 py-2.5 tabular">{x.places}</td>
                   <td className="max-w-[300px] px-2 py-2.5">{x.seller ? <>{shortName(x.seller.name, x.b)} <span className="text-muted tabular">#{x.seller.rankEnd} · {inr(x.seller.price)}</span></> : <span className="text-muted">{x.places ? tr("no buying counted", "판매 집계 없음") : tr("left the top 100", "상위 100위 이탈")}</span>}</td>
                   <td className="px-4 py-2.5 text-right"><DetailsButton open={openB === x.b} onClick={() => setOpenB(openB === x.b ? null : x.b)} /></td>
                 </tr>
-                {openB === x.b && <tr><td colSpan={7} className="px-4 pb-3"><BrandQuick brand={x.b} cat={cat} /></td></tr>}
+                {openB === x.b && <tr><td colSpan={8} className="px-4 pb-3"><BrandQuick brand={x.b} cat={cat} /></td></tr>}
               </Fragment>))}</tbody>
           </table>
-          {brands.length > 12 && <div className="border-t border-line px-4 py-2.5"><button onClick={() => setAllBrands(!allBrands)} className="text-[12.5px] font-medium text-accent-strong">{allBrands ? tr("Show the top 12", "상위 12개만") : tr(`Show all ${brands.length} brands`, `브랜드 ${brands.length}개 모두 보기`)}</button></div>}
+          {!ahead && brands.length > 12 && <div className="border-t border-line px-4 py-2.5"><button onClick={() => setAllBrands(!allBrands)} className="text-[12.5px] font-medium text-accent-strong">{allBrands ? tr("Show the top 12", "상위 12개만") : tr(`Show all ${brands.length} brands`, `브랜드 ${brands.length}개 모두 보기`)}</button></div>}
         </Card>
       </ActionSection>
 

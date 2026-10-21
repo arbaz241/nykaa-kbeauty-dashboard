@@ -10,7 +10,7 @@ import { norm } from "@/lib/brands";
 import { CATEGORIES, CATEGORY_LABEL, pct, shortName, signed } from "@/lib/format";
 import { catsOn, placesOn, type FlowRow } from "@/lib/market";
 import { reviewTrend } from "@/lib/profile";
-import { brandGrowth, fillContext } from "@/lib/fill";
+import { brandGrowth, estNote, fillContext } from "@/lib/fill";
 import { useMarket } from "@/lib/useMarket";
 import { dayMonth, tr } from "@/lib/i18n";
 
@@ -31,7 +31,7 @@ export interface KCat {
 }
 export interface KBrand {
   b: string; value: number; ofKorean: number; places: number; placesD: number; before: number; isNew: boolean;
-  strong: { c: string; s: number } | null; best: FlowRow | null; bestShare: number; growth: number | null; estimated: number;
+  strong: { c: string; s: number } | null; best: FlowRow | null; bestShare: number; growth: number | null; estimated: number; estText: string;
 }
 
 /** Everything the K-beauty tab shows, from the shared market data (same buying window and rules as every tab). */
@@ -81,7 +81,7 @@ export function useKBeauty(anchor: string) {
       const t = fx ? brandGrowth(fx, pool, b) : null;
       const before = pick(p0, b); const now = pick(p1, b);
       return { b, value, ofKorean: kValue ? value / kValue : 0, places: pick(pAll, b), placesD: now - before, before, isNew: before === 0 && now > 0 && value === 0, strong, best,
-        bestShare: best ? best.value / (catTotal.get(best.subcategory) || 1) : 0, growth: t && t.products + t.estimated >= 2 && t.base >= 30 ? t.change : null, estimated: t?.estimated ?? 0 };
+        bestShare: best ? best.value / (catTotal.get(best.subcategory) || 1) : 0, growth: t && t.products + t.estimated >= 2 && t.base >= 30 ? t.change : null, estimated: t?.estimated ?? 0, estText: t ? estNote(t) : "" };
     }).sort((a, b) => b.value - a.value || b.places - a.places);
     const kTrend = latest ? reviewTrend(pool.filter((p) => isK(p.brand)), latest) : null;
     const allTrend = latest ? reviewTrend(pool, latest) : null;
@@ -140,7 +140,7 @@ export function KTable({ k, anchor, rivals }: { k: KBeauty; anchor: string; riva
         <td className="px-2 py-2.5 tabular"><b>{r.places}</b>{r.placesD !== 0 && <span className={`ml-1.5 text-[11.5px] ${r.placesD > 0 ? "text-good" : "text-bad"}`}>{r.placesD > 0 ? "+" : ""}{r.placesD}</span>}</td>
         <td className="px-2 py-2.5">{r.strong ? <>{catName(r.strong.c)} <span className="tabular text-muted">{pct(r.strong.s, 0)}</span></> : <span className="text-muted">–</span>}</td>
         <td className="max-w-[260px] truncate px-2 py-2.5" title={r.best?.name}>{r.best ? short(r.best.name, r.b) : <span className="text-muted">–</span>}</td>
-        <td className="px-2 py-2.5 tabular">{r.growth !== null ? <span className={r.growth >= (k.allGrowth ?? 0) ? "text-good" : "text-bad"} title={r.estimated ? tr(`includes ${r.estimated} big seller${r.estimated === 1 ? "" : "s"} at an estimated year-ago level`, `추정 전년 수준 적용 대형 제품 ${r.estimated}개 포함`) : undefined}>{signed(r.growth)}{r.estimated ? <sup className="ml-0.5 text-[10px] text-muted">{tr("est.", "추정")}</sup> : null}</span> : <span className="text-muted">–</span>}</td>
+        <td className="px-2 py-2.5 tabular">{r.growth !== null ? <span className={r.growth >= (k.allGrowth ?? 0) ? "text-good" : "text-bad"} title={r.estimated ? r.estText : undefined}>{signed(r.growth)}{r.estimated ? <sup className="ml-0.5 text-[10px] text-muted">{tr("est.", "추정")}</sup> : null}{r.estimated ? <span className="block text-[10.5px] text-muted">{r.estText}</span> : null}</span> : <span className="text-muted">–</span>}</td>
         <td className="px-4 py-2.5 text-right"><DetailsButton open={open === r.b} onClick={() => setOpen(open === r.b ? null : r.b)} /></td>
       </tr>
       {open === r.b && <tr><td colSpan={7} className="px-4 pb-3"><BrandQuick brand={r.b} /></td></tr>}

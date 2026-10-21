@@ -21,7 +21,7 @@ import { monthsWindow } from "@/lib/metrics";
 import { demandRows } from "@/lib/analysis";
 import { useTiers } from "@/lib/tiers";
 import { kBeautyBenchmark, kBeautyLeaderId } from "@/lib/price";
-import { brandGrowth, fillContext, productFill } from "@/lib/fill";
+import { brandGrowth, estNote, fillContext, productFill } from "@/lib/fill";
 import type { ReviewMonth, ShelfRow } from "@/lib/types";
 import { useUspComparisons, useUspProducts, type UspComparison } from "@/lib/usp";
 import { push } from "@/lib/group";
@@ -178,7 +178,7 @@ function CompetitivePage() {
     // no blank growth (owner 21 Oct 2026): a brand's cut-off big sellers count at an estimated year-ago level
     if (!market.latest) return base;
     const fx = fillContext(market.pool, market.latest);
-    return base.map((f) => { const g = brandGrowth(fx, market.pool, f.brand); return g.estimated && g.change !== null ? { ...f, growth: g.change, growthEst: g.estimated } : f; });
+    return base.map((f) => { const g = brandGrowth(fx, market.pool, f.brand); return g.estimated && g.change !== null ? { ...f, growth: g.change, growthEst: g.estimated, growthNote: estNote(g) } : f; });
   }, [brands, anchor, cat, rows, cat0, poolMonths, search.data, assort.data, market.pool, market.latest]);
 
   // share of all top-100 buying, the site's one share measure (owner 20 Oct 2026)

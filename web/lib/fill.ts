@@ -1,5 +1,5 @@
 import { norm } from "./brands";
-import { pct } from "./format";
+import { pct, signed } from "./format";
 import { monthYear, tr } from "./i18n";
 import type { PoolProduct } from "./market";
 import type { ProductDemand, ReviewMonth } from "./types";
@@ -65,13 +65,16 @@ export function productFill(ctx: FillCtx, p: PoolProduct | undefined): Fill | nu
   return null;
 }
 
-/** A brand's growth with its cut-off big sellers included at an estimated year-ago base. */
+/** A brand's growth with its cut-off big sellers included at an estimated year-ago base. `seen` is the growth on
+ *  products seen a year ago only, shown beside it: backtest 21 Oct (hide a brand's biggest product from Jan 2026 and
+ *  estimate it) — when that product is 30%+ of the brand, the estimate is nearer the truth (median miss 13-19 pts)
+ *  than leaving it out (18-25 pts), but one product's estimate alone misses by ~35 pts, so both figures are shown. */
 export function brandGrowth(ctx: FillCtx, pool: PoolProduct[], brand: string) {
   const { w } = ctx; const b = norm(brand);
-  let recent = 0; let base = 0; let products = 0; let estimated = 0;
+  let recent = 0; let base = 0; let products = 0; let estimated = 0; let seenR = 0; let seenB = 0; let estR = 0;
   for (const p of pool) {
     if (norm(p.brand) !== b) continue;
-    if (hasYoY(p, w)) { recent += sum(p, w.recent); base += sum(p, w.base); products++; continue; }
+    if (hasYoY(p, w)) { recent += sum(p, w.recent); base += sum(p, w.base); seenR += sum(p, w.recent); seenB += sum(p, w.base); products++; continue; }
     if (!(p.coverage >= FULL && p.coverage > w.base[0]) || !p.category) continue;
     const w0 = quarterFrom(p.coverage);
     if (w0[2] >= w.recent[0]) continue;
@@ -79,9 +82,17 @@ export function brandGrowth(ctx: FillCtx, pool: PoolProduct[], brand: string) {
     const cW0 = yoy.reduce((a, q) => a + sum(q, w0), 0); const cB = yoy.reduce((a, q) => a + sum(q, w.base), 0);
     const pW0 = sum(p, w0);
     if (pW0 < 10 || !cW0 || !cB) continue;
-    recent += sum(p, w.recent); base += (pW0 * cB) / cW0; estimated++;
+    recent += sum(p, w.recent); base += (pW0 * cB) / cW0; estR += sum(p, w.recent); estimated++;
   }
-  return { recent, base, products, estimated, change: base > 0 ? recent / base - 1 : null };
+  return { recent, base, products, estimated, change: base > 0 ? recent / base - 1 : null,
+    seen: seenB > 0 ? seenR / seenB - 1 : null, estShare: recent ? estR / recent : 0 };
+}
+
+/** Under an estimated brand growth: the seen-products figure and how much of the brand the estimate covers. */
+export function estNote(g: { estimated: number; seen: number | null; estShare: number }) {
+  if (!g.estimated) return "";
+  return tr(`incl. ${g.estimated} estimated (${pct(g.estShare)} of its reviews) · seen products only ${g.seen === null ? "–" : signed(g.seen)}`,
+    `추정 ${g.estimated}개 포함 (리뷰의 ${pct(g.estShare)}) · 확인 제품만 ${g.seen === null ? "–" : signed(g.seen)}`);
 }
 
 /** The fill in words, for a table cell or a line under a chart. */

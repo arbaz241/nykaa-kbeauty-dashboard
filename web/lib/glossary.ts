@@ -101,7 +101,7 @@ export const GLOSSARY = {
   ratingFlow: metric({
     name: ["Share of buying", "판매 점유율"],
     plain: ["Which brands the shoppers of the period bought, read from the new ratings their listings gained on Nykaa's top-100 shelves.", "기간 중 소비자가 어떤 브랜드를 샀는지. Nykaa 상위 100위 제품에 새로 달린 평가 수로 판단."],
-    formula: ["New ratings over the period (rating count at the end − at the start, listings on the shelf both days) × MRP (the printed price, which doesn't move with sales); a set of ratings shared by sizes of one product counts once. A brand's share = its value ÷ all value.", "기간 중 새 평가 수(종료일 평가 수 − 시작일 평가 수, 양일 모두 랭킹에 있던 제품) × 정가(MRP, 세일에 따라 바뀌지 않는 표시 가격). 여러 제품이 공유하는 평가는 한 번만 집계. 브랜드 점유율 = 브랜드 금액 ÷ 전체 금액."],
+    formula: ["New ratings over the period (rating count at the end − at the start, listings on the shelf both days) × MRP (the printed price, which doesn't move with sales); a set of ratings shared by sizes of one product counts once. A brand's share = its value ÷ all value. Not the total rating count: a total adds up years of past sales (Neutrogena holds 17% of sunscreen's total ratings but 3.5% of the new ones).", "기간 중 새 평가 수(종료일 평가 수 − 시작일 평가 수, 양일 모두 랭킹에 있던 제품) × 정가(MRP, 세일에 따라 바뀌지 않는 표시 가격). 여러 제품이 공유하는 평가는 한 번만 집계. 브랜드 점유율 = 브랜드 금액 ÷ 전체 금액. 누적 평가 수가 아님: 누적은 수년간의 과거 판매 합계 (Neutrogena: 선크림 누적 평가의 17%, 신규 평가의 3.5%)."],
     source: ["Nykaa's rating counts on every tracked top-100 list, read nightly since 13 Sep 2026 (lists added after 10 Oct have no buying yet).", "2026년 9월 13일부터 매일 밤 수집한 추적 목록별 상위 100위 평가 수 (10월 10일 이후 추가 목록은 판매 집계 없음)."],
     window: ["13 Sep – 9 Oct 2026: the last stretch before Nykaa froze its public rating counts on 10 Oct.", "2026년 9월 13일–10월 9일: Nykaa가 10월 10일 평가 수 공개를 멈추기 전 마지막 구간."],
   }),
