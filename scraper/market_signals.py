@@ -19,6 +19,7 @@ import asyncio
 import collections
 import logging
 import os
+import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -89,16 +90,39 @@ def classify_link(url: str, app_type: str | None, app_data: str | None) -> tuple
     return "campaign", path or "home", _label(parts[0] if parts and parts[0] else "home")
 
 
+def _obj(v):
+    """Nykaa sometimes sends a nested object as JSON text (22 Oct 2026: homepage read failed on a string); decode it,
+    and treat anything that still isn't an object as empty."""
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return {}
+    return v if isinstance(v, dict) else {}
+
+
+def _list(v):
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return []
+    return [x for x in v if isinstance(x, (dict, str))] if isinstance(v, list) else []
+
+
 def parse_inventory(payload: dict) -> list[dict]:
     out = []
-    for block in payload.get("result") or []:
-        for inv in block.get("inventories") or []:
+    for block in _list(_obj(payload).get("result")):
+        block = _obj(block)
+        for inv in _list(block.get("inventories")):
+            inv = _obj(inv)
             section = inv.get("inventory_page_section") or inv.get("inventory_name") or ""
             pos = 0
-            for w in ((inv.get("widget_data") or {}).get("children") or []):
+            for w in _list(_obj(inv.get("widget_data")).get("children")):
+                w = _obj(w)
                 url = w.get("web_action_url") or w.get("actionlink")
                 if not url:
-                    params = w.get("parameters") or {}
+                    params = _obj(w.get("parameters"))
                     url = params.get("web_action_url") or params.get("actionlink")
                     w = {**params, **w}
                 if not url:
