@@ -15,7 +15,7 @@ import { ANCHOR_BRAND, ORIGIN_COLOR, ORIGIN_LABEL, norm } from "@/lib/brands";
 import { useCategoryBrands, useCategoryStats } from "@/lib/data";
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, inr, pct, shortName, signed } from "@/lib/format";
 import { aggregate, catsOn, isCombo, placesOn } from "@/lib/market";
-import { brandShareIn, shareIn } from "@/lib/profile";
+import { brandShareIn, reviewTrend, shareIn } from "@/lib/profile";
 import { spanLabel } from "@/lib/period";
 import { useTiers } from "@/lib/tiers";
 import { useMarket } from "@/lib/useMarket";
@@ -95,9 +95,13 @@ function AllView({ m, tiers, allBrands, latestStat, stats, onPick, span }: { m: 
     const byB = aggregate(sh.rows, (r) => r.brand); const ranked = [...byB.values()].sort((a, b) => b.value - a.value);
     const k = sh.rows.filter((r) => r.origin === "kbeauty").reduce((a, r) => a + r.value, 0) / (sh.total || 1);
     const stat = stats.find((s) => s.scrape_date === latestStat && s.subcategory === c);
-    return { c, brands: stat?.brands ?? null, inTop: new Set(m.shelf.filter((r) => r.subcategory === c).map((r) => norm(r.brand))).size, leader: ranked[0], leaderShare: ranked[0] && sh.total ? ranked[0].value / sh.total : null, top, topShare: top && sh.total ? top.value / sh.total : null,
+    // owner 22 Oct ("where is the market growing"): the site's growth rule per category, same products a year apart
+    const g = m.latest ? reviewTrend(m.pool.filter((p) => p.category === c), m.latest) : null;
+    return { c, growth: g && g.products >= 15 ? g.change : null, growthN: g?.products ?? 0, growthLabel: g?.recentLabel ?? "", brands: stat?.brands ?? null, inTop: new Set(m.shelf.filter((r) => r.subcategory === c).map((r) => norm(r.brand))).size, leader: ranked[0], leaderShare: ranked[0] && sh.total ? ranked[0].value / sh.total : null, top, topShare: top && sh.total ? top.value / sh.total : null,
       top5: sh.total ? ranked.slice(0, 5).reduce((a, x) => a + x.value, 0) / sh.total : null, k, tracked: !!sh.total };
   });
+  const allTrend = m.latest ? reviewTrend(m.pool, m.latest) : null; const allGrowth = allTrend?.change ?? null;
+  const fastest = rows.filter((r) => r.growth !== null).sort((a, b) => b.growth! - a.growth!);
   const c0 = catsOn(m.ix, win.start); const c1 = catsOn(m.ix, win.end); const both = new Set([...c1].filter((c) => c0.has(c)));
   const p0 = placesOn(m.ix, m.dims, win.start, both); const p1 = placesOn(m.ix, m.dims, win.end, both);
   const main = [...new Set([tiers.pinned, ...tiers.focus])].filter(Boolean).map((b) => {
@@ -120,17 +124,18 @@ function AllView({ m, tiers, allBrands, latestStat, stats, onPick, span }: { m: 
     <>
       <ActionSection id="snapshot" kicker={tr("Category snapshot", "카테고리 요약")} title={(() => { const ls = rows.map((r) => r.leaderShare).filter((x): x is number => x !== null); const lo = ls.length ? Math.min(...ls) : 0; const hi = ls.length ? Math.max(...ls) : 0;
           return tr(`${scope?.selling.brands ?? (allBrands || "–")} brands sell in the ${CATEGORIES.length} categories and ${scope?.top100.brands ?? "–"} reach a top 100 today; the leading brand takes ${pct(lo, 0)}–${pct(hi, 0)} of a category's buying`, `${CATEGORIES.length}개 카테고리 판매 브랜드 ${scope?.selling.brands ?? (allBrands || "–")}개, 오늘 상위 100위 진입 ${scope?.top100.brands ?? "–"}개. 카테고리 선두 브랜드의 판매 점유율 ${pct(lo, 0)}–${pct(hi, 0)}`); })()}
-        note={tr(<>Two brand counts, the same two as at the top of the page. <b>Sell here</b>: every brand with at least one product on Nykaa&rsquo;s page for the category, at any rank (Nykaa&rsquo;s own brand filter{latestStat ? `, ${dayMonth(latestStat)}` : ""}; Moisturiser is Nykaa&rsquo;s &ldquo;Face Moisturizer &amp; Day Cream&rdquo; page). <b>In the top 100</b>: those with a product in today&rsquo;s top 100. The page totals ({scope?.selling.brands ?? "–"} and {scope?.top100.brands ?? "–"}) are these columns added up with each brand counted once, since many brands sell in several categories. Shares: <Def k="ratingFlow">share of buying</Def> ({monthName(span.start)}), single products. Press &ldquo;Open&rdquo; for the category.</>,
-          <>상단과 같은 두 가지 브랜드 수. <b>판매</b>: Nykaa 해당 카테고리 페이지에 제품이 하나라도 있는 브랜드(순위 무관, Nykaa 브랜드 필터{latestStat ? `, ${dayMonth(latestStat)}` : ""}. 보습 크림 = Nykaa &ldquo;Face Moisturizer &amp; Day Cream&rdquo; 페이지). <b>상위 100위</b>: 그중 오늘 상위 100위에 제품이 있는 브랜드. 상단 합계({scope?.selling.brands ?? "–"}, {scope?.top100.brands ?? "–"})는 여러 카테고리 브랜드를 한 번만 센 합계. 점유율: <Def k="ratingFlow">판매 점유율</Def> ({monthName(span.start)}), 단일 제품. &ldquo;열기&rdquo;를 누르면 해당 카테고리로 이동.</>)}>
+        note={tr(<>Two brand counts, the same two as at the top of the page. <b>Sell here</b>: every brand with at least one product on Nykaa&rsquo;s page for the category, at any rank (Nykaa&rsquo;s own brand filter{latestStat ? `, ${dayMonth(latestStat)}` : ""}; Moisturiser is Nykaa&rsquo;s &ldquo;Face Moisturizer &amp; Day Cream&rdquo; page). <b>In the top 100</b>: those with a product in today&rsquo;s top 100. The page totals ({scope?.selling.brands ?? "–"} and {scope?.top100.brands ?? "–"}) are these columns added up with each brand counted once, since many brands sell in several categories. Shares: <Def k="ratingFlow">share of buying</Def> ({monthName(span.start)}), single products. <b>Review growth</b>: reviews {allTrend?.recentLabel} against the same months a year earlier, on the same products (those already selling then); green when faster than all products we follow ({signed(allGrowth)}){fastest[0] ? `; fastest: ${catName(fastest[0].c).toLowerCase()} ${signed(fastest[0].growth)}` : ""}. Press &ldquo;Open&rdquo; for the category.</>,
+          <>상단과 같은 두 가지 브랜드 수. <b>판매</b>: Nykaa 해당 카테고리 페이지에 제품이 하나라도 있는 브랜드(순위 무관, Nykaa 브랜드 필터{latestStat ? `, ${dayMonth(latestStat)}` : ""}. 보습 크림 = Nykaa &ldquo;Face Moisturizer &amp; Day Cream&rdquo; 페이지). <b>상위 100위</b>: 그중 오늘 상위 100위에 제품이 있는 브랜드. 상단 합계({scope?.selling.brands ?? "–"}, {scope?.top100.brands ?? "–"})는 여러 카테고리 브랜드를 한 번만 센 합계. 점유율: <Def k="ratingFlow">판매 점유율</Def> ({monthName(span.start)}), 단일 제품. <b>리뷰 성장</b>: {allTrend?.recentLabel} 리뷰 vs 전년 같은 달, 동일 제품(당시 판매 중이던 제품). 추적 제품 전체({signed(allGrowth)})보다 빠르면 초록. &ldquo;열기&rdquo;를 누르면 해당 카테고리로 이동.</>)}>
         <Card className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-[13px]">
-            <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">{tr("Category", "카테고리")}</th><th className="px-2">{tr("Brands: sell here · in the top 100", "브랜드: 판매 · 상위 100위")}</th><th className="px-2">{tr("Leading brand", "선두 브랜드")}</th><th className="px-2">{tr("Top 5 brands", "상위 5개")}</th><th className="px-2">{tr("Best-selling product", "최다 판매 제품")}</th><th className="px-4" /></tr></thead>
+          <table className="w-full min-w-[1060px] text-[13px]">
+            <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5">{tr("Category", "카테고리")}</th><th className="px-2">{tr("Brands: sell here · in the top 100", "브랜드: 판매 · 상위 100위")}</th><th className="px-2">{tr("Leading brand", "선두 브랜드")}</th><th className="px-2">{tr("Top 5 brands", "상위 5개")}</th><th className="px-2">{tr("Review growth", "리뷰 성장")}</th><th className="px-2">{tr("Best-selling product", "최다 판매 제품")}</th><th className="px-4" /></tr></thead>
             <tbody>{rows.map((r) => (
               <tr key={r.c} className="border-b border-line/60 align-top">
                 <td className="px-4 py-2.5 font-medium">{catName(r.c)}</td>
                 <td className="px-2 py-2.5 tabular"><b>{r.brands ?? "–"}</b> <span className="text-muted">·</span> {r.inTop}</td>
                 <td className="px-2 py-2.5">{r.leader ? <><b className="font-medium">{r.leader.key}</b> <span className="tabular text-ink-2">{pct(r.leaderShare, 0)}</span>{r.top && r.top.brand === r.leader.key && r.top.poolSize >= 5 && (r.topShare ?? 0) > 0.3 ? <Basis>{tr(`mostly one rating count Nykaa shows on ${r.top.poolSize} of its listings at once`, `Nykaa가 제품 ${r.top.poolSize}개에 함께 표시하는 평가 수 하나에 크게 기댐`)}</Basis> : null}</> : <Missing>{tr("no buying counted: list added after Nykaa froze rating counts (10 Oct)", "판매 집계 없음: Nykaa 평가 수 동결(10월 10일) 뒤 추가된 목록")}</Missing>}</td>
                 <td className="px-2 py-2.5 tabular">{r.top5 !== null ? pct(r.top5, 0) : "–"}</td>
+                <td className="px-2 py-2.5 tabular">{r.growth !== null ? <span className={r.growth >= (allGrowth ?? 0) ? "text-good" : "text-bad"}>{signed(r.growth)}</span> : <span className="text-muted">–</span>}<div className="text-[11px] text-muted">{tr(`${r.growthN} products`, `제품 ${r.growthN}개`)}</div></td>
                 <td className="max-w-[300px] px-2 py-2.5">{r.top ? <>{r.top.brand} {shortName(r.top.name, r.top.brand)} <span className="tabular text-muted">{pct(r.topShare, 1)}</span></> : "–"}</td>
                 <td className="px-4 py-2.5 text-right"><button onClick={() => { onPick(r.c); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-full px-2.5 py-0.5 text-[12px] font-medium text-accent-strong ring-1 ring-line hover:bg-sunken">{tr("Open ›", "열기 ›")}</button></td>
               </tr>))}</tbody>
