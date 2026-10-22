@@ -216,6 +216,11 @@ export function useExternalNews() { return useSWR("external_news", () => fetchAl
  *  data request. */
 /** Reviews each product received 13 Sep - 9 Oct 2026 (migration 033): with the same products' new ratings they
  *  give each brand's reviews per 100 buyers (lib/adjusted). */
+/** Nykaa's own written-review and rating counts per product page (migration 026, nightly since 19 Oct): each
+ *  category's typical ratings per review, for sizing categories against each other (lib/adjusted sizeByReviews). */
+export function useReviewCounts() {
+  return useSWR("review_counts", () => fetchAll<{ scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }>("web_review_counts"), opts);
+}
 export function useReviewWindow() {
   return useSWR("review_window", () => fetchAll<{ product_id: string; reviews: number }>("web_review_window"), opts);
 }

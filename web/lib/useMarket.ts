@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCatalog, useDemand, usePinned, useReviewCapped, useReviewMonths, useReviewWindow, useShelf, useShelfDaily, useShelfProducts } from "./data";
-import { adjustedFlow, learnRates, reviewMonths, sizeByReviews } from "./adjusted";
+import { useCatalog, useDemand, usePinned, useReviewCapped, useReviewCounts, useReviewMonths, useReviewWindow, useShelf, useShelfDaily, useShelfProducts } from "./data";
+import { adjustedFlow, learnRates, perReviewByCategory, reviewMonths, sizeByReviews } from "./adjusted";
 import { monthEnd as monthEndOf, useReviewRead } from "./reviewRead";
 import { indexDaily, poolProducts, productDims, ratingFlow, ratingFreeze, type FlowRow } from "./market";
 import { shelfWindow, usePeriod, type ShelfWindow } from "./period";
@@ -15,7 +15,7 @@ import type { ShelfRow } from "./types";
  *  still updated its rating counts. */
 export function useMarket() {
   const shelf = useShelf(); const catalog = useCatalog(); const months = useReviewMonths(); const demand = useDemand();
-  const daily = useShelfDaily(); const products = useShelfProducts(); const win33 = useReviewWindow(); const cap34 = useReviewCapped(); const readMap = useReviewRead();
+  const daily = useShelfDaily(); const products = useShelfProducts(); const win33 = useReviewWindow(); const cap34 = useReviewCapped(); const readMap = useReviewRead(); const counts = useReviewCounts();
   const period = usePeriod();
   const ready = !!(shelf.data && catalog.data && months.data && demand.data && daily.data && products.data && win33.data && cap34.data && readMap);
   const error = shelf.error || catalog.error || months.error || demand.error || daily.error || products.error || win33.error || cap34.error;
@@ -85,9 +85,11 @@ export function useMarket() {
     return learnRates(ix, ratingsFlow, wr, rp, ro, originOf);
   }, [ready, pool, win33.data, readMap, ix, ratingsFlow, originOf]);
   const readOf = useMemo(() => (pid: string) => readMap?.get(pid) ?? null, [readMap]);
+  // each category's median ratings per written review (Nykaa's own counts), for sizing categories against each other
+  const perReview = useMemo(() => perReviewByCategory(counts.data ?? [], today), [counts.data, today]);
   const capped = useMemo(() => new Map((cap34.data ?? []).map((r) => [`${r.product_id}|${String(r.month).slice(0, 10)}`, Number(r.reviews)])), [cap34.data]);
-  const flow: FlowRow[] = useMemo(() => (rates && rmonths ? sizeByReviews(adjustedFlow(ix, dims, pool, rates, rmonths.recent, readOf, originOf, capped)) : []), [ix, dims, pool, rates, rmonths, readOf, originOf, capped]);
-  const prevFlow: FlowRow[] | null = useMemo(() => (rates && rmonths ? sizeByReviews(adjustedFlow(ix, dims, pool, rates, rmonths.prev, readOf, originOf, capped)) : null), [ix, dims, pool, rates, rmonths, readOf, originOf, capped]);
+  const flow: FlowRow[] = useMemo(() => (rates && rmonths ? sizeByReviews(adjustedFlow(ix, dims, pool, rates, rmonths.recent, readOf, originOf, capped), perReview) : []), [ix, dims, pool, rates, rmonths, readOf, originOf, capped, perReview]);
+  const prevFlow: FlowRow[] | null = useMemo(() => (rates && rmonths ? sizeByReviews(adjustedFlow(ix, dims, pool, rates, rmonths.prev, readOf, originOf, capped), perReview) : null), [ix, dims, pool, rates, rmonths, readOf, originOf, capped, perReview]);
   /** The months the buying figures cover (first day of the first month to the last day of the last). */
   const flowSpan = rmonths ? { start: rmonths.recent[0], end: monthEndOf(rmonths.recent[rmonths.recent.length - 1]), none: false } : null;
 

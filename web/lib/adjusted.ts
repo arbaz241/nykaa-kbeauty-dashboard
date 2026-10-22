@@ -158,14 +158,27 @@ export function reviewMonths(day: string) {
  *  category's total equals its reviews × MRP. Why: Nykaa shows one pooled rating count on some makeup lines and its
  *  own sheet masks (Maybelline Color Sensational 7.3M ratings on 24k reviews; a sheet-mask family 7.6M), so those
  *  categories learned review rates of 0.4–0.9 per 100 against ~3–4 elsewhere and their buying was inflated 2–3×.
- *  The typical product has 5–16 ratings per review in every category (Nykaa's own counts), so reviews compare fairly
- *  across categories. Result: makeup ~1/3 of our 15 categories, in line with Nykaa ("colour is about a third of
- *  GMV"); serum, moisturiser, sunscreen and foundation each ~11–12%. */
-export function sizeByReviews(flow: FlowRow[]): FlowRow[] {
+ *  Each category's reviews are turned into buyers with its median product's ratings per review, from Nykaa's own
+ *  counts (`perReview`; 5 for lip tint, ~10 serum, ~16 moisturiser): a median ignores the pooled counts, and it
+ *  corrects for categories whose buyers review more (plain reviews × MRP put ETUDE's lip tint far too high). Result:
+ *  makeup ~30% of our 15 categories, in line with Nykaa ("colour is about a third of GMV"). */
+export function perReviewByCategory(counts: { scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }[], listed: { product_id: string; subcategory: string; name?: string }[]): Map<string, number> {
+  const last = new Map<string, number>(); const lastDay = new Map<string, string>();
+  for (const c of counts) {
+    if (!c.review_count || !c.rating_count) continue;
+    if ((lastDay.get(c.product_id) ?? "") <= c.scrape_date) { lastDay.set(c.product_id, c.scrape_date); last.set(c.product_id, c.rating_count / c.review_count); }
+  }
+  const by = new Map<string, number[]>();
+  for (const r of listed) { const v = last.get(r.product_id); if (v === undefined || (r.name && isCombo(r.name))) continue; const xs = by.get(r.subcategory); if (xs) xs.push(v); else by.set(r.subcategory, [v]); }
+  const out = new Map<string, number>();
+  for (const [c, xs] of by) { if (xs.length < 10) continue; xs.sort((a, b) => a - b); out.set(c, xs.length % 2 ? xs[(xs.length - 1) / 2] : (xs[xs.length / 2 - 1] + xs[xs.length / 2]) / 2); }
+  return out;
+}
+export function sizeByReviews(flow: FlowRow[], perReview: Map<string, number>): FlowRow[] {
   const est = new Map<string, number>(); const raw = new Map<string, number>();
   for (const r of flow) {
     est.set(r.subcategory, (est.get(r.subcategory) ?? 0) + r.value);
-    if (r.flow > 0 && r.value > 0) raw.set(r.subcategory, (raw.get(r.subcategory) ?? 0) + (r.reviews ?? 0) * (r.value / r.flow));
+    if (r.flow > 0 && r.value > 0) raw.set(r.subcategory, (raw.get(r.subcategory) ?? 0) + (r.reviews ?? 0) * (perReview.get(r.subcategory) ?? 10) * (r.value / r.flow));
   }
   const k = new Map<string, number>();
   for (const [c, e] of est) k.set(c, e > 0 ? (raw.get(c) ?? 0) / e : 0);
