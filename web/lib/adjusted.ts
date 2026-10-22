@@ -9,7 +9,10 @@ import { monthEnd } from "./reviewRead";
  *    rate per 100 buyers = reviews ÷ new ratings × 100, per brand × category,
  *  used only when it rests on ≥ 20 reviews, else the brand's rate across its categories, then same-origin brands in
  *  the category, then the category. Then, every night:
- *    estimated buyers = reviews in the last 3 complete months ÷ rate × 100;  ₹ = buyers × MRP;  share = brand ₹ ÷ category ₹.
+ *    estimated buyers = reviews in the latest complete month ÷ rate × 100;  ₹ = buyers × MRP;  share = brand ₹ ÷ category ₹.
+ *  One month, not three (22 Oct, on the live check): a 3-month window reached back to July, before the month the rates
+ *  were learned on, and caught review bursts (Niconi: 277 and 370 reviews in single July weeks, 58% of masks).
+ *  Review counts are burst-cut (migration 034); sizes sharing one set of reviews count once at their middle MRP.
  *  Test (learn 13-26 Sep, predict 26 Sep - 9 Oct): median miss 1.7 pts per brand (raw reviews 2.6), same #1 brand
  *  in 5 of 7 categories (raw 2). Only products whose reviews were read after 9 Oct teach a rate, so their window
  *  reviews are complete. */
@@ -54,11 +57,11 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
 }
 
 /** One row per listing in the latest top 100s, in the same shape as ratingFlow, so every tab reads it unchanged.
- *  `months`: the 3 complete months counted. A review pool (sizes sharing Nykaa's reviews) counts once, on its
+ *  `months`: the complete months counted. A review pool (sizes sharing Nykaa's reviews) counts once, on its
  *  best-placed listing. Months not read yet (history cut off, or read before the month ended) are filled from the
  *  months that are, at the same pace. */
 export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolProduct[], rates: Rates, months: string[],
-  readOn: (pid: string) => string | null, originOf: (b: string) => string): FlowRow[] {
+  readOn: (pid: string) => string | null, originOf: (b: string) => string, capped: Map<string, number>): FlowRow[] {
   const day = ix.days[ix.days.length - 1]; const endMap = day ? ix.byDay.get(day) : undefined; if (!endMap) return [];
   const byMember = new Map<string, PoolProduct>();
   for (const p of pool) for (const m of p.members ?? [p.product_id]) if (!byMember.has(m)) byMember.set(m, p);
@@ -67,21 +70,24 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
   for (const e of entries) {
     const d = dims.get(e.product_id); const brand = d?.brand ?? "?"; const name = d?.name ?? e.product_id;
     const pp = byMember.get(e.product_id); const combo = isCombo(name);
-    let reviews = 0; let buyers = 0; let poolSize = 1;
+    let reviews = 0; let buyers = 0; let poolSize = 1; let price = e.mrp ?? e.price ?? null;
     if (pp) {
-      poolSize = (pp.members ?? []).filter((m) => endMap.has(`${e.subcategory}|${m}`)).length || 1;
+      const sizes = (pp.members ?? []).map((m) => endMap.get(`${e.subcategory}|${m}`)).filter((x): x is NonNullable<typeof x> => !!x);
+      poolSize = sizes.length || 1;
+      // sizes sharing one set of reviews: the middle MRP of the sizes on the list (as the ratings method did)
+      const ps = sizes.map((x) => x.mrp ?? x.price).filter((p): p is number => !!p).sort((a, b) => a - b);
+      if (ps.length > 1) price = ps.length % 2 ? ps[(ps.length - 1) / 2] : (ps[ps.length / 2 - 1] + ps[ps.length / 2]) / 2;
       const key = `${e.subcategory}|${pp.product_id}`;
       if (!seen.has(key)) {
         seen.add(key);
         const read = readOn(pp.product_id);
         const ok = months.filter((m) => m >= pp.coverage && (!read || read > monthEnd(m)));
-        const got = ok.reduce((a, m) => a + (pp.byMonth.get(m) ?? 0), 0);
+        const got = ok.reduce((a, m) => a + (capped.get(`${pp.product_id}|${m}`) ?? 0), 0);
         reviews = ok.length ? (got * months.length) / ok.length : 0;
         const rt = rates.rate(brand, e.subcategory);
         buyers = rt ? (reviews / rt.r) : 0;
       }
     }
-    const price = e.mrp ?? e.price ?? null;
     const flow = combo ? 0 : buyers;
     out.push({ product_id: e.product_id, subcategory: e.subcategory, brand, origin: d?.origin ?? originOf(brand), name, url: d?.url ?? null,
       flow, value: flow * (price ?? 0), rankStart: null, rankEnd: e.rank, price: e.price ?? e.mrp ?? null, partial: false, combo, rawFlow: buyers,
@@ -90,9 +96,9 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
   return out;
 }
 
-/** The 3 complete months before `day`, and the 3 before those. */
+/** The latest complete month before `day`, and the month before it. */
 export function reviewMonths(day: string) {
   const t = new Date(`${day.slice(0, 7)}-01T00:00:00Z`);
   const m = (k: number) => { const d = new Date(t); d.setUTCMonth(d.getUTCMonth() + k); return d.toISOString().slice(0, 10); };
-  return { recent: [m(-3), m(-2), m(-1)], prev: [m(-6), m(-5), m(-4)] };
+  return { recent: [m(-1)], prev: [m(-2)] };
 }

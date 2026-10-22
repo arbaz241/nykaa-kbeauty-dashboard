@@ -42,15 +42,15 @@ export default function MethodNotes({ parts, id = "method", full = false }: { pa
 /** The parts every tab built on share of buying repeats. */
 export const BUYING_METHOD = (span?: { start: string; end: string } | null) => ({
   calc: [
-    <Shared key={2}>{tr(<><b>Share of buying</b> = a product&rsquo;s estimated buyers × its MRP (the printed price, which doesn&rsquo;t move with sales), out of all products in the same category (all brands = 100%). Estimated buyers = its reviews in the last 3 complete months ÷ its brand&rsquo;s reviews per 100 buyers × 100.</>,
-      <><b>판매 점유율</b> = 제품 추정 구매자 × 정가(MRP), 같은 카테고리 전체 제품(모든 브랜드 = 100%) 대비 비중. 추정 구매자 = 최근 완결 3개월 리뷰 ÷ 브랜드의 구매자 100명당 리뷰 × 100.</>)}</Shared>,
+    <Shared key={2}>{tr(<><b>Share of buying</b> = a product&rsquo;s estimated buyers × its MRP (the printed price, which doesn&rsquo;t move with sales), out of all products in the same category (all brands = 100%). Estimated buyers = its reviews in the latest complete month ÷ its brand&rsquo;s reviews per 100 buyers × 100. A week far above a product&rsquo;s usual week counts at most 4 × its usual week (one-off review bursts).</>,
+      <><b>판매 점유율</b> = 제품 추정 구매자 × 정가(MRP), 같은 카테고리 전체 제품(모든 브랜드 = 100%) 대비 비중. 추정 구매자 = 최근 완결 1개월 리뷰 ÷ 브랜드의 구매자 100명당 리뷰 × 100. 평소보다 크게 몰린 주의 리뷰는 평소 주의 최대 4배까지만 반영.</>)}</Shared>,
     <Shared key={3}>{tr(<><b>Own category only:</b> a product counts in a list only when Nykaa files it under that category that day (its L3 label); ranks are renumbered among those products. Nykaa&rsquo;s own position is shown in Details.</>,
       <><b>자기 카테고리만:</b> 그날 Nykaa가 해당 카테고리(L3 라벨)로 분류한 제품만 집계, 그 제품끼리 순위를 다시 매김. Nykaa 페이지 순위는 상세 정보에 표시.</>)}</Shared>,
     <Shared key={4}>{tr(<><b>Reviews per 100 buyers:</b> learned 13 Sep – 9 Oct, the last month Nykaa showed rating counts, as reviews ÷ new ratings for each brand in each category (at least 20 reviews; else the brand across its categories, then same-origin brands in the category). Sizes that share one set of reviews count once.</>,
       <><b>구매자 100명당 리뷰:</b> Nykaa가 평가 수를 보여준 마지막 기간(9월 13일–10월 9일)에 브랜드×카테고리별 리뷰 ÷ 신규 평가로 계산 (리뷰 20건 이상, 미만이면 브랜드 전체, 다음은 같은 국적 브랜드). 용량별 공유 리뷰는 한 번만.</>)}</Shared>,
     <Shared key={5}>{tr("Combos and kits are left out: they carry their contents' reviews.", "세트·키트 제외: 구성품 리뷰가 합쳐져 있기 때문.")}</Shared>,
-    <Shared key={6}>{tr(`Share of buying covers the last 3 complete months${span ? ` (${dayMonth(span.start)} – ${dayMonth(span.end)})` : ""} and moves on each month; the "moves over" switch changes rank moves only.`,
-      `판매 점유율: 최근 완결 3개월${span ? ` (${dayMonth(span.start)}–${dayMonth(span.end)})` : ""}, 매달 갱신. "변동 기간" 선택은 순위 변동에만 적용.`)}</Shared>,
+    <Shared key={6}>{tr(`Share of buying covers the latest complete month${span ? ` (${dayMonth(span.start)} – ${dayMonth(span.end)})` : ""} and moves on each month; the "moves over" switch changes rank moves only.`,
+      `판매 점유율: 최근 완결 1개월${span ? ` (${dayMonth(span.start)}–${dayMonth(span.end)})` : ""}, 매달 갱신. "변동 기간" 선택은 순위 변동에만 적용.`)}</Shared>,
     <Shared key={7}>{tr("Growth (same rule on every page): written reviews in the last 3 complete months against the same months a year earlier, only products that already had reviews then; launches since are counted apart.", "성장률 (모든 페이지 동일 기준): 최근 완결된 3개월 리뷰를 전년 같은 달과 비교, 그때도 리뷰가 있던 제품만. 이후 출시 제품은 따로 집계.")}</Shared>,
   ],
   assume: [

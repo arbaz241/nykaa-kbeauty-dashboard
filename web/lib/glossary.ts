@@ -101,9 +101,9 @@ export const GLOSSARY = {
   ratingFlow: metric({
     name: ["Share of buying", "판매 점유율"],
     plain: ["Which brands shoppers bought in each category, estimated from the reviews written on Nykaa's top-100 products and each brand's habit of reviewing.", "카테고리별로 소비자가 어떤 브랜드를 샀는지. Nykaa 상위 100위 제품의 리뷰와 브랜드별 리뷰 작성 습관으로 추정."],
-    formula: ["Estimated buyers = a product's reviews in the last 3 complete months ÷ its brand's reviews per 100 buyers × 100; × MRP (the printed price); a brand's share = its ₹ ÷ all brands' ₹ in the category. Reviews per 100 buyers = reviews ÷ new ratings, learned 13 Sep – 9 Oct (when Nykaa still showed rating counts) per brand and category, from at least 20 reviews (else the brand overall, then same-origin brands in the category). Sizes sharing one set of reviews count once.", "추정 구매자 = 최근 완결 3개월 제품 리뷰 ÷ 브랜드의 구매자 100명당 리뷰 수 × 100; × 정가(MRP); 브랜드 점유율 = 브랜드 금액 ÷ 카테고리 전체 금액. 구매자 100명당 리뷰 = 리뷰 ÷ 신규 평가, 9월 13일–10월 9일(Nykaa가 평가 수를 보여주던 기간) 브랜드×카테고리별, 리뷰 20건 이상일 때 (미만이면 브랜드 전체, 다음은 같은 국적 브랜드). 용량별로 리뷰를 공유하면 한 번만."],
+    formula: ["Estimated buyers = a product's reviews in the latest complete month ÷ its brand's reviews per 100 buyers × 100; × MRP (the printed price); a brand's share = its ₹ ÷ all brands' ₹ in the category. Reviews per 100 buyers = reviews ÷ new ratings, learned 13 Sep – 9 Oct (when Nykaa still showed rating counts) per brand and category, from at least 20 reviews (else the brand overall, then same-origin brands in the category). Sizes sharing one set of reviews count once, at their middle MRP. A week far above a product's usual week counts at most 4 × its usual week.", "추정 구매자 = 최근 완결 1개월 제품 리뷰 ÷ 브랜드의 구매자 100명당 리뷰 수 × 100; × 정가(MRP); 브랜드 점유율 = 브랜드 금액 ÷ 카테고리 전체 금액. 구매자 100명당 리뷰 = 리뷰 ÷ 신규 평가, 9월 13일–10월 9일(Nykaa가 평가 수를 보여주던 기간) 브랜드×카테고리별, 리뷰 20건 이상일 때 (미만이면 브랜드 전체, 다음은 같은 국적 브랜드). 용량별로 리뷰를 공유하면 중간 정가로 한 번만. 평소보다 크게 몰린 주의 리뷰는 평소 주의 최대 4배까지만 반영."],
     source: ["Written reviews with their dates on every tracked top-100 product; Nykaa's rating counts 13 Sep – 9 Oct for the rates.", "추적 상위 100위 제품의 날짜별 리뷰, 작성률 계산용 9월 13일–10월 9일 Nykaa 평가 수."],
-    window: ["The last 3 complete months; it moves on each month.", "최근 완결 3개월, 매달 갱신."],
+    window: ["The latest complete month; it moves on each month.", "최근 완결 1개월, 매달 갱신."],
   }),
   brandCount: metric({
     name: ["Brands on Nykaa", "Nykaa 입점 브랜드"],

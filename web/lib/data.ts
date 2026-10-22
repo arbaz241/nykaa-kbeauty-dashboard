@@ -219,6 +219,11 @@ export function useExternalNews() { return useSWR("external_news", () => fetchAl
 export function useReviewWindow() {
   return useSWR("review_window", () => fetchAll<{ product_id: string; reviews: number }>("web_review_window"), opts);
 }
+/** Monthly reviews after the burst cut (migration 034): a week far above a product's usual week counts at most 4 x
+ *  its median week. Used for adjusted reviews only; growth keeps the plain counts. */
+export function useReviewCapped() {
+  return useSWR("review_capped", () => fetchAll<{ product_id: string; month: string; reviews: number }>("web_review_capped"), opts);
+}
 export function usePinned() {
   return useSWR("pinned", () => fetchAll<{ scrape_date: string; subcategory: string; product_id: string }>("web_pinned_days"), opts);
 }
