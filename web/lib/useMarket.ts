@@ -17,7 +17,7 @@ export function useMarket() {
   const shelf = useShelf(); const catalog = useCatalog(); const months = useReviewMonths(); const demand = useDemand();
   const daily = useShelfDaily(); const products = useShelfProducts(); const win33 = useReviewWindow(); const cap34 = useReviewCapped(); const readMap = useReviewRead(); const counts = useReviewCounts();
   const period = usePeriod();
-  const ready = !!(shelf.data && catalog.data && months.data && demand.data && daily.data && products.data && win33.data && cap34.data && readMap);
+  const ready = !!(shelf.data && catalog.data && months.data && demand.data && daily.data && products.data && win33.data && cap34.data && readMap && counts.data);
   const error = shelf.error || catalog.error || months.error || demand.error || daily.error || products.error || win33.error || cap34.error;
 
   const dims = useMemo(() => productDims(products.data ?? [], shelf.data ?? []), [products.data, shelf.data]);
