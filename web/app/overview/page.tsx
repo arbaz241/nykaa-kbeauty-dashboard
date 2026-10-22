@@ -119,7 +119,7 @@ function BriefPage() {
         <>{ceW ? <>Cetaphil: <b>클렌저 {ceW.place}위</b>(클렌저 판매의 {pct(ceW.share, 0)}). </> : null}글로벌 더마 브랜드(Cetaphil, CeraVe, Bioderma, La Roche-Posay 등) = 추적 카테고리 일 스킨케어 판매의 {pct(derma, 0)}.</>),
       nykaa: tr(<>&ldquo;Derma brands grew <b>40%</b> in FY26 and are 20% of skincare&rdquo; (Nykaa&rsquo;s own grouping, which also counts Indian derma brands).</>, <>&ldquo;더마 브랜드 FY26 <b>40%</b> 성장, 스킨케어의 20%&rdquo; (Nykaa 자체 분류, 인도 더마 브랜드 포함).</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },
-    { key: "brands", topic: tr("Brands on Nykaa", "Nykaa 입점 브랜드"), big: allBrands.toLocaleString("en-IN"),
+    { key: "brands", topic: tr("Brands in our categories", "추적 카테고리 브랜드"), big: allBrands.toLocaleString("en-IN"),
       ours: tr(<><b>{allBrands}</b> brands sell in the {listCount} categories we track (Nykaa&rsquo;s own brand filter for each), {koreanInLists} of them Korean.</>, <>추적 {listCount}개 카테고리에서 <b>{allBrands}</b>개 브랜드 판매(카테고리별 Nykaa 브랜드 필터), 그중 K-뷰티 브랜드 {koreanInLists}개.</>),
       nykaa: tr(<>Nykaa launched <b>200+ new beauty brands</b> in FY26, 27 of them Korean. (The 6,000+ brands and 1,280 launches in the same presentation are Nykaa Fashion&rsquo;s.)</>, <>Nykaa FY26 신규 뷰티 브랜드 <b>200개 이상</b>, 그중 K-뷰티 27개. (같은 자료의 6,000개 이상·신규 1,280개는 Nykaa Fashion 수치.)</>),
       doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기"), url: DOC.q4fy26 },

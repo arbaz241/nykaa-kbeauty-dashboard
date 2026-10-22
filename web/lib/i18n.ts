@@ -56,6 +56,7 @@ export const dayMonth = (d: string | Date) => { const x = D(d); return isKo() ? 
 export const dayMonthYear = (d: string | Date) => { const x = D(d); return isKo() ? `${x.getFullYear()}년 ${x.getMonth() + 1}월 ${x.getDate()}일` : x.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); };
 /** "Oct" / "10월" */
 export const monthShort = (d: string | Date) => { const x = D(d); return isKo() ? `${x.getMonth() + 1}월` : x.toLocaleDateString("en-IN", { month: "short" }); };
+export const monthName = (d: string | Date) => { const x = D(d); return isKo() ? `${x.getMonth() + 1}월` : x.toLocaleDateString("en-IN", { month: "long" }); };
 /** "Oct 2026" / "2026년 10월" */
 export const monthYear = (d: string | Date) => { const x = D(d); return isKo() ? `${x.getFullYear()}년 ${x.getMonth() + 1}월` : x.toLocaleDateString("en-IN", { month: "short", year: "numeric" }); };
 /** "Oct 26" / "26년 10월" (chart axes) */

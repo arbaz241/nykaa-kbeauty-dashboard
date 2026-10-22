@@ -4,7 +4,7 @@ import MethodNotes, { BUYING_METHOD } from "@/components/MethodNotes";
 import { useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import { DetailHead, Missing, Opens, Points, useDetail, type DetailContent } from "@/components/Detail";
-import { GoodToKnow, KSummary, KTable, goodToKnow, useKBeauty, type Good } from "@/components/KBeautyOverview";
+import { GoodToKnow, KCategories, KRanking, KSummary, goodToKnow, useKBeauty, type Good } from "@/components/KBeautyOverview";
 import { useOpenProduct } from "@/components/ProductDrawer";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import Shell from "@/components/Shell";
@@ -29,7 +29,7 @@ import { ScopeLine } from "@/components/Scope";
  *  categories on Market, so neither is repeated here. Explanations sit behind "How to read this". */
 
 const NAV = (): NavItem[] => [
-  { id: "summary", label: tr("K-beauty in one line", "K-뷰티 요약") }, { id: "where", label: tr("Where it sells", "판매 분포") },
+  { id: "summary", label: tr("K-beauty in one line", "K-뷰티 요약") }, { id: "ranking", label: tr("Brand ranking", "브랜드 순위") }, { id: "where", label: tr("Where it sells", "판매 분포") },
   { id: "changes", label: tr("What changed", "주요 변동") }, { id: "heroes", label: tr("Hero products", "히어로 제품") }, { id: "gaps", label: tr("Range gaps", "라인업 공백") },
   { id: "good", label: tr("Good to know", "주목할 점") }, { id: "method", label: tr("How this page works", "계산 방법") },
 ];
@@ -54,7 +54,6 @@ function Analysis() {
   const [picked, setPicked] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("brand")));
   const anchor = picked ?? tiers.pinned;
   const isRival = useMemo(() => (b: string) => tiers.inSet(b) && tiers.group(b) === "korean", [tiers]);
-  const rivals = useMemo(() => tiers.focus.filter((b) => tiers.group(b) === "korean" && !same(b, anchor)), [tiers, anchor]);
   const [showAll, setShowAll] = useState(false);
   const win = demandWindow();
   const k = useKBeauty(anchor);
@@ -143,7 +142,9 @@ function Analysis() {
 
       <section id="summary" className="mt-6 scroll-mt-32"><KSummary k={k} anchor={anchor} /></section>
 
-      <KTable k={k} anchor={anchor} rivals={rivals} />
+      <KRanking k={k} anchor={anchor} />
+
+      <KCategories k={k} anchor={anchor} />
 
       <ActionSection id="changes" kicker={tr("What changed", "주요 변동")} title={top5.length ? tr(`${top5.length} moves by Korean brands this fortnight.`, `최근 2주 K-뷰티 주요 변동 ${top5.length}건.`) : tr("No Korean brand crossed a threshold this fortnight.", "최근 2주 기준치를 넘은 K-뷰티 변동 없음.")}
         note={tr("Over the last 14 days: shelf moves, demand, ads, discounts and stock. A discount at an unchanged MRP is a promotion to watch, not a new price. Click a line for the numbers.", "최근 14일 기준: 랭킹·수요·광고·할인·재고. 정가 유지 할인은 가격 인하가 아닌 프로모션으로 분류. 항목 클릭 시 상세 수치.")}>
@@ -239,7 +240,7 @@ function Analysis() {
       <MethodNotes parts={{
         sources: [tr("Nykaa's top 100 of each tracked category (nightly), written reviews of the tracked products (monthly, years back), brand catalogues (weekly).", "추적 카테고리별 Nykaa 상위 100위(매일), 추적 제품 리뷰(월별), 브랜드 카탈로그(주간)."),
           tr("Korean brands = brands from Korea (Admin › Brand origins). Indian brands \"formulated in Korea\" are Indian. Rivals = the Korean brands in Admin › Brand tiers.", "K-뷰티 브랜드 = 한국 본사 브랜드(관리 › 브랜드 국적). \"한국 제조\" 인도 브랜드는 인도로 분류. 경쟁사 = 관리 › 브랜드 등급의 K-뷰티 브랜드.")],
-        calc: [...BUYING_METHOD().calc, tr("K-beauty share: Korean brands' buying out of all buying in the category. Of Korean buying: Korean brands only = 100%.", "K-뷰티 점유율: 카테고리 전체 판매 중 K-뷰티 비중. K-뷰티 판매 중: K-뷰티만 100%.")],
+        calc: [...BUYING_METHOD().calc, tr("K-beauty share: Korean brands' part of all buying in a category. Of all K-beauty: a brand's part of what all Korean brands sell together (= 100%). Skincare only: the lists under Nykaa's Skin menu.", "K-뷰티 점유율: 카테고리 전체 판매 중 K-뷰티 비중. K-뷰티 중: K-뷰티 브랜드 전체(= 100%) 중 브랜드 비중. 스킨케어만: Nykaa 스킨 메뉴 목록.")],
         assume: BUYING_METHOD().assume,
         limits: [...BUYING_METHOD().limits, tr("Review growth covers the products we follow for review history, not every product.", "리뷰 성장은 리뷰 이력을 추적하는 제품만 포함.")],
       }} />

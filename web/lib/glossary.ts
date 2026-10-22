@@ -106,9 +106,9 @@ export const GLOSSARY = {
     window: ["The latest complete month; it moves on each month.", "최근 완결 1개월, 매달 갱신."],
   }),
   brandCount: metric({
-    name: ["Brands on Nykaa", "Nykaa 입점 브랜드"],
-    plain: ["How many brands sell at least one product in the category on Nykaa, from Nykaa's own brand filter.", "Nykaa에서 해당 카테고리에 제품이 하나라도 있는 브랜드 수 (Nykaa 자체 브랜드 필터 기준)."],
-    formula: ["Brands in the category's brand filter; products = the sum of their product counts.", "카테고리 브랜드 필터의 브랜드 수. 제품 수 = 각 브랜드 제품 수의 합."],
+    name: ["Brands that sell here · in the top 100", "판매 브랜드 · 상위 100위"],
+    plain: ["Two counts, the same two used everywhere: brands with at least one product on Nykaa's page for the category (any rank), and those with a product in today's top 100.", "어디서나 같은 두 가지: Nykaa 카테고리 페이지에 제품이 하나라도 있는 브랜드(순위 무관), 그중 오늘 상위 100위에 제품이 있는 브랜드."],
+    formula: ["First count: Nykaa's own brand filter on the category page; products = the sum of their product counts. Second: brands in today's top 100. Across categories each brand counts once.", "첫째: 카테고리 페이지의 Nykaa 브랜드 필터, 제품 수 = 브랜드별 제품 수 합. 둘째: 오늘 상위 100위 브랜드. 카테고리 합계는 브랜드당 한 번."],
     source: ["Nykaa app category page, read nightly since 17 Oct 2026.", "2026년 10월 17일부터 매일 밤 수집한 Nykaa 앱 카테고리 페이지."],
     window: ["Latest night.", "최근 수집일."],
   }),

@@ -69,9 +69,9 @@ export default function CategoryGlance({ cat, part = "all" }: { cat: string; par
       </div></>}
       {part !== "moves" && <div className="mt-4 grid gap-3 md:grid-cols-4">
         <Card className="px-5 py-4">
-          <div className="text-[12.5px] text-muted"><Def k="brandCount">{tr("Brands on Nykaa", "Nykaa 입점 브랜드")}</Def></div>
-          <div className="mt-1 font-display text-[28px] font-semibold tabular">{stat ? stat.brands.toLocaleString("en-IN") : "–"}</div>
-          <Basis>{stat ? tr(`${stat.products.toLocaleString("en-IN")} products · ${new Set(rows.map((r) => r.brand)).size} brands in the top 100`, `제품 ${stat.products.toLocaleString("en-IN")}개 · 상위 100위 브랜드 ${new Set(rows.map((r) => r.brand)).size}개`) : tr("collected nightly from 17 Oct", "10월 17일부터 매일 수집")}</Basis>
+          <div className="text-[12.5px] text-muted"><Def k="brandCount">{tr("Brands that sell here · in the top 100", "판매 브랜드 · 상위 100위")}</Def></div>
+          <div className="mt-1 font-display text-[28px] font-semibold tabular">{stat ? stat.brands.toLocaleString("en-IN") : "–"} <span className="text-[18px] text-ink-2">· {new Set(rows.map((r) => r.brand)).size}</span></div>
+          <Basis>{stat ? tr(`${stat.brands} brands with ${stat.products.toLocaleString("en-IN")} products on Nykaa's page; ${new Set(rows.map((r) => r.brand)).size} of them have a product in today's top 100`, `Nykaa 페이지 브랜드 ${stat.brands}개 · 제품 ${stat.products.toLocaleString("en-IN")}개, 그중 오늘 상위 100위 브랜드 ${new Set(rows.map((r) => r.brand)).size}개`) : tr("collected nightly from 17 Oct", "10월 17일부터 매일 수집")}</Basis>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-ink-2">{byOriginCount.filter((x) => x.n).map((x) => <span key={x.o} className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: ORIGIN_COLOR[x.o].fill }} />{ORIGIN_LABEL[x.o]} {x.n}</span>)}</div>
           <Basis className="mt-1">{newBrands.length ? tr(`New this period: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`, `이번 기간 신규: ${newBrands.map((b) => b.brand).slice(0, 5).join(", ")}`) : tr("New brands show here as the nightly list builds up.", "매일 목록이 쌓이면 신규 브랜드 표시.")}</Basis>
         </Card>

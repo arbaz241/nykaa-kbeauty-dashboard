@@ -22,7 +22,15 @@ export const CAL_END = "2026-10-09";
 const CAL_DAYS = 26; // 13 Sep -> 9 Oct, the days the ratings window spans
 const MIN_REVIEWS = 20;
 
-export type RateLevel = "brand × category" | "brand" | "origin × category" | "category";
+export type RateLevel = "brand × category" | "brand, scaled to the category" | "origin × category" | "category";
+/** Owner check 22 Oct (Kay Beauty "leading" moisturiser at 12%): a brand's rate taken across its categories mixed its
+ *  makeup (0.8 reviews per 100 buyers on a foundation) into a skincare launch, turning 33 reviews into ~4,000 buyers.
+ *  The fallback is now how the brand compares with each category's average, applied to this category's average
+ *  (kept within 1/3x-3x), and no product is given more than 3x the buyers its own Nykaa ratings showed while
+ *  visible. Backtest (learn 13-26 Sep, predict 26 Sep-9 Oct): median miss 1.6 pts as before, biggest single
+ *  overstatement 13 -> 8 pts. */
+const FACTOR_LIMIT = 3;
+const OWN_CAP = 3;
 export interface Rates { rate: (brand: string, cat: string) => { r: number; level: RateLevel } | null }
 
 /** Learn the rates from the frozen ratings window (`ratings`: ratingFlow rows for 13 Sep - 9 Oct). */
@@ -45,13 +53,19 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
     const b = norm(r.brand); const o = originOf(r.brand); const c = r.subcategory;
     add(`bc|${b}|${c}`, r.flow, re); add(`b|${b}`, r.flow, re); add(`oc|${o}|${c}`, r.flow, re); add(`c|${c}`, r.flow, re);
   }
+  const ok = (k: string) => { const x = t.get(k); return x && x[1] >= MIN_REVIEWS && x[0] > 0 ? x[1] / x[0] : null; };
+  // the brand against each category's average: its reviews ÷ the reviews its ratings would bring at those averages
+  const factor = new Map<string, number>();
+  const expected = new Map<string, number>();
+  for (const [k, [ra]] of t) { if (!k.startsWith("bc|")) continue; const [, b, c] = k.split("|"); const cr = ok(`c|${c}`); if (cr) expected.set(b, (expected.get(b) ?? 0) + ra * cr); }
+  for (const [b, e] of expected) { const x = t.get(`b|${b}`); if (x && x[1] >= MIN_REVIEWS && e > 0) factor.set(b, Math.min(FACTOR_LIMIT, Math.max(1 / FACTOR_LIMIT, x[1] / e))); }
   return {
     rate(brand, cat) {
       const b = norm(brand); const o = originOf(brand);
-      for (const [k, level] of [[`bc|${b}|${cat}`, "brand × category"], [`b|${b}`, "brand"], [`oc|${o}|${cat}`, "origin × category"], [`c|${cat}`, "category"]] as const) {
-        const x = t.get(k); if (x && x[1] >= MIN_REVIEWS && x[0] > 0) return { r: x[1] / x[0], level };
-      }
-      return null;
+      const bc = ok(`bc|${b}|${cat}`); if (bc) return { r: bc, level: "brand × category" };
+      const f = factor.get(b); const cr = ok(`c|${cat}`); if (f && cr) return { r: cr * f, level: "brand, scaled to the category" };
+      const oc = ok(`oc|${o}|${cat}`); if (oc) return { r: oc, level: "origin × category" };
+      return cr ? { r: cr, level: "category" } : null;
     },
   };
 }
@@ -86,6 +100,9 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         reviews = ok.length ? (got * months.length) / ok.length : 0;
         const rt = rates.rate(brand, e.subcategory);
         buyers = rt ? (reviews / rt.r) : 0;
+        // never more than 3x the buyers the product's own ratings showed while Nykaa still published them
+        const pace = ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]);
+        if (pace !== null && pace > 0) buyers = Math.min(buyers, OWN_CAP * pace * months.length);
       }
     }
     const flow = combo ? 0 : buyers;
@@ -94,6 +111,22 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
       poolSize, nykaaRank: e.nykaa_rank ?? e.rank, reviews: Math.round(reviews), noHistory: !pp });
   }
   return out;
+}
+
+/** New ratings a month on the product's own listings in the ratings window (13 Sep - 9 Oct), when it was listed
+ *  at least a week of it; null when we did not see it long enough. Sizes sharing a count give one figure. */
+function ownPace(ix: DailyIndex, cat: string, members: string[]): number | null {
+  let best: number | null = null;
+  for (const m of members) {
+    const s = (ix.series.get(`${cat}|${m}`) ?? []).filter((r) => r.scrape_date >= CAL_START && r.scrape_date <= CAL_END && r.rating_count !== null);
+    if (s.length < 2) continue;
+    const a = s[0]; const z = s[s.length - 1];
+    const days = (Date.parse(z.scrape_date) - Date.parse(a.scrape_date)) / 864e5;
+    if (days < 7) continue;
+    const p = (Math.max(0, z.rating_count! - a.rating_count!) / days) * 30;
+    best = best === null ? p : Math.max(best, p);
+  }
+  return best;
 }
 
 /** The latest complete month before `day`, and the month before it. */
