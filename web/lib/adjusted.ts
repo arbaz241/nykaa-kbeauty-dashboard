@@ -22,13 +22,13 @@ export const CAL_END = "2026-10-09";
 const CAL_DAYS = 26; // 13 Sep -> 9 Oct, the days the ratings window spans
 const MIN_REVIEWS = 20;
 
-export type RateLevel = "brand × category" | "brand, scaled to the category" | "origin × category" | "category";
+export type RateLevel = "brand × category" | "brand, scaled to the category" | "origin × category" | "category" | "brand";
 /** Owner check 22 Oct (Kay Beauty "leading" moisturiser at 12%): a brand's rate taken across its categories mixed its
  *  makeup (0.8 reviews per 100 buyers on a foundation) into a skincare launch, turning 33 reviews into ~4,000 buyers.
  *  The fallback is now how the brand compares with each category's average, applied to this category's average
- *  (kept within 1/3x-3x), and no product is given more than 3x the buyers its own Nykaa ratings showed while
- *  visible. Backtest (learn 13-26 Sep, predict 26 Sep-9 Oct): median miss 1.6 pts as before, biggest single
- *  overstatement 13 -> 8 pts. */
+ *  (kept within 1/3x-3x); and a product on a borrowed rate is never given more than 3x the buyers its own Nykaa
+ *  ratings showed while visible. Backtest (learn 13-26 Sep, predict 26 Sep-9 Oct): median miss 1.57 -> 1.49 pts,
+ *  90% of brands within 6.2 pts (was 7.1), same #1 brand in 5 of 7 categories. */
 const FACTOR_LIMIT = 3;
 const OWN_CAP = 3;
 export interface Rates { rate: (brand: string, cat: string) => { r: number; level: RateLevel } | null }
@@ -65,7 +65,9 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
       const bc = ok(`bc|${b}|${cat}`); if (bc) return { r: bc, level: "brand × category" };
       const f = factor.get(b); const cr = ok(`c|${cat}`); if (f && cr) return { r: cr * f, level: "brand, scaled to the category" };
       const oc = ok(`oc|${o}|${cat}`); if (oc) return { r: oc, level: "origin × category" };
-      return cr ? { r: cr, level: "category" } : null;
+      if (cr) return { r: cr, level: "category" };
+      // a list added after the ratings froze has no average of its own: the brand's rate over its other lists
+      const br = ok(`b|${b}`); return br ? { r: br, level: "brand" } : null;
     },
   };
 }
@@ -100,8 +102,8 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         reviews = ok.length ? (got * months.length) / ok.length : 0;
         const rt = rates.rate(brand, e.subcategory);
         buyers = rt ? (reviews / rt.r) : 0;
-        // never more than 3x the buyers the product's own ratings showed while Nykaa still published them
-        const pace = ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]);
+        // a borrowed rate: never more than 3x the buyers the product's own ratings showed while Nykaa published them
+        const pace = rt && rt.level !== "brand × category" ? ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]) : null;
         if (pace !== null && pace > 0) buyers = Math.min(buyers, OWN_CAP * pace * months.length);
       }
     }

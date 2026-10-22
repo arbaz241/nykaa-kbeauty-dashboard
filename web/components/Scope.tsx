@@ -39,7 +39,7 @@ const depths = (s: Scope) => [
     use: tr("Share of buying, ranks, prices, moves", "판매 점유율, 순위, 가격, 변동") },
   { key: "followed" as const, title: tr("Followed month by month", "월별 추적"),
     brands: s.followed.brands, products: s.followed.products, origin: s.followed.byOrigin,
-    what: tr("Products whose dated reviews we read, to compare with a year ago: Innisfree's whole range, the main brands' best sellers, and every category's top 100 (being filled in; the top-100 products read so far are about half).", "전년 대비 비교를 위해 날짜별 리뷰를 수집하는 제품: Innisfree 전체 라인업, 주요 브랜드 베스트셀러, 카테고리별 상위 100위 전체(수집 진행 중, 현재 상위 100위 제품의 약 절반)."),
+    what: tr("Products whose dated reviews we read, to compare with a year ago: Innisfree's whole range, the main brands' best sellers, and every category's top 100 (about 9 in 10 of today's top-100 products read so far).", "전년 대비 비교를 위해 날짜별 리뷰를 수집하는 제품: Innisfree 전체 라인업, 주요 브랜드 베스트셀러, 카테고리별 상위 100위 전체(현재 상위 100위 제품의 약 90% 수집)."),
     use: tr("Growth against a year ago", "전년 대비 성장률") },
 ];
 
