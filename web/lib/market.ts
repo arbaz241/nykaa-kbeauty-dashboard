@@ -153,8 +153,8 @@ export function poolProducts({ months, demand, shelf, catalog, products, daily }
   const sigPool = new Map<string, string>();
   const newest = all.reduce((x, r) => { for (const m of r.byMonth.keys()) if (m > x) x = m; return x; }, "");
   for (const r of [...all].sort((x, y) => x.pool.localeCompare(y.pool))) {
-    // the last 12 months only: older months can differ where Nykaa shows each listing only its newest reviews
-    const recent = [...r.byMonth.entries()].filter(([m]) => m < newest).sort().slice(-12); // complete months: listings are read on different days
+    // recent months only: older months can differ where Nykaa shows each listing only its newest reviews
+    const recent = [...r.byMonth.entries()].filter(([m]) => m < newest).sort().slice(-6); // the last 6 complete months: listings are read on different days, from different first months
     if (recent.length < 6 || recent.reduce((t, [, n]) => t + n, 0) < 30) continue;
     const sig = `${norm(r.brand)}|${recent.map(([m, n]) => `${m}:${n}`).join(",")}`;
     const first = sigPool.get(sig);
