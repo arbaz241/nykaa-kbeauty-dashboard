@@ -10,16 +10,15 @@ import { Card, Loading, PageHead, pill } from "@/components/ui";
 import { ActionSection, SectionNav, type NavItem } from "@/components/Report";
 import { Basis, Def } from "@/components/Tiered";
 import { Missing } from "@/components/Detail";
-import { BrandQuick, DetailsButton, ProductQuick } from "@/components/Quick";
+import { BrandQuick, DetailsButton } from "@/components/Quick";
 import { ANCHOR_BRAND, ORIGIN_COLOR, ORIGIN_LABEL, norm } from "@/lib/brands";
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_URL, inr, pct, shortName, signed } from "@/lib/format";
-import { aggregate, isCombo } from "@/lib/market";
+import { aggregate } from "@/lib/market";
 import { shareIn } from "@/lib/profile";
 import { spanLabel } from "@/lib/period";
 import { useTiers } from "@/lib/tiers";
 import { useMarket } from "@/lib/useMarket";
 import { dayMonth, monthName, tr } from "@/lib/i18n";
-import type { ShelfRow } from "@/lib/types";
 import { ScopeLine } from "@/components/Scope";
 import { useScope } from "@/lib/scope";
 
@@ -53,12 +52,12 @@ function MarketPage() {
 
   const NAV: NavItem[] = cat === "all"
     ? [{ id: "snapshot", label: tr("Category snapshot", "카테고리 요약") }, { id: "origins", label: tr("Korean, Indian, global", "국적별 · K-뷰티·인도·글로벌") }]
-    : [{ id: "facts", label: tr("At a glance", "한눈에") }, { id: "leaders", label: tr("Who leads", "선두 브랜드") }, { id: "products", label: tr("Best sellers", "베스트셀러") }, { id: "moved", label: tr("What moved and why", "변동과 이유") }, { id: "origins", label: tr("Korean, Indian, global", "국적별 · K-뷰티·인도·글로벌") }];
+    : [{ id: "facts", label: tr("At a glance", "한눈에") }, { id: "leaders", label: tr("Who leads", "선두 브랜드") }, { id: "moved", label: tr("What moved and why", "변동과 이유") }, { id: "origins", label: tr("Korean, Indian, global", "국적별 · K-뷰티·인도·글로벌") }];
 
   return (
     <Shell active="Top by category" asOf={m.latest ?? undefined}>
       <PageHead eyebrow={tr("Market", "시장")} title={tr("Who is winning each category", "카테고리별 선두 브랜드")}
-        sub={tr("Pick one category, or all of them. Its brands, its top products and what moved are on this page together. Press \"Details\" on any row to see more without leaving the page.", "카테고리 하나 또는 전체 선택. 브랜드, 상위 제품, 변동을 한 페이지에서 확인. 어느 행이든 \"자세히\"를 누르면 이 페이지에서 바로 더 보기.")} />
+        sub={tr("Pick one category, or all of them: how big each category is, who leads it, what moved and how Korean, Indian and global brands split it. Press \"Details\" on any row to see more without leaving the page.", "카테고리 하나 또는 전체 선택: 카테고리 규모, 선두 브랜드, 변동, K-뷰티·인도·글로벌 비중. 어느 행이든 \"자세히\"를 누르면 이 페이지에서 바로 더 보기.")} />
       <ScopeLine uses={["selling", "top100"]} measure={tr(`share of buying (reviews ${dayMonth(span.start)}–${dayMonth(span.end)}, turned into buyers with each brand's review rate, × MRP, within one category) and places in each top 100; brand counts come from Nykaa's brand filter.`, `판매 점유율(${dayMonth(span.start)}–${dayMonth(span.end)} 리뷰를 브랜드별 리뷰 작성률로 구매자 수로 환산 × 정가(MRP), 카테고리 안)과 상위 100위 순위. 브랜드 수는 Nykaa 브랜드 필터 기준.`)} />
       <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label={tr("Category", "카테고리")}>
         <button className={pill(cat === "all")} onClick={() => setCat("all")}>{tr(`All ${CATEGORIES.length} categories`, `${CATEGORIES.length}개 카테고리 전체`)}</button>
@@ -175,9 +174,8 @@ function OriginsSection({ rows, span }: { rows: { c: string; agg: Map<string, { 
 /* ------------------------------------------------------------------ one category */
 
 function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; span: { start: string; end: string } }) {
-  const [openB, setOpenB] = useState<string | null>(null); const [openP, setOpenP] = useState<string | null>(null);
-  const [allBrands, setAllBrands] = useState(false); const [allProducts, setAllProducts] = useState(false);
-  const [filters, setFilters] = useState(false); const [origin, setOrigin] = useState<string>("all"); const [q, setQ] = useState("");
+  const [openB, setOpenB] = useState<string | null>(null);
+  const [allBrands, setAllBrands] = useState(false);
   const [find, setFind] = useState<string | null>(null); const [ahead, setAhead] = useState(false);
   const win = m.win!;
   const today = useMemo(() => m.shelf.filter((r) => r.subcategory === cat).sort((a, b) => a.rank - b.rank), [m.shelf, cat]);
@@ -211,11 +209,6 @@ function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; sp
     : !fx || fi < 10 ? brands.slice(0, 10)
     : [...brands.slice(0, 10), ...(ahead ? brands.slice(10, upTo) : gap ? ["gap" as const] : []), fx];
   const top10 = brands.slice(0, 10).reduce((a, x) => a + x.share, 0);
-  // owner 22 Oct: Nykaa's order is the Top 100 tab; here the products that sell the most, by share of buying
-  const byBuying = [...today].sort((a, b) => (sh.of(b.product_id)?.share ?? -1) - (sh.of(a.product_id)?.share ?? -1) || a.rank - b.rank);
-  const buyRank = new Map(byBuying.filter((r) => sh.of(r.product_id)?.share).map((r, i) => [r.product_id, i + 1]));
-  const products = byBuying.filter((r) => (origin === "all" || r.origin === origin) && (!q || `${r.brand} ${r.name}`.toLowerCase().includes(q.toLowerCase())));
-  const shownProducts = allProducts || q || origin !== "all" ? products : products.slice(0, 10);
   const leader = brands[0];
   const ours = brands.find((x) => tiers.isPinned(x.b));
   const rivals = brands.filter((x) => x.origin === "kbeauty" && !tiers.isPinned(x.b));
@@ -264,41 +257,6 @@ function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; sp
               </Fragment>))}</tbody>
           </table>
           {brands.length > 10 && <div className="border-t border-line px-4 py-2.5 text-[12.5px] text-ink-2">{tr(<>The top 10 together hold <b>{pct(top10, 0)}</b> of {catName(cat).toLowerCase()} buying. </>, <>상위 10개 브랜드 합계 <b>{pct(top10, 0)}</b>. </>)}<button onClick={() => setAllBrands(!allBrands)} className="text-[12.5px] font-medium text-accent-strong">{allBrands ? tr("Show the top 10", "상위 10개만") : tr(`Show all ${brands.length} brands`, `브랜드 ${brands.length}개 모두 보기`)}</button></div>}
-        </Card>
-      </ActionSection>
-
-      <ActionSection id="products" kicker={tr(`${catName(cat)} · best sellers`, `${catName(cat)} · 베스트셀러`)} title={byBuying[0] && sh.of(byBuying[0].product_id) ? tr(`${byBuying[0].brand} ${shortName(byBuying[0].name, byBuying[0].brand).split(/,| - | with /)[0]} sells the most, with ${pct(sh.of(byBuying[0].product_id)!.share, 1)} of ${catName(cat).toLowerCase()} buying`, `최다 판매: ${byBuying[0].brand} ${shortName(byBuying[0].name, byBuying[0].brand).split(/,| - | with /)[0]} (${catName(cat)} 판매의 ${pct(sh.of(byBuying[0].product_id)!.share, 1)})`) : tr("Best sellers", "베스트셀러")}
-        note={<>{tr(`Today's top-100 ${catName(cat).toLowerCase()} products ordered by share of buying (${monthName(span.start)}), not by Nykaa's order; Nykaa's position is in the second column. Sizes sharing one set of reviews count once.`, `오늘 ${catName(cat)} 상위 100위 제품을 Nykaa 순서가 아닌 판매 점유율(${monthName(span.start)}) 순으로. 두 번째 열은 Nykaa 순위. 리뷰를 공유하는 용량은 한 번만 집계.`)} <a href={`/top100/?cat=${cat}`} className="underline underline-offset-2">{tr("Nykaa's own order, with prices, sizes and filters: Top 100 →", "Nykaa 순서·가격·용량·필터: 상위 100 →")}</a></>}
-        right={<button onClick={() => setFilters(!filters)} className="rounded-full px-3 py-1 text-[12.5px] text-ink-2 ring-1 ring-line hover:bg-sunken">{filters ? tr("Hide filters", "필터 닫기") : tr("Filter", "필터")}</button>}>
-        <Card className="overflow-x-auto">
-          {filters && <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
-            <input id="product-filter" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Brand or product", "브랜드 또는 제품")} className="w-56 rounded-full border border-line bg-page px-3 py-1 text-[12.5px] outline-none focus:border-accent-strong" />
-            {[["all", tr("All origins", "전체")], ["kbeauty", ORIGIN_LABEL.kbeauty], ["local", ORIGIN_LABEL.local], ["global", ORIGIN_LABEL.global]].map(([k, l]) => <button key={k} onClick={() => setOrigin(k)} className={pill(origin === k, "sm")}>{l}</button>)}
-          </div>}
-          <table className="w-full min-w-[900px] text-[13px]">
-            <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted"><th className="px-4 py-2.5 text-right">#</th><th className="px-2">{tr("Nykaa rank", "Nykaa 순위")}</th><th className="px-2">{tr("Product", "제품")}</th><th className="px-2">{tr("Price", "가격")}</th><th className="px-2">{tr("Rating", "별점")}</th><th className="px-2">{tr("Share of buying", "판매 점유율")}</th><th className="px-2">{tr("Tags", "표시")}</th><th className="px-4" /></tr></thead>
-            <tbody>{shownProducts.map((r: ShelfRow) => { const s = sh.of(r.product_id); const k = r.product_id; return (
-              <Fragment key={k}>
-                <tr className={`border-b border-line/60 align-top ${tiers.isPinned(r.brand) ? "bg-accent-soft/40" : ""}`}>
-                  <td className="px-4 py-2.5 text-right font-semibold tabular">{buyRank.get(r.product_id) ?? "–"}</td>
-                  <td className="px-2 py-2.5 tabular text-ink-2">#{r.nykaa_rank ?? r.rank}</td>
-                  <td className="max-w-[380px] px-2 py-2.5"><b className="font-medium">{r.brand}</b> <span className={`ml-1 rounded-full px-1.5 py-px text-[10px] font-semibold ${ORIGIN_CHIP[r.origin] ?? ORIGIN_CHIP.unknown}`}>{ORIGIN_LABEL[r.origin]}</span><div className="leading-snug text-ink-2">{shortName(r.name, r.brand)}</div></td>
-                  <td className="whitespace-nowrap px-2 py-2.5 tabular">{inr(r.price)}{r.mrp && r.price && r.mrp > r.price ? <div className="text-[11.5px] text-muted">{tr(`${Math.round((1 - r.price / r.mrp) * 100)}% off ${inr(r.mrp)}`, `정가 ${inr(r.mrp)}에서 ${Math.round((1 - r.price / r.mrp) * 100)}%`)}</div> : null}</td>
-                  <td className="whitespace-nowrap px-2 py-2.5 tabular">{r.rating ? <>★ {r.rating.toFixed(1)}</> : "–"}</td>
-                  <td className="px-2 py-2.5 tabular">{isCombo(r.name) ? <span className="text-[11.5px] text-muted">{tr("combo, not counted", "콤보, 제외")}</span> : s ? <>{pct(s.share, 1)}<div className="text-[11px] text-muted">{tr(`${s.reviews} reviews`, `리뷰 ${s.reviews}건`)}{s.poolSize > 1 ? tr(` · sizes share reviews (${s.poolSize})`, ` · 용량별 리뷰 공유(${s.poolSize})`) : ""}</div></> : "–"}</td>
-                  <td className="px-2 py-2.5"><div className="flex flex-wrap gap-1">
-                    {r.is_ad && <span className="rounded bg-[#fff4d6] px-1.5 text-[10.5px] font-semibold text-[#8a6100]">{tr("SPONSORED", "광고")}</span>}
-                    {r.has_offer && <span className="rounded bg-warn-soft px-1.5 text-[10.5px] font-semibold text-warn">{tr("OFFER", "프로모션")}</span>}
-                    {r.is_bestseller && <span className="rounded bg-[#fce8f1] px-1.5 text-[10.5px] font-semibold text-[#b03a72]">{tr("BESTSELLER", "베스트셀러")}</span>}
-                    {r.is_new_tag && <span className="rounded bg-[#e6effb] px-1.5 text-[10.5px] font-semibold text-[#1f5fae]">{tr("NEW", "신상품")}</span>}
-                  </div></td>
-                  <td className="px-4 py-2.5 text-right"><DetailsButton open={openP === k} onClick={() => setOpenP(openP === k ? null : k)} /></td>
-                </tr>
-                {openP === k && <tr><td colSpan={8} className="px-4 pb-3"><ProductQuick pid={r.product_id} cat={cat} /></td></tr>}
-              </Fragment>); })}</tbody>
-          </table>
-          {!shownProducts.length && <p className="px-5 py-6 text-[13px] text-muted">{tr("Nothing matches.", "일치하는 제품 없음.")}</p>}
-          {!q && origin === "all" && products.length > 10 && <div className="border-t border-line px-4 py-2.5"><button onClick={() => setAllProducts(!allProducts)} className="text-[12.5px] font-medium text-accent-strong">{allProducts ? tr("Show the top 10", "상위 10개만") : tr(`Show all ${products.length}`, `${products.length}개 모두 보기`)}</button></div>}
         </Card>
       </ActionSection>
 

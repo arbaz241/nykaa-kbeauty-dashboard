@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useCatalog, useDemand, usePinned, useReviewCapped, useReviewMonths, useReviewWindow, useShelf, useShelfDaily, useShelfProducts } from "./data";
-import { adjustedFlow, learnRates, reviewMonths } from "./adjusted";
+import { adjustedFlow, learnRates, reviewMonths, sizeByReviews } from "./adjusted";
 import { monthEnd as monthEndOf, useReviewRead } from "./reviewRead";
 import { indexDaily, poolProducts, productDims, ratingFlow, ratingFreeze, type FlowRow } from "./market";
 import { shelfWindow, usePeriod, type ShelfWindow } from "./period";
@@ -86,8 +86,8 @@ export function useMarket() {
   }, [ready, pool, win33.data, readMap, ix, ratingsFlow, originOf]);
   const readOf = useMemo(() => (pid: string) => readMap?.get(pid) ?? null, [readMap]);
   const capped = useMemo(() => new Map((cap34.data ?? []).map((r) => [`${r.product_id}|${String(r.month).slice(0, 10)}`, Number(r.reviews)])), [cap34.data]);
-  const flow: FlowRow[] = useMemo(() => (rates && rmonths ? adjustedFlow(ix, dims, pool, rates, rmonths.recent, readOf, originOf, capped) : []), [ix, dims, pool, rates, rmonths, readOf, originOf, capped]);
-  const prevFlow: FlowRow[] | null = useMemo(() => (rates && rmonths ? adjustedFlow(ix, dims, pool, rates, rmonths.prev, readOf, originOf, capped) : null), [ix, dims, pool, rates, rmonths, readOf, originOf, capped]);
+  const flow: FlowRow[] = useMemo(() => (rates && rmonths ? sizeByReviews(adjustedFlow(ix, dims, pool, rates, rmonths.recent, readOf, originOf, capped)) : []), [ix, dims, pool, rates, rmonths, readOf, originOf, capped]);
+  const prevFlow: FlowRow[] | null = useMemo(() => (rates && rmonths ? sizeByReviews(adjustedFlow(ix, dims, pool, rates, rmonths.prev, readOf, originOf, capped)) : null), [ix, dims, pool, rates, rmonths, readOf, originOf, capped]);
   /** The months the buying figures cover (first day of the first month to the last day of the last). */
   const flowSpan = rmonths ? { start: rmonths.recent[0], end: monthEndOf(rmonths.recent[rmonths.recent.length - 1]), none: false } : null;
 

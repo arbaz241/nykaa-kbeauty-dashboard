@@ -152,3 +152,22 @@ export function reviewMonths(day: string) {
   const m = (k: number) => { const d = new Date(t); d.setUTCMonth(d.getUTCMonth() + k); return d.toISOString().slice(0, 10); };
   return { recent: [m(-1)], prev: [m(-2)] };
 }
+
+/** Category sizes for anything added up across categories (owner 23 Oct 2026: "foundation first and lipstick second
+ *  is hard to believe"). Inside a category nothing changes; each category's rows are scaled together so the
+ *  category's total equals its reviews × MRP. Why: Nykaa shows one pooled rating count on some makeup lines and its
+ *  own sheet masks (Maybelline Color Sensational 7.3M ratings on 24k reviews; a sheet-mask family 7.6M), so those
+ *  categories learned review rates of 0.4–0.9 per 100 against ~3–4 elsewhere and their buying was inflated 2–3×.
+ *  The typical product has 5–16 ratings per review in every category (Nykaa's own counts), so reviews compare fairly
+ *  across categories. Result: makeup ~1/3 of our 15 categories, in line with Nykaa ("colour is about a third of
+ *  GMV"); serum, moisturiser, sunscreen and foundation each ~11–12%. */
+export function sizeByReviews(flow: FlowRow[]): FlowRow[] {
+  const est = new Map<string, number>(); const raw = new Map<string, number>();
+  for (const r of flow) {
+    est.set(r.subcategory, (est.get(r.subcategory) ?? 0) + r.value);
+    if (r.flow > 0 && r.value > 0) raw.set(r.subcategory, (raw.get(r.subcategory) ?? 0) + (r.reviews ?? 0) * (r.value / r.flow));
+  }
+  const k = new Map<string, number>();
+  for (const [c, e] of est) k.set(c, e > 0 ? (raw.get(c) ?? 0) / e : 0);
+  return flow.map((r) => (r.value > 0 ? { ...r, value: r.value * (k.get(r.subcategory) ?? 1) } : r));
+}
