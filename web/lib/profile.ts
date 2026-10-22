@@ -65,11 +65,11 @@ export function listingMoves(c: Context, brand: string | null): ListingMove[] {
 
 export const runsFrom = (rows: HomepageFeature[]) => homepageRuns(rows);
 
-/** Share of a category's buying (new ratings × MRP, combos left out) for each product, and its place among them. */
+/** Share of a category's buying (adjusted reviews × MRP, combos left out; lib/adjusted) for each product, and its place among them. */
 export function shareIn(flow: FlowRow[], cat: string) {
   const rows = flow.filter((r) => r.subcategory === cat && r.value > 0).sort((a, b) => b.value - a.value);
   const total = rows.reduce((a, r) => a + r.value, 0); const units = rows.reduce((a, r) => a + r.flow, 0);
-  return { total, rows, of: (pid: string) => { const i = rows.findIndex((r) => r.product_id === pid); return i < 0 || !total ? null : { share: rows[i].value / total, units: units ? rows[i].flow / units : 0, place: i + 1, of: rows.length, poolSize: rows[i].poolSize }; } };
+  return { total, rows, of: (pid: string) => { const i = rows.findIndex((r) => r.product_id === pid); return i < 0 || !total ? null : { share: rows[i].value / total, units: units ? rows[i].flow / units : 0, place: i + 1, of: rows.length, poolSize: rows[i].poolSize, reviews: rows[i].reviews ?? 0 }; } };
 }
 
 /** A brand's share of a category's buying, and its place among the brands there. */

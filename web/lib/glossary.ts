@@ -100,10 +100,10 @@ export const GLOSSARY = {
   }),
   ratingFlow: metric({
     name: ["Share of buying", "판매 점유율"],
-    plain: ["Which brands the shoppers of the period bought, read from the new ratings their listings gained on Nykaa's top-100 shelves.", "기간 중 소비자가 어떤 브랜드를 샀는지. Nykaa 상위 100위 제품에 새로 달린 평가 수로 판단."],
-    formula: ["New ratings over the period (rating count at the end − at the start, listings on the shelf both days) × MRP (the printed price, which doesn't move with sales); a set of ratings shared by sizes of one product counts once. A brand's share = its value ÷ all value. Not the total rating count: a total adds up years of past sales (Neutrogena holds 17% of sunscreen's total ratings but 3.5% of the new ones).", "기간 중 새 평가 수(종료일 평가 수 − 시작일 평가 수, 양일 모두 랭킹에 있던 제품) × 정가(MRP, 세일에 따라 바뀌지 않는 표시 가격). 여러 제품이 공유하는 평가는 한 번만 집계. 브랜드 점유율 = 브랜드 금액 ÷ 전체 금액. 누적 평가 수가 아님: 누적은 수년간의 과거 판매 합계 (Neutrogena: 선크림 누적 평가의 17%, 신규 평가의 3.5%)."],
-    source: ["Nykaa's rating counts on every tracked top-100 list, read nightly since 13 Sep 2026 (lists added after 10 Oct have no buying yet).", "2026년 9월 13일부터 매일 밤 수집한 추적 목록별 상위 100위 평가 수 (10월 10일 이후 추가 목록은 판매 집계 없음)."],
-    window: ["13 Sep – 9 Oct 2026: the last stretch before Nykaa froze its public rating counts on 10 Oct.", "2026년 9월 13일–10월 9일: Nykaa가 10월 10일 평가 수 공개를 멈추기 전 마지막 구간."],
+    plain: ["Which brands shoppers bought in each category, estimated from the reviews written on Nykaa's top-100 products and each brand's habit of reviewing.", "카테고리별로 소비자가 어떤 브랜드를 샀는지. Nykaa 상위 100위 제품의 리뷰와 브랜드별 리뷰 작성 습관으로 추정."],
+    formula: ["Estimated buyers = a product's reviews in the last 3 complete months ÷ its brand's reviews per 100 buyers × 100; × MRP (the printed price); a brand's share = its ₹ ÷ all brands' ₹ in the category. Reviews per 100 buyers = reviews ÷ new ratings, learned 13 Sep – 9 Oct (when Nykaa still showed rating counts) per brand and category, from at least 20 reviews (else the brand overall, then same-origin brands in the category). Sizes sharing one set of reviews count once.", "추정 구매자 = 최근 완결 3개월 제품 리뷰 ÷ 브랜드의 구매자 100명당 리뷰 수 × 100; × 정가(MRP); 브랜드 점유율 = 브랜드 금액 ÷ 카테고리 전체 금액. 구매자 100명당 리뷰 = 리뷰 ÷ 신규 평가, 9월 13일–10월 9일(Nykaa가 평가 수를 보여주던 기간) 브랜드×카테고리별, 리뷰 20건 이상일 때 (미만이면 브랜드 전체, 다음은 같은 국적 브랜드). 용량별로 리뷰를 공유하면 한 번만."],
+    source: ["Written reviews with their dates on every tracked top-100 product; Nykaa's rating counts 13 Sep – 9 Oct for the rates.", "추적 상위 100위 제품의 날짜별 리뷰, 작성률 계산용 9월 13일–10월 9일 Nykaa 평가 수."],
+    window: ["The last 3 complete months; it moves on each month.", "최근 완결 3개월, 매달 갱신."],
   }),
   brandCount: metric({
     name: ["Brands on Nykaa", "Nykaa 입점 브랜드"],

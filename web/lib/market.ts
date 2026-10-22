@@ -240,6 +240,8 @@ export interface FlowRow {
   poolSize: number;
   /** Position on Nykaa's own page (rankEnd is the position among the category's own products). */
   nykaaRank: number;
+  /** Adjusted reviews (lib/adjusted): the reviews behind `flow`, and whether the product's reviews are read yet. */
+  reviews?: number; noHistory?: boolean;
 }
 
 /** Combos, kits and routines: several products sold as one listing. */

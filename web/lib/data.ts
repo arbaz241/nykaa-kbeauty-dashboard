@@ -214,6 +214,11 @@ export function useExternalNews() { return useSWR("external_news", () => fetchAl
  *  no pin flag, so moves read a pin starting or ending as a climb or fall with no cause (audit 19 Oct: the Brief's
  *  "biggest climb" was a pinned product). A nightly copy of its own (migration 031), so it comes in the page's one
  *  data request. */
+/** Reviews each product received 13 Sep - 9 Oct 2026 (migration 033): with the same products' new ratings they
+ *  give each brand's reviews per 100 buyers (lib/adjusted). */
+export function useReviewWindow() {
+  return useSWR("review_window", () => fetchAll<{ product_id: string; reviews: number }>("web_review_window"), opts);
+}
 export function usePinned() {
   return useSWR("pinned", () => fetchAll<{ scrape_date: string; subcategory: string; product_id: string }>("web_pinned_days"), opts);
 }

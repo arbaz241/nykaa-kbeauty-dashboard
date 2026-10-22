@@ -97,8 +97,8 @@ function Brand() {
       `${brand}: 오늘 ${cats.length}개 카테고리 상위 100위에 제품 ${today.length}개${both.size ? ` (${dayMonth(win.start)} 대비 ${placesD === 0 ? "변화 없음" : `${placesD > 0 ? "+" : ""}${placesD}`})` : ""}.${seller ? ` 베스트셀러: ${catName(seller.subcategory)}의 ${shortName(seller.name, brand)}.` : ""}`)
     : tr(`${brand} has no product in any tracked top 100 today.`, `${brand}: 오늘 추적 중인 상위 100위에 제품 없음.`);
   const points: React.ReactNode[] = [];
-  if (strongest?.s) points.push(tr(<>Strongest in <b>{catName(strongest.c).toLowerCase()}</b>: {pct(strongest.s.share, 1)} of all {catName(strongest.c).toLowerCase()} buying ({pct(strongest.s.units, 0)} of units), #{strongest.s.place} of {strongest.s.of} brands ({dayMonth(span.start)}–{dayMonth(span.end)}).</>,
-    <>강세 카테고리: <b>{catName(strongest.c)}</b>: {catName(strongest.c)} 판매 전체의 {pct(strongest.s.share, 1)} (수량 {pct(strongest.s.units, 0)}), 브랜드 {strongest.s.of}개 중 {strongest.s.place}위 ({dayMonth(span.start)}–{dayMonth(span.end)}).</>));
+  if (strongest?.s) points.push(tr(<>Strongest in <b>{catName(strongest.c).toLowerCase()}</b>: {pct(strongest.s.share, 1)} of all {catName(strongest.c).toLowerCase()} buying, #{strongest.s.place} of {strongest.s.of} brands ({dayMonth(span.start)}–{dayMonth(span.end)}).</>,
+    <>강세 카테고리: <b>{catName(strongest.c)}</b>: {catName(strongest.c)} 판매 전체의 {pct(strongest.s.share, 1)}, 브랜드 {strongest.s.of}개 중 {strongest.s.place}위 ({dayMonth(span.start)}–{dayMonth(span.end)}).</>));
   if (seller && sellerShare && seller.subcategory !== strongest?.c) points.push(tr(<>Best seller: {shortName(seller.name, brand)}, the brand&rsquo;s product with the most buying.</>, <>베스트셀러: {shortName(seller.name, brand)} (브랜드에서 판매가 가장 많은 제품).</>));
   if (up[0] || down[0]) points.push(tr(<>{up[0] ? <><ProductLink id={up[0].product_id} cat={up[0].subcategory} className="text-on-brand">{shortName(up[0].name, brand)}</ProductLink> climbed #{up[0].from} → #{up[0].to}{up[0].why[0] ? ` (${up[0].why[0].text})` : ""}</> : null}{up[0] && down[0] ? "; " : ""}{down[0] ? <><ProductLink id={down[0].product_id} cat={down[0].subcategory} className="text-on-brand">{shortName(down[0].name, brand)}</ProductLink> fell #{down[0].from} → #{down[0].to}{down[0].why[0] ? ` (${down[0].why[0].text})` : ""}</> : null}.</>,
     <>{up[0] ? <><ProductLink id={up[0].product_id} cat={up[0].subcategory} className="text-on-brand">{shortName(up[0].name, brand)}</ProductLink> #{up[0].from} → #{up[0].to} 상승{up[0].why[0] ? ` (${up[0].why[0].text})` : ""}</> : null}{up[0] && down[0] ? "; " : ""}{down[0] ? <><ProductLink id={down[0].product_id} cat={down[0].subcategory} className="text-on-brand">{shortName(down[0].name, brand)}</ProductLink> #{down[0].from} → #{down[0].to} 하락{down[0].why[0] ? ` (${down[0].why[0].text})` : ""}</> : null}.</>));
@@ -125,8 +125,8 @@ function Brand() {
 
       <section id="know" className="mt-8 scroll-mt-32">
         <Verdict eyebrow={tr(`What to know · ${spanLabel(m.period.days)}`, `핵심 · ${spanLabel(m.period.days)}`)} points={points}>{lead}</Verdict>
-        <Basis className="mt-2">{tr(<>Products in the top 100: today, counting only products Nykaa files under each category; the change counts the {both.size} categories tracked on both days. Buying = <Def k="ratingFlow">new ratings × MRP</Def>, combos left out. Reviews: all tracked products of the brand, complete months only.</>,
-          <>상위 100위 제품: 오늘 기준, Nykaa가 해당 카테고리로 분류한 제품만. 변화 = 양일 모두 추적한 {both.size}개 카테고리 기준. 구매 = <Def k="ratingFlow">신규 평가 × 정가(MRP)</Def>, 콤보 제외. 리뷰: 브랜드의 추적 제품 전체, 완결된 달만.</>)}</Basis>
+        <Basis className="mt-2">{tr(<>Products in the top 100: today, counting only products Nykaa files under each category; the change counts the {both.size} categories tracked on both days. Buying = <Def k="ratingFlow">reviews ÷ review rate × MRP</Def>, combos left out. Reviews: all tracked products of the brand, complete months only.</>,
+          <>상위 100위 제품: 오늘 기준, Nykaa가 해당 카테고리로 분류한 제품만. 변화 = 양일 모두 추적한 {both.size}개 카테고리 기준. 구매 = <Def k="ratingFlow">리뷰 ÷ 리뷰 작성률 × 정가(MRP)</Def>, 콤보 제외. 리뷰: 브랜드의 추적 제품 전체, 완결된 달만.</>)}</Basis>
         {news.length > 0 && <div className="mt-4"><div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{tr("In the news in India, last 30 days", "인도 관련 뉴스, 최근 30일")}</div><ExternalNewsList brand={brand} max={5} /></div>}
       </section>
 
@@ -155,7 +155,7 @@ function Brand() {
           <Link key={x.c} href={`/categories/?cat=${x.c}`} className="lift block rounded-[16px] bg-surface px-5 py-4 shadow-card ring-1 ring-line">
             <div className="text-[12.5px] font-medium text-muted">{catName(x.c)}</div>
             <div className="mt-1 font-display text-[26px] font-semibold tabular">{x.s ? pct(x.s.share, 1) : "–"}</div>
-            <div className="text-[12.5px] text-ink-2">{x.s ? tr(`of all buying · ${pct(x.s.units, 0)} of units · #${x.s.place} of ${x.s.of} brands`, `판매 전체 · 수량 ${pct(x.s.units, 0)} · 브랜드 ${x.s.of}개 중 ${x.s.place}위`) : tr("no new ratings counted", "집계된 신규 평가 없음")}</div>
+            <div className="text-[12.5px] text-ink-2">{x.s ? tr(`of all buying · #${x.s.place} of ${x.s.of} brands`, `판매 전체 · 브랜드 ${x.s.of}개 중 ${x.s.place}위`) : tr("no reviews read yet", "리뷰 미수집")}</div>
             <div className="mt-0.5 text-[12px] text-muted">{tr(`${x.places} product${x.places === 1 ? "" : "s"} in the top 100`, `상위 100위 제품 ${x.places}개`)}{x.s?.best ? tr(` · best seller: ${shortName(x.s.best.name, brand)}`, ` · 베스트셀러: ${shortName(x.s.best.name, brand)}`) : ""}</div>
           </Link>))}</div>
       </ActionSection>

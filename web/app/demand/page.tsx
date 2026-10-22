@@ -244,7 +244,7 @@ function DemandPage() {
 
   return (
     <Shell active="Demand" asOf={latest ? day(latest) : undefined}>
-      <PageHead eyebrow={tr("Demand & search", "수요·검색")} title={tr("Demand & search", "수요·검색")} sub={tr(<>Who is gaining written reviews fastest (a 12-month trend, since ratings froze on 10 Oct), and who shoppers find when they search on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type. {A} against the {tiers.focus.length} main brands.</>, <>리뷰가 가장 빠르게 느는 브랜드(12개월 추세)와, Nykaa 검색 시 소비자가 만나는 브랜드(자연 검색 결과, 광고, 입력 중 추천 검색어). 주요 브랜드 {tiers.focus.length}곳과 비교한 {A}.</>)} />
+      <PageHead eyebrow={tr("Demand & search", "수요·검색")} title={tr("Demand & search", "수요·검색")} sub={tr(<>Who is gaining written reviews fastest (a 12-month trend), and who shoppers find when they search on Nykaa: unpaid results, paid ads, and what Nykaa suggests as they type. {A} against the {tiers.focus.length} main brands.</>, <>리뷰가 가장 빠르게 느는 브랜드(12개월 추세)와, Nykaa 검색 시 소비자가 만나는 브랜드(자연 검색 결과, 광고, 입력 중 추천 검색어). 주요 브랜드 {tiers.focus.length}곳과 비교한 {A}.</>)} />
       <ScopeLine uses={["followed"]} measure={tr("growth in written reviews (the last 3 complete months against the same months a year earlier, same products only), and who appears in Nykaa search for the keywords we read nightly.", "리뷰 성장률(최근 완결된 3개월 vs 전년 같은 달, 동일 제품만)과 매일 밤 수집하는 검색어의 Nykaa 검색 결과.")} />
       {(!months.data || !hist.data || !demandView.data) ? <Loading what={tr("demand and search data", "수요·검색 데이터")} /> : (
         <>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCatalog, useDemand, usePinned, useReviewMonths, useShelf, useShelfDaily, useShelfProducts } from "./data";
+import { useCatalog, useDemand, usePinned, useReviewMonths, useReviewWindow, useShelf, useShelfDaily, useShelfProducts } from "./data";
+import { adjustedFlow, learnRates, reviewMonths } from "./adjusted";
+import { monthEnd as monthEndOf, useReviewRead } from "./reviewRead";
 import { indexDaily, poolProducts, productDims, ratingFlow, ratingFreeze, type FlowRow } from "./market";
 import { shelfWindow, usePeriod, type ShelfWindow } from "./period";
 import { norm } from "./brands";
@@ -13,10 +15,10 @@ import type { ShelfRow } from "./types";
  *  still updated its rating counts. */
 export function useMarket() {
   const shelf = useShelf(); const catalog = useCatalog(); const months = useReviewMonths(); const demand = useDemand();
-  const daily = useShelfDaily(); const products = useShelfProducts();
+  const daily = useShelfDaily(); const products = useShelfProducts(); const win33 = useReviewWindow(); const readMap = useReviewRead();
   const period = usePeriod();
-  const ready = !!(shelf.data && catalog.data && months.data && demand.data && daily.data && products.data);
-  const error = shelf.error || catalog.error || months.error || demand.error || daily.error || products.error;
+  const ready = !!(shelf.data && catalog.data && months.data && demand.data && daily.data && products.data && win33.data && readMap);
+  const error = shelf.error || catalog.error || months.error || demand.error || daily.error || products.error || win33.error;
 
   const dims = useMemo(() => productDims(products.data ?? [], shelf.data ?? []), [products.data, shelf.data]);
   const pins = usePinned();
@@ -69,12 +71,26 @@ export function useMarket() {
     const prev = j >= 30 ? { start: days[j - 30], end: start } : null;
     return { start, lastLive, end: days[days.length - 1], prev };
   }, [ix.days, ratingEnd]);
-  const flow: FlowRow[] = useMemo(() => (buyWin ? ratingFlow(ix, dims, buyWin.start, buyWin.end, false, ratingEnd) : []), [ix, dims, buyWin, ratingEnd]);
-  const prevFlow: FlowRow[] | null = useMemo(() => (buyWin?.prev ? ratingFlow(ix, dims, buyWin.prev.start, buyWin.prev.end, false) : null), [ix, dims, buyWin]);
-  /** The days the buying figures cover. */
-  const flowSpan = buyWin ? { start: buyWin.start, end: buyWin.lastLive, none: false } : null;
+  /** The frozen ratings window (13 Sep - 9 Oct): no longer the share itself, but what the review rates are learned on. */
+  const ratingsFlow: FlowRow[] = useMemo(() => (buyWin ? ratingFlow(ix, dims, buyWin.start, buyWin.end, false, ratingEnd) : []), [ix, dims, buyWin, ratingEnd]);
+  /** Share of buying = adjusted reviews (owner, 22 Oct 2026; lib/adjusted). */
+  const rmonths = useMemo(() => (latest ? reviewMonths(latest) : null), [latest]);
+  const rates = useMemo(() => {
+    if (!ready) return null;
+    const poolOf = new Map<string, string>(); for (const p of pool) for (const m of p.members ?? [p.product_id]) if (!poolOf.has(m)) poolOf.set(m, p.product_id);
+    const rp = (pid: string) => poolOf.get(pid) ?? pid;
+    const wr = new Map<string, number>(); // reviews per review pool: the pool's members share one set of reviews
+    for (const r of win33.data ?? []) { const k = rp(r.product_id); wr.set(k, Math.max(wr.get(k) ?? 0, r.reviews)); }
+    const ro = (pid: string) => readMap?.get(rp(pid)) ?? readMap?.get(pid) ?? null;
+    return learnRates(ix, ratingsFlow, wr, rp, ro, originOf);
+  }, [ready, pool, win33.data, readMap, ix, ratingsFlow, originOf]);
+  const readOf = useMemo(() => (pid: string) => readMap?.get(pid) ?? null, [readMap]);
+  const flow: FlowRow[] = useMemo(() => (rates && rmonths ? adjustedFlow(ix, dims, pool, rates, rmonths.recent, readOf, originOf) : []), [ix, dims, pool, rates, rmonths, readOf, originOf]);
+  const prevFlow: FlowRow[] | null = useMemo(() => (rates && rmonths ? adjustedFlow(ix, dims, pool, rates, rmonths.prev, readOf, originOf) : null), [ix, dims, pool, rates, rmonths, readOf, originOf]);
+  /** The months the buying figures cover (first day of the first month to the last day of the last). */
+  const flowSpan = rmonths ? { start: rmonths.recent[0], end: monthEndOf(rmonths.recent[2]), none: false } : null;
 
   return { ready, error, period, shelf: today, catalog: catalog.data ?? [], products: products.data ?? [], months: months.data ?? [], dims, ix, pool, originOf,
-    latest, win, flow, prevFlow, freeze, flowSpan };
+    latest, win, flow, prevFlow, freeze, flowSpan, ratingsFlow, rates, rmonths };
 }
 export type Market = ReturnType<typeof useMarket>;
