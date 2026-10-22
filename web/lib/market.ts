@@ -148,6 +148,15 @@ export function poolProducts({ months, demand, shelf, catalog, products, daily }
     const first = fr ? `${fr.slice(0, 7)}-01` : earliest && earliest >= coverage ? earliest : null;
     all.push({ product_id: pid, brand: ms[0].brand, name: ms[0].name, category, price, first, coverage, byMonth, pool: dem.get(pid)?.pool_id || pid, lifetime: ms.reduce((a, m) => a + m.reviews, 0) });
   }
+  // two pools with the same brand and the same review history month for month are one set of Nykaa reviews filed under
+  // two pool ids (22 Oct 2026: two Nykaa Skin sheet masks, 858 reviews counted twice): merge them
+  const sigPool = new Map<string, string>();
+  for (const r of [...all].sort((x, y) => x.pool.localeCompare(y.pool))) {
+    if (r.lifetime < 30) continue;
+    const sig = `${norm(r.brand)}|${r.lifetime}|${[...r.byMonth.entries()].sort().map(([m, n]) => `${m}:${n}`).join(",")}`;
+    const first = sigPool.get(sig);
+    if (!first) sigPool.set(sig, r.pool); else if (first !== r.pool) r.pool = first;
+  }
   const best = new Map<string, (typeof all)[number]>();
   for (const r of all) { const c = best.get(r.pool); if (!c || r.lifetime > c.lifetime || (!c.category && r.category)) best.set(r.pool, r); }
   const members = new Map<string, string[]>(); for (const d of demand) { const k = d.pool_id || d.product_id; push(members, k, d.product_id); }
