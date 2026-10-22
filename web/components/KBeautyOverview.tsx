@@ -36,7 +36,7 @@ export interface KBrand {
 
 /** Everything the K-beauty tab shows, from the shared market data (same buying window and rules as every tab). */
 export function useKBeauty(anchor: string) {
-  const { ready, win, flow: allFlow, shelf: today, ix, dims, pool, latest, flowSpan, originOf } = useMarket();
+  const { ready, win, flow: allFlow, ratingsFlow, shelf: today, ix, dims, pool, latest, flowSpan, originOf } = useMarket();
   return useMemo(() => {
     if (!ready || !win) return null;
     const isK = (b: string) => originOf(b) === "kbeauty";
@@ -85,11 +85,14 @@ export function useKBeauty(anchor: string) {
     }).sort((a, b) => b.value - a.value || b.places - a.places);
     const kTrend = latest ? reviewTrend(pool.filter((p) => isK(p.brand)), latest) : null;
     const allTrend = latest ? reviewTrend(pool, latest) : null;
-    return { cats, brands, allValue, kValue, kShare: allValue ? kValue / allValue : 0,
+    // the same figure from the frozen ratings (13 Sep - 9 Oct), shown beside the all-category estimate (owner decision paper, 22 Oct)
+    const rf = ratingsFlow.filter((r) => r.value > 0 && CATEGORIES.includes(r.subcategory)); const rTot = rf.reduce((a, r) => a + r.value, 0);
+    const kShareRatings = rTot ? rf.filter((r) => r.origin === "kbeauty").reduce((a, r) => a + r.value, 0) / rTot : null;
+    return { cats, brands, allValue, kValue, kShare: allValue ? kValue / allValue : 0, kShareRatings,
       products: new Set(shelf.filter((r) => r.origin === "kbeauty").map((r) => r.product_id)).size,
       kGrowth: kTrend && kTrend.products ? kTrend.change : null, allGrowth: allTrend?.change ?? null, recentLabel: kTrend?.recentLabel ?? "",
       span: flowSpan ? `${dayMonth(flowSpan.start)}–${dayMonth(flowSpan.end)}` : "", start: win.start, isK };
-  }, [ready, win, allFlow, today, ix, dims, pool, latest, flowSpan, originOf, anchor]);
+  }, [ready, win, allFlow, ratingsFlow, today, ix, dims, pool, latest, flowSpan, originOf, anchor]);
 }
 export type KBeauty = NonNullable<ReturnType<typeof useKBeauty>>;
 
@@ -107,8 +110,8 @@ export function KSummary({ k, anchor }: { k: KBeauty; anchor: string }) {
         k.kGrowth !== null && tr(<><b className="text-on-brand">Growth:</b> Korean products&rsquo; written reviews {signed(k.kGrowth)} vs {signed(k.allGrowth)} for everything we follow ({k.recentLabel} vs a year earlier).</>, <><b className="text-on-brand">성장:</b> K-뷰티 제품 리뷰 {signed(k.kGrowth)}, 추적 제품 전체 {signed(k.allGrowth)} ({k.recentLabel}, 전년 대비).</>),
         me >= 0 && tr(<><b className="text-on-brand">{anchor}:</b> #{me + 1} of {withBuying} Korean brands by buying, {pct(k.brands[me].ofKorean, 1)} of Korean buying.</>, <><b className="text-on-brand">{anchor}:</b> 판매 기준 K-뷰티 브랜드 {withBuying}곳 중 {me + 1}위, K-뷰티 판매의 {pct(k.brands[me].ofKorean, 1)}.</>),
       ].filter(Boolean) as React.ReactNode[]}>
-      {tr(<>Korean brands hold {pct(k.kShare, 1)} of buying in Nykaa&rsquo;s top 100s{biggest ? <>; their biggest category is {catName(biggest.cat).toLowerCase()} ({pct(biggest.kValue / (k.kValue || 1), 0)} of all Korean buying)</> : null}.</>,
-        <>상위 100위 판매 중 K-뷰티 비중 {pct(k.kShare, 1)}{biggest ? <>. 최대 카테고리: {catName(biggest.cat)} (K-뷰티 판매의 {pct(biggest.kValue / (k.kValue || 1), 0)})</> : null}.</>)}
+      {tr(<>Korean brands hold about {pct(k.kShare, 0)} of buying in Nykaa&rsquo;s top 100s (estimate{k.kShareRatings !== null ? `; ${pct(k.kShareRatings, 1)} by the frozen ratings of 13 Sep–9 Oct` : ""}){biggest ? <>; their biggest category is {catName(biggest.cat).toLowerCase()} ({pct(biggest.kValue / (k.kValue || 1), 0)} of all Korean buying)</> : null}.</>,
+        <>상위 100위 판매 중 K-뷰티 비중 약 {pct(k.kShare, 0)} (추정{k.kShareRatings !== null ? `, 9월 13일–10월 9일 평가 기준 ${pct(k.kShareRatings, 1)}` : ""}){biggest ? <>. 최대 카테고리: {catName(biggest.cat)} (K-뷰티 판매의 {pct(biggest.kValue / (k.kValue || 1), 0)})</> : null}.</>)}
     </Verdict>
   );
 }
@@ -163,7 +166,7 @@ export function KTable({ k, anchor, rivals }: { k: KBeauty; anchor: string; riva
                 <Fragment key={c.cat}>
                   <tr className="border-b border-line/60 align-top">
                     <td className="px-4 py-2.5 font-medium">{catName(c.cat)}</td>
-                    <td className="px-2 py-2.5">{c.total ? <span className="flex items-center gap-2"><b className="w-11 tabular">{pct(c.kShare, 0)}</b><span className="h-2 w-28 rounded-full bg-sunken"><span className="block h-2 rounded-full bg-brand/70" style={{ width: `${(c.kShare / maxShare) * 100}%` }} /></span></span> : <span className="text-[12px] text-muted">{tr("list added after 10 Oct", "10월 10일 이후 추가")}</span>}</td>
+                    <td className="px-2 py-2.5">{c.total ? <span className="flex items-center gap-2"><b className="w-11 tabular">{pct(c.kShare, 0)}</b><span className="h-2 w-28 rounded-full bg-sunken"><span className="block h-2 rounded-full bg-brand/70" style={{ width: `${(c.kShare / maxShare) * 100}%` }} /></span></span> : <span className="text-[12px] text-muted">{tr("no reviews read yet", "리뷰 미수집")}</span>}</td>
                     <td className="px-2 py-2.5 tabular">{c.products ? tr(`${c.products} products · ${c.brands} brands`, `제품 ${c.products}개 · 브랜드 ${c.brands}곳`) : <span className="text-muted">{tr("none", "없음")}</span>}</td>
                     <td className="max-w-[300px] px-2 py-2.5">{lead ? <><b className="font-medium">{lead.brand}</b> <span className="tabular text-muted">{pct(lead.share, 0)} {tr("of the category", "점유")}</span><div className="truncate text-[11.5px] text-muted" title={lead.best.name}>{short(lead.best.name, lead.brand)}</div></> : <span className="text-muted">–</span>}</td>
                     <td className="px-2 py-2.5 tabular">{a.place ? <>{tr(`#${a.place} of ${c.korean.length}`, `${c.korean.length}곳 중 ${a.place}위`)}<div className="text-[11.5px] text-muted">{tr(`${pct(a.ofKorean, 0)} of Korean buying`, `K-뷰티 판매의 ${pct(a.ofKorean, 0)}`)}</div></> : <span className="text-[12px] text-muted">{a.rank ? tr(`on the list, #${a.rank}`, `목록 #${a.rank}`) : tr("not in the top 100", "상위 100위 밖")}</span>}</td>

@@ -30,6 +30,9 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
   const seenPool = new Set<string>();
   for (const r of ratings) {
     if (r.combo || r.subcategory === "kbeauty_store") continue;
+    // listed on both the first and the last day: a product that joined the list later has reviews from the whole
+    // window but no rating gain counted, which would inflate its brand's rate (22 Oct: CeraVe fell to 0.1%)
+    if (r.rankStart === null) continue;
     if ((readOn(r.product_id) ?? "") <= CAL_END) continue; // its window reviews may be incomplete
     const pool = reviewPool(r.product_id);
     let re = 0;
