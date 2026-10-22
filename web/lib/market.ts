@@ -151,9 +151,12 @@ export function poolProducts({ months, demand, shelf, catalog, products, daily }
   // two pools with the same brand and the same review history month for month are one set of Nykaa reviews filed under
   // two pool ids (22 Oct 2026: two Nykaa Skin sheet masks, 858 reviews counted twice): merge them
   const sigPool = new Map<string, string>();
+  const newest = all.reduce((x, r) => { for (const m of r.byMonth.keys()) if (m > x) x = m; return x; }, "");
   for (const r of [...all].sort((x, y) => x.pool.localeCompare(y.pool))) {
-    if (r.lifetime < 30) continue;
-    const sig = `${norm(r.brand)}|${r.lifetime}|${[...r.byMonth.entries()].sort().map(([m, n]) => `${m}:${n}`).join(",")}`;
+    // the last 12 months only: older months can differ where Nykaa shows each listing only its newest reviews
+    const recent = [...r.byMonth.entries()].filter(([m]) => m < newest).sort().slice(-12); // complete months: listings are read on different days
+    if (recent.length < 6 || recent.reduce((t, [, n]) => t + n, 0) < 30) continue;
+    const sig = `${norm(r.brand)}|${recent.map(([m, n]) => `${m}:${n}`).join(",")}`;
     const first = sigPool.get(sig);
     if (!first) sigPool.set(sig, r.pool); else if (first !== r.pool) r.pool = first;
   }
