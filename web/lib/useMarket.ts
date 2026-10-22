@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useCatalog, useDemand, usePinned, useReviewCapped, useReviewCounts, useReviewMonths, useReviewWindow, useShelf, useShelfDaily, useShelfProducts } from "./data";
-import { adjustedFlow, learnRates, perReviewByCategory, reviewMonths, sizeByReviews } from "./adjusted";
+import { adjustedFlow, familyCounts, learnRates, perReviewByCategory, reviewMonths, sizeByReviews } from "./adjusted";
 import { monthEnd as monthEndOf, useReviewRead } from "./reviewRead";
 import { indexDaily, poolProducts, productDims, ratingFlow, ratingFreeze, type FlowRow } from "./market";
 import { shelfWindow, usePeriod, type ShelfWindow } from "./period";
@@ -75,6 +75,8 @@ export function useMarket() {
   const ratingsFlow: FlowRow[] = useMemo(() => (buyWin ? ratingFlow(ix, dims, buyWin.start, buyWin.end, false, ratingEnd) : []), [ix, dims, buyWin, ratingEnd]);
   /** Share of buying = adjusted reviews (owner, 22 Oct 2026; lib/adjusted). */
   const rmonths = useMemo(() => (latest ? reviewMonths(latest) : null), [latest]);
+  // each category's median ratings per written review (Nykaa's own counts), for sizing categories against each other
+  const perReview = useMemo(() => perReviewByCategory(counts.data ?? [], today), [counts.data, today]);
   const rates = useMemo(() => {
     if (!ready) return null;
     const poolOf = new Map<string, string>(); for (const p of pool) for (const m of p.members ?? [p.product_id]) if (!poolOf.has(m)) poolOf.set(m, p.product_id);
@@ -82,11 +84,9 @@ export function useMarket() {
     const wr = new Map<string, number>(); // reviews per review pool: the pool's members share one set of reviews
     for (const r of win33.data ?? []) { const k = rp(r.product_id); wr.set(k, Math.max(wr.get(k) ?? 0, r.reviews)); }
     const ro = (pid: string) => readMap?.get(rp(pid)) ?? readMap?.get(pid) ?? null;
-    return learnRates(ix, ratingsFlow, wr, rp, ro, originOf);
-  }, [ready, pool, win33.data, readMap, ix, ratingsFlow, originOf]);
+    return learnRates(ix, ratingsFlow, wr, rp, ro, originOf, familyCounts(counts.data ?? [], ratingsFlow, perReview), perReview);
+  }, [ready, pool, win33.data, readMap, ix, ratingsFlow, originOf, counts.data, perReview]);
   const readOf = useMemo(() => (pid: string) => readMap?.get(pid) ?? null, [readMap]);
-  // each category's median ratings per written review (Nykaa's own counts), for sizing categories against each other
-  const perReview = useMemo(() => perReviewByCategory(counts.data ?? [], today), [counts.data, today]);
   const capped = useMemo(() => new Map((cap34.data ?? []).map((r) => [`${r.product_id}|${String(r.month).slice(0, 10)}`, Number(r.reviews)])), [cap34.data]);
   const flow: FlowRow[] = useMemo(() => (rates && rmonths ? sizeByReviews(adjustedFlow(ix, dims, pool, rates, rmonths.recent, readOf, originOf, capped), perReview) : []), [ix, dims, pool, rates, rmonths, readOf, originOf, capped, perReview]);
   const prevFlow: FlowRow[] | null = useMemo(() => (rates && rmonths ? sizeByReviews(adjustedFlow(ix, dims, pool, rates, rmonths.prev, readOf, originOf, capped), perReview) : null), [ix, dims, pool, rates, rmonths, readOf, originOf, capped, perReview]);

@@ -22,7 +22,7 @@ export const CAL_END = "2026-10-09";
 const CAL_DAYS = 26; // 13 Sep -> 9 Oct, the days the ratings window spans
 const MIN_REVIEWS = 20;
 
-export type RateLevel = "brand × category" | "product" | "brand, scaled to the category" | "origin × category" | "category" | "brand";
+export type RateLevel = "brand × category" | "product" | "brand, scaled to the category" | "origin × category" | "category" | "brand" | "category, plain reviews";
 /** Owner check 22 Oct (Kay Beauty "leading" moisturiser at 12%): a brand's rate taken across its categories mixed its
  *  makeup (0.8 reviews per 100 buyers on a foundation) into a skincare launch, turning 33 reviews into ~4,000 buyers.
  *  The fallback is now how the brand compares with each category's average, applied to this category's average
@@ -32,16 +32,27 @@ export type RateLevel = "brand × category" | "product" | "brand, scaled to the 
 const FACTOR_LIMIT = 3;
 const OWN_CAP = 3;
 export interface Rates {
-  rate: (brand: string, cat: string) => { r: number; level: RateLevel } | null;
+  rate: (brand: string, cat: string, pid?: string) => { r: number; level: RateLevel } | null;
   /** The product's own reviews ÷ new ratings in the window, when it rests on ≥ 10 reviews (any of its sizes). */
   own: (cat: string, pids: string[]) => number | null;
+  /** True for a product whose Nykaa rating count covers a whole range (see familyCounts). */
+  family: (cat: string, pid: string) => boolean;
 }
 const MIN_OWN = 10;
 
 /** Learn the rates from the frozen ratings window (`ratings`: ratingFlow rows for 13 Sep - 9 Oct). */
 export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Map<string, number>, reviewPool: (pid: string) => string,
-  readOn: (pid: string) => string | null, originOf: (b: string) => string): Rates {
+  readOn: (pid: string) => string | null, originOf: (b: string) => string, familyCount: (cat: string, pid: string) => boolean = () => false,
+  perReview: Map<string, number> = new Map()): Rates {
   const t = new Map<string, [number, number]>();
+  const fam = new Map<string, [number, number]>(); // per category: new ratings in the window, of them on range-wide counts
+  for (const r of ratings) {
+    if (r.combo || r.subcategory === "kbeauty_store" || r.rankStart === null) continue;
+    const x = fam.get(r.subcategory) ?? [0, 0]; x[0] += r.flow; if (familyCount(r.subcategory, r.product_id)) x[1] += r.flow; fam.set(r.subcategory, x);
+  }
+  // no window of its own (lists added after the ratings froze), or most of it on range-wide counts: brand rates there
+  // would rest on those counts, so every product is sized from plain reviews x the category's ratings per review
+  const plain = (cat: string) => { const x = fam.get(cat); return !x || x[0] <= 0 || x[1] / x[0] > PLAIN_SHARE; };
   const add = (k: string, ra: number, re: number) => { const x = t.get(k) ?? [0, 0]; x[0] += ra; x[1] += re; t.set(k, x); };
   const seenPool = new Set<string>();
   for (const r of ratings) {
@@ -50,6 +61,7 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
     // window but no rating gain counted, which would inflate its brand's rate (22 Oct: CeraVe fell to 0.1%)
     if (r.rankStart === null) continue;
     if ((readOn(r.product_id) ?? "") <= CAL_END) continue; // its window reviews may be incomplete
+    if (familyCount(r.subcategory, r.product_id)) continue; // a whole range's ratings on one product's reviews
     const pool = reviewPool(r.product_id);
     let re = 0;
     if (!seenPool.has(`${r.subcategory}|${pool}`)) { seenPool.add(`${r.subcategory}|${pool}`); re = windowReviews.get(pool) ?? windowReviews.get(r.product_id) ?? 0; }
@@ -66,12 +78,17 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
   for (const [k, [ra]] of t) { if (!k.startsWith("bc|")) continue; const [, b, c] = k.split("|"); const cr = ok(`c|${c}`); if (cr) expected.set(b, (expected.get(b) ?? 0) + ra * cr); }
   for (const [b, e] of expected) { const x = t.get(`b|${b}`); if (x && x[1] >= MIN_REVIEWS && e > 0) factor.set(b, Math.min(FACTOR_LIMIT, Math.max(1 / FACTOR_LIMIT, x[1] / e))); }
   return {
+    family: familyCount,
     own(cat, pids) {
       for (const pid of pids) { const x = t.get(`p|${cat}|${reviewPool(pid)}`); if (x && x[1] >= MIN_OWN && x[0] > 0) return x[1] / x[0]; }
       return null;
     },
-    rate(brand, cat) {
+    rate(brand, cat, pid?: string) {
       const b = norm(brand); const o = originOf(brand);
+      const pr = perReview.get(cat);
+      if (pr && plain(cat)) return { r: 1 / pr, level: "category, plain reviews" };
+      // a range-wide count: its own brand's rate rests on the brand's smaller lines, so it takes the category's
+      if (pid && familyCount(cat, pid)) { const cr = ok(`c|${cat}`); if (cr) return { r: cr, level: "category" }; }
       const bc = ok(`bc|${b}|${cat}`); if (bc) return { r: bc, level: "brand × category" };
       const f = factor.get(b); const cr = ok(`c|${cat}`); if (f && cr) return { r: cr * f, level: "brand, scaled to the category" };
       const oc = ok(`oc|${o}|${cat}`); if (oc) return { r: oc, level: "origin × category" };
@@ -113,12 +130,12 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         // owner check 22 Oct (Innisfree face wash: 14 reviews on 202 new ratings, 6.9 per 100, but 1.8 borrowed):
         // a product with enough window data of its own uses it before any borrowed rate. Backtest: 90% of brands
         // within 5.1 pts (6.2 without), same #1 brand in 6 of 7 categories (5).
-        const bc = rates.rate(brand, e.subcategory);
-        const mine = bc?.level === "brand × category" ? null : rates.own(e.subcategory, pp.members ?? [pp.product_id]);
+        const bc = rates.rate(brand, e.subcategory, (pp.members ?? [pp.product_id]).find((m) => rates.family(e.subcategory, m)));
+        const mine = bc?.level === "brand × category" || bc?.level === "category, plain reviews" ? null : rates.own(e.subcategory, pp.members ?? [pp.product_id]);
         const rt = mine ? { r: mine, level: "product" as RateLevel } : bc;
         buyers = rt ? (reviews / rt.r) : 0;
         // a borrowed rate: never more than 3x the buyers the product's own ratings showed while Nykaa published them
-        const pace = rt && rt.level !== "brand × category" && rt.level !== "product" ? ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]) : null;
+        const pace = rt && rt.level !== "brand × category" && rt.level !== "product" && rt.level !== "category, plain reviews" ? ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]) : null;
         if (pace !== null && pace > 0) buyers = Math.min(buyers, OWN_CAP * pace * months.length);
       }
     }
@@ -173,6 +190,25 @@ export function perReviewByCategory(counts: { scrape_date: string; product_id: s
   const out = new Map<string, number>();
   for (const [c, xs] of by) { if (xs.length < 10) continue; xs.sort((a, b) => a - b); out.set(c, xs.length % 2 ? xs[(xs.length - 1) / 2] : (xs[xs.length / 2 - 1] + xs[xs.length / 2]) / 2); }
   return out;
+}
+/** Owner flag 23 Oct 2026 (Maybelline 50% of foundation, Nykaa Skin 75% of sheet masks): the same pooled counts
+ *  also skewed shares inside a category. Maybelline Fit Me shows 4.49M ratings on 14k reviews and Nykaa's Avocado
+ *  sheet mask 7.6M on 28k: the range's new ratings were set against one product's reviews, teaching those brands a
+ *  rate of 0.6-1.5 reviews per 100 buyers (others 3-15) and multiplying their buyers. A product whose Nykaa page
+ *  shows more than FAMILY_X times its category's median ratings per review no longer teaches a rate, and takes the
+ *  category's rate (the brand's other lines review far more: Maybelline 15 per 100 on its plain-count foundations).
+ *  Where such counts carry most of the window (lipstick 80%, foundation 68%, sheet masks 85%; elsewhere 5% or less),
+ *  and on lists added after the freeze, no brand rate is trusted: buyers = reviews x the category's median ratings
+ *  per review, the rule that already sizes categories against each other (Maybelline foundation 50% -> 42%, Nykaa
+ *  Skin sheet masks 75% -> 38%; skincare shares move under 2 pts). */
+export const FAMILY_X = 4;
+const PLAIN_SHARE = 0.5;
+export function familyCounts(counts: { scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }[], listed: { product_id: string; subcategory: string }[], perReview: Map<string, number>) {
+  const last = new Map<string, [string, number]>();
+  for (const c of counts) if (c.review_count && c.rating_count && (last.get(c.product_id)?.[0] ?? "") <= c.scrape_date) last.set(c.product_id, [c.scrape_date, c.rating_count / c.review_count]);
+  const out = new Set<string>();
+  for (const r of listed) { const v = last.get(r.product_id)?.[1]; const med = perReview.get(r.subcategory); if (v && med && v > FAMILY_X * med) out.add(`${r.subcategory}|${r.product_id}`); }
+  return (cat: string, pid: string) => out.has(`${cat}|${pid}`);
 }
 export function sizeByReviews(flow: FlowRow[], perReview: Map<string, number>): FlowRow[] {
   const est = new Map<string, number>(); const raw = new Map<string, number>();
