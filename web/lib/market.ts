@@ -148,17 +148,21 @@ export function poolProducts({ months, demand, shelf, catalog, products, daily }
     const first = fr ? `${fr.slice(0, 7)}-01` : earliest && earliest >= coverage ? earliest : null;
     all.push({ product_id: pid, brand: ms[0].brand, name: ms[0].name, category, price, first, coverage, byMonth, pool: dem.get(pid)?.pool_id || pid, lifetime: ms.reduce((a, m) => a + m.reviews, 0) });
   }
-  // two pools with the same brand and the same review history month for month are one set of Nykaa reviews filed under
-  // two pool ids (22 Oct 2026: two Nykaa Skin sheet masks, 858 reviews counted twice): merge them
-  const sigPool = new Map<string, string>();
+  // one set of Nykaa reviews filed under several pool ids (22 Oct 2026: Nykaa shows one review set on a family of its
+  // sheet masks; the Gold and Rice Water masks read 126 and 127 September reviews and were counted twice): same brand,
+  // the last 5 complete months each within 2 reviews or 2%, at least 100 reviews in them -> one pool
   const newest = all.reduce((x, r) => { for (const m of r.byMonth.keys()) if (m > x) x = m; return x; }, "");
-  for (const r of [...all].sort((x, y) => x.pool.localeCompare(y.pool))) {
-    // recent months only: older months can differ where Nykaa shows each listing only its newest reviews
-    const recent = [...r.byMonth.entries()].filter(([m]) => m < newest).sort().slice(-6); // the last 6 complete months: listings are read on different days, from different first months
-    if (recent.length < 6 || recent.reduce((t, [, n]) => t + n, 0) < 30) continue;
-    const sig = `${norm(r.brand)}|${recent.map(([m, n]) => `${m}:${n}`).join(",")}`;
-    const first = sigPool.get(sig);
-    if (!first) sigPool.set(sig, r.pool); else if (first !== r.pool) r.pool = first;
+  const months5 = [...new Set(all.flatMap((r) => [...r.byMonth.keys()]))].filter((m) => m < newest).sort().slice(-5);
+  const byBrand = new Map<string, (typeof all)[number][]>(); for (const r of all) push(byBrand, norm(r.brand), r);
+  for (const rs of byBrand.values()) {
+    const vec = rs.map((r) => months5.map((m) => r.byMonth.get(m) ?? -1));
+    for (let i = 0; i < rs.length; i++) {
+      if (vec[i].some((n) => n < 0) || vec[i].reduce((t, n) => t + n, 0) < 100) continue;
+      for (let j = 0; j < i; j++) {
+        if (rs[j].pool === rs[i].pool || vec[j].some((n) => n < 0)) continue;
+        if (vec[i].every((n, k) => Math.abs(n - vec[j][k]) <= Math.max(2, 0.02 * n))) { rs[i].pool = rs[j].pool; break; }
+      }
+    }
   }
   const best = new Map<string, (typeof all)[number]>();
   for (const r of all) { const c = best.get(r.pool); if (!c || r.lifetime > c.lifetime || (!c.category && r.category)) best.set(r.pool, r); }
