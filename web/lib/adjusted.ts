@@ -22,7 +22,7 @@ export const CAL_END = "2026-10-09";
 const CAL_DAYS = 26; // 13 Sep -> 9 Oct, the days the ratings window spans
 const MIN_REVIEWS = 20;
 
-export type RateLevel = "brand × category" | "brand, scaled to the category" | "origin × category" | "category" | "brand";
+export type RateLevel = "brand × category" | "product" | "brand, scaled to the category" | "origin × category" | "category" | "brand";
 /** Owner check 22 Oct (Kay Beauty "leading" moisturiser at 12%): a brand's rate taken across its categories mixed its
  *  makeup (0.8 reviews per 100 buyers on a foundation) into a skincare launch, turning 33 reviews into ~4,000 buyers.
  *  The fallback is now how the brand compares with each category's average, applied to this category's average
@@ -31,7 +31,12 @@ export type RateLevel = "brand × category" | "brand, scaled to the category" | 
  *  90% of brands within 6.2 pts (was 7.1), same #1 brand in 5 of 7 categories. */
 const FACTOR_LIMIT = 3;
 const OWN_CAP = 3;
-export interface Rates { rate: (brand: string, cat: string) => { r: number; level: RateLevel } | null }
+export interface Rates {
+  rate: (brand: string, cat: string) => { r: number; level: RateLevel } | null;
+  /** The product's own reviews ÷ new ratings in the window, when it rests on ≥ 10 reviews (any of its sizes). */
+  own: (cat: string, pids: string[]) => number | null;
+}
+const MIN_OWN = 10;
 
 /** Learn the rates from the frozen ratings window (`ratings`: ratingFlow rows for 13 Sep - 9 Oct). */
 export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Map<string, number>, reviewPool: (pid: string) => string,
@@ -52,6 +57,7 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
     if (r.partial) re *= Math.min(1, perDay(ix, r.subcategory, CAL_START, CAL_END) / CAL_DAYS);
     const b = norm(r.brand); const o = originOf(r.brand); const c = r.subcategory;
     add(`bc|${b}|${c}`, r.flow, re); add(`b|${b}`, r.flow, re); add(`oc|${o}|${c}`, r.flow, re); add(`c|${c}`, r.flow, re);
+    add(`p|${c}|${pool}`, r.flow, re);
   }
   const ok = (k: string) => { const x = t.get(k); return x && x[1] >= MIN_REVIEWS && x[0] > 0 ? x[1] / x[0] : null; };
   // the brand against each category's average: its reviews ÷ the reviews its ratings would bring at those averages
@@ -60,6 +66,10 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
   for (const [k, [ra]] of t) { if (!k.startsWith("bc|")) continue; const [, b, c] = k.split("|"); const cr = ok(`c|${c}`); if (cr) expected.set(b, (expected.get(b) ?? 0) + ra * cr); }
   for (const [b, e] of expected) { const x = t.get(`b|${b}`); if (x && x[1] >= MIN_REVIEWS && e > 0) factor.set(b, Math.min(FACTOR_LIMIT, Math.max(1 / FACTOR_LIMIT, x[1] / e))); }
   return {
+    own(cat, pids) {
+      for (const pid of pids) { const x = t.get(`p|${cat}|${reviewPool(pid)}`); if (x && x[1] >= MIN_OWN && x[0] > 0) return x[1] / x[0]; }
+      return null;
+    },
     rate(brand, cat) {
       const b = norm(brand); const o = originOf(brand);
       const bc = ok(`bc|${b}|${cat}`); if (bc) return { r: bc, level: "brand × category" };
@@ -100,10 +110,15 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         const ok = months.filter((m) => m >= pp.coverage && (!read || read > monthEnd(m)));
         const got = ok.reduce((a, m) => a + (capped.get(`${pp.product_id}|${m}`) ?? 0), 0);
         reviews = ok.length ? (got * months.length) / ok.length : 0;
-        const rt = rates.rate(brand, e.subcategory);
+        // owner check 22 Oct (Innisfree face wash: 14 reviews on 202 new ratings, 6.9 per 100, but 1.8 borrowed):
+        // a product with enough window data of its own uses it before any borrowed rate. Backtest: 90% of brands
+        // within 5.1 pts (6.2 without), same #1 brand in 6 of 7 categories (5).
+        const bc = rates.rate(brand, e.subcategory);
+        const mine = bc?.level === "brand × category" ? null : rates.own(e.subcategory, pp.members ?? [pp.product_id]);
+        const rt = mine ? { r: mine, level: "product" as RateLevel } : bc;
         buyers = rt ? (reviews / rt.r) : 0;
         // a borrowed rate: never more than 3x the buyers the product's own ratings showed while Nykaa published them
-        const pace = rt && rt.level !== "brand × category" ? ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]) : null;
+        const pace = rt && rt.level !== "brand × category" && rt.level !== "product" ? ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]) : null;
         if (pace !== null && pace > 0) buyers = Math.min(buyers, OWN_CAP * pace * months.length);
       }
     }
