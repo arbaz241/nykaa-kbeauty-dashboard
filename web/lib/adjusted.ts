@@ -104,7 +104,8 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
  *  best-placed listing. Months not read yet (history cut off, or read before the month ended) are filled from the
  *  months that are, at the same pace. */
 export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolProduct[], rates: Rates, months: string[],
-  readOn: (pid: string) => string | null, originOf: (b: string) => string, capped: Map<string, number>): FlowRow[] {
+  readOn: (pid: string) => string | null, originOf: (b: string) => string, capped: Map<string, number>,
+  lifetime: (pid: string) => number | null = () => null): FlowRow[] {
   const day = ix.days[ix.days.length - 1]; const endMap = day ? ix.byDay.get(day) : undefined; if (!endMap) return [];
   const byMember = new Map<string, PoolProduct>();
   for (const p of pool) for (const m of p.members ?? [p.product_id]) if (!byMember.has(m)) byMember.set(m, p);
@@ -137,6 +138,13 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         // a borrowed rate: never more than 3x the buyers the product's own ratings showed while Nykaa published them
         const pace = rt && rt.level !== "brand × category" && rt.level !== "product" && rt.level !== "category, plain reviews" ? ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]) : null;
         if (pace !== null && pace > 0) buyers = Math.min(buyers, OWN_CAP * pace * months.length);
+        // owner 23 Oct (Sulwhasoo #1 Korean brand): a ₹17,900 cream new to a list had 15 reviews in September and a
+        // borrowed 6 per 100, so 239 buyers in a month, on a page with 250 ratings in its life (54 reviews). A product
+        // that joined a list after the ratings window (so nothing caps it above) never gets more buyers per review
+        // than its own page shows. Lists that began inside the window (lip care) are left as they were.
+        const life = rt && rt.level !== "brand × category" && rt.level !== "product" && rt.level !== "category, plain reviews" && pace === null
+          && perDay(ix, e.subcategory, CAL_START, CAL_END) >= 7 ? Math.min(...(pp.members ?? [pp.product_id]).map((m) => lifetime(m) ?? Infinity)) : Infinity;
+        if (Number.isFinite(life)) buyers = Math.min(buyers, reviews * life);
       }
     }
     const flow = combo ? 0 : buyers;
@@ -202,6 +210,13 @@ export function perReviewByCategory(counts: { scrape_date: string; product_id: s
  *  per review, the rule that already sizes categories against each other (Maybelline foundation 50% -> 42%, Nykaa
  *  Skin sheet masks 75% -> 38%; skincare shares move under 2 pts). */
 export const FAMILY_X = 4;
+/** Each product's ratings per written review over its life on Nykaa (its page's latest counts). */
+export function lifetimeRatio(counts: { scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }[]) {
+  const last = new Map<string, [string, number]>();
+  for (const c of counts) if (c.review_count && c.rating_count && (last.get(c.product_id)?.[0] ?? "") <= c.scrape_date) last.set(c.product_id, [c.scrape_date, c.rating_count / c.review_count]);
+  // fewer ratings than reviews is a page that counts them differently (La Roche-Posay Effaclar gel): no ratio
+  return (pid: string) => { const v = last.get(pid)?.[1]; return v !== undefined && v >= 1 ? v : null; };
+}
 const PLAIN_SHARE = 0.5;
 export function familyCounts(counts: { scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }[], listed: { product_id: string; subcategory: string }[], perReview: Map<string, number>) {
   const last = new Map<string, [string, number]>();
