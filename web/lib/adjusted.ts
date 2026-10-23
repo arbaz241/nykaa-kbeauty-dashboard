@@ -105,7 +105,7 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
  *  months that are, at the same pace. */
 export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolProduct[], rates: Rates, months: string[],
   readOn: (pid: string) => string | null, originOf: (b: string) => string, capped: Map<string, number>,
-  lifetime: (pid: string) => number | null = () => null): FlowRow[] {
+  lifetime: (pid: string) => Lifetime | null = () => null): FlowRow[] {
   const day = ix.days[ix.days.length - 1]; const endMap = day ? ix.byDay.get(day) : undefined; if (!endMap) return [];
   const byMember = new Map<string, PoolProduct>();
   for (const p of pool) for (const m of p.members ?? [p.product_id]) if (!byMember.has(m)) byMember.set(m, p);
@@ -143,8 +143,19 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         // that joined a list after the ratings window (so nothing caps it above) never gets more buyers per review
         // than its own page shows. Lists that began inside the window (lip care) are left as they were.
         const life = rt && rt.level !== "brand × category" && rt.level !== "product" && rt.level !== "category, plain reviews" && pace === null
-          && perDay(ix, e.subcategory, CAL_START, CAL_END) >= 7 ? Math.min(...(pp.members ?? [pp.product_id]).map((m) => lifetime(m) ?? Infinity)) : Infinity;
-        if (Number.isFinite(life)) buyers = Math.min(buyers, reviews * life);
+          && perDay(ix, e.subcategory, CAL_START, CAL_END) >= 7;
+        if (life) {
+          // owner 23 Oct, "still lower": its September was a push (15 of 24 reviews in 1-8 Sep, 2 in October to the
+          // 23rd), and its page holds 250 ratings since its first review on 7 Aug 2023, ~7 a month. No more buyers a
+          // month than its life's average (only products that joined a list after 9 Oct; 3 of them on 23 Oct).
+          const first = d?.first_review_date ? Date.parse(d.first_review_date) : NaN;
+          const lifeMonths = Number.isFinite(first) ? Math.max(1, (Date.parse(day) - first) / (864e5 * 30.44)) : null;
+          for (const m of pp.members ?? [pp.product_id]) {
+            const l = lifetime(m); if (!l) continue;
+            buyers = Math.min(buyers, reviews * l.perReview);
+            if (lifeMonths) buyers = Math.min(buyers, (l.ratings / lifeMonths) * months.length);
+          }
+        }
       }
     }
     const flow = combo ? 0 : buyers;
@@ -210,12 +221,13 @@ export function perReviewByCategory(counts: { scrape_date: string; product_id: s
  *  per review, the rule that already sizes categories against each other (Maybelline foundation 50% -> 42%, Nykaa
  *  Skin sheet masks 75% -> 38%; skincare shares move under 2 pts). */
 export const FAMILY_X = 4;
-/** Each product's ratings per written review over its life on Nykaa (its page's latest counts). */
+export interface Lifetime { perReview: number; ratings: number }
+/** Each product's ratings over its life on Nykaa, and per written review (its page's latest counts). */
 export function lifetimeRatio(counts: { scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }[]) {
-  const last = new Map<string, [string, number]>();
-  for (const c of counts) if (c.review_count && c.rating_count && (last.get(c.product_id)?.[0] ?? "") <= c.scrape_date) last.set(c.product_id, [c.scrape_date, c.rating_count / c.review_count]);
-  // fewer ratings than reviews is a page that counts them differently (La Roche-Posay Effaclar gel): no ratio
-  return (pid: string) => { const v = last.get(pid)?.[1]; return v !== undefined && v >= 1 ? v : null; };
+  const last = new Map<string, [string, Lifetime]>();
+  for (const c of counts) if (c.review_count && c.rating_count && (last.get(c.product_id)?.[0] ?? "") <= c.scrape_date) last.set(c.product_id, [c.scrape_date, { perReview: c.rating_count / c.review_count, ratings: c.rating_count }]);
+  // fewer ratings than reviews is a page that counts them differently (La Roche-Posay Effaclar gel): no figure
+  return (pid: string): Lifetime | null => { const v = last.get(pid)?.[1]; return v && v.perReview >= 1 ? v : null; };
 }
 const PLAIN_SHARE = 0.5;
 export function familyCounts(counts: { scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }[], listed: { product_id: string; subcategory: string }[], perReview: Map<string, number>) {
