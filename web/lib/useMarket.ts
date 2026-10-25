@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useCatalog, useDemand, usePinned, useReviewCapped, useReviewCounts, useReviewMonths, useReviewWindow, useShelf, useShelfDaily, useShelfProducts } from "./data";
-import { adjustedFlow, familyCounts, learnRates, lifetimeRatio, perReviewByCategory, reviewMonths, sizeByReviews } from "./adjusted";
+import { adjustedFlow, CAL_END, familyCounts, learnRates, lifetimeRatio, perReviewByCategory, reviewMonths, sizeByReviews } from "./adjusted";
 import { monthEnd as monthEndOf, useReviewRead } from "./reviewRead";
 import { indexDaily, poolProducts, productDims, ratingFlow, ratingFreeze, type FlowRow } from "./market";
 import { shelfWindow, usePeriod, type ShelfWindow } from "./period";
@@ -58,7 +58,9 @@ export function useMarket() {
 
   const latest = ix.days[ix.days.length - 1] ?? null;
   const win: ShelfWindow | null = useMemo(() => shelfWindow(ix.days, period.days), [ix.days, period.days]);
-  const ratingEnd = freeze?.lastLive;
+  // the rates are learned on 13 Sep - 9 Oct whatever Nykaa's counts do later (25 Oct: Nykaa updated its counts once,
+  // ratingFreeze saw them as live again and the window slid to 26 Sep - 25 Oct; BB cream's leader went 29% -> 58%)
+  const ratingEnd = CAL_END;
   /** Share of buying has its own fixed window (owner 19 Oct 2026: the period picker is not needed everywhere): the
    *  last 30 collected days that have live rating counts. While Nykaa's counts are frozen (since 10 Oct) it ends on
    *  the last live day, so a short period never leaves buying empty. The period picker now moves rank moves only. */
