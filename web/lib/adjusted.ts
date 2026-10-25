@@ -9,9 +9,10 @@ import { monthEnd } from "./reviewRead";
  *    rate per 100 buyers = reviews ÷ new ratings × 100, per brand × category,
  *  used only when it rests on ≥ 20 reviews, else the brand's rate across its categories, then same-origin brands in
  *  the category, then the category. Then, every night:
- *    estimated buyers = reviews in the latest complete month ÷ rate × 100;  ₹ = buyers × MRP;  share = brand ₹ ÷ category ₹.
+ *    estimated buyers = reviews a month over the last two complete months ÷ rate × 100;  ₹ = buyers × MRP;  share = brand ₹ ÷ category ₹.
  *  One month, not three (22 Oct, on the live check): a 3-month window reached back to July, before the month the rates
  *  were learned on, and caught review bursts (Niconi: 277 and 370 reviews in single July weeks, 58% of masks).
+ *  Two months since 25 Oct (see reviewMonths): with the burst cut in place, two months are steadier than one.
  *  Review counts are burst-cut (migration 034); sizes sharing one set of reviews count once at their middle MRP.
  *  Test (learn 13-26 Sep, predict 26 Sep - 9 Oct): median miss 1.7 pts per brand (raw reviews 2.6), same #1 brand
  *  in 5 of 7 categories (raw 2). Only products whose reviews were read after 9 Oct teach a rate, so their window
@@ -127,7 +128,8 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         const read = readOn(pp.product_id);
         const ok = months.filter((m) => m >= pp.coverage && (!read || read > monthEnd(m)));
         const got = ok.reduce((a, m) => a + (capped.get(`${pp.product_id}|${m}`) ?? 0), 0);
-        reviews = ok.length ? (got * months.length) / ok.length : 0;
+        // a month's average over the months counted, so buyers stay "a month" whatever the window
+        reviews = ok.length ? got / ok.length : 0;
         // owner check 22 Oct (Innisfree face wash: 14 reviews on 202 new ratings, 6.9 per 100, but 1.8 borrowed):
         // a product with enough window data of its own uses it before any borrowed rate. Backtest: 90% of brands
         // within 5.1 pts (6.2 without), same #1 brand in 6 of 7 categories (5).
@@ -137,7 +139,7 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         buyers = rt ? (reviews / rt.r) : 0;
         // a borrowed rate: never more than 3x the buyers the product's own ratings showed while Nykaa published them
         const pace = rt && rt.level !== "brand × category" && rt.level !== "product" && rt.level !== "category, plain reviews" ? ownPace(ix, e.subcategory, pp.members ?? [pp.product_id]) : null;
-        if (pace !== null && pace > 0) buyers = Math.min(buyers, OWN_CAP * pace * months.length);
+        if (pace !== null && pace > 0) buyers = Math.min(buyers, OWN_CAP * pace);
         // owner 23 Oct (Sulwhasoo #1 Korean brand): a ₹17,900 cream new to a list had 15 reviews in September and a
         // borrowed 6 per 100, so 239 buyers in a month, on a page with 250 ratings in its life (54 reviews). A product
         // that joined a list after the ratings window (so nothing caps it above) never gets more buyers per review
@@ -153,7 +155,7 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
           for (const m of pp.members ?? [pp.product_id]) {
             const l = lifetime(m); if (!l) continue;
             buyers = Math.min(buyers, reviews * l.perReview);
-            if (lifeMonths) buyers = Math.min(buyers, (l.ratings / lifeMonths) * months.length);
+            if (lifeMonths) buyers = Math.min(buyers, l.ratings / lifeMonths);
           }
         }
       }
@@ -182,11 +184,14 @@ function ownPace(ix: DailyIndex, cat: string, members: string[]): number | null 
   return best;
 }
 
-/** The latest complete month before `day`, and the month before it. */
+/** The last two complete months before `day`, and the two months before them (owner 25 Oct 2026: one month swung
+ *  too much; method check: August instead of September moved K-beauty 12.8% -> 15.5% and flipped the masks leader).
+ *  Against Nykaa's real new ratings of 9-25 Oct: 1 month 1.5 pts per brand, 2 months 1.4, 3 months 1.4 but 7 of 10
+ *  leaders (2 months 9), 12 months 1.8 and 6 of 10. */
 export function reviewMonths(day: string) {
   const t = new Date(`${day.slice(0, 7)}-01T00:00:00Z`);
   const m = (k: number) => { const d = new Date(t); d.setUTCMonth(d.getUTCMonth() + k); return d.toISOString().slice(0, 10); };
-  return { recent: [m(-1)], prev: [m(-2)] };
+  return { recent: [m(-2), m(-1)], prev: [m(-4), m(-3)] };
 }
 
 /** Category sizes for anything added up across categories (owner 23 Oct 2026: "foundation first and lipstick second

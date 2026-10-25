@@ -57,6 +57,8 @@ export const dayMonthYear = (d: string | Date) => { const x = D(d); return isKo(
 /** "Oct" / "10월" */
 export const monthShort = (d: string | Date) => { const x = D(d); return isKo() ? `${x.getMonth() + 1}월` : x.toLocaleDateString("en-IN", { month: "short" }); };
 export const monthName = (d: string | Date) => { const x = D(d); return isKo() ? `${x.getMonth() + 1}월` : x.toLocaleDateString("en-IN", { month: "long" }); };
+/** "August–September" / "8–9월"; one name when both fall in the same month. */
+export const monthsName = (a: string | Date, b: string | Date) => { const x = D(a); const y = D(b); if (x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth()) return monthName(a); return isKo() ? `${x.getMonth() + 1}–${y.getMonth() + 1}월` : `${monthName(a)}–${monthName(b)}`; };
 /** "Oct 2026" / "2026년 10월" */
 export const monthYear = (d: string | Date) => { const x = D(d); return isKo() ? `${x.getFullYear()}년 ${x.getMonth() + 1}월` : x.toLocaleDateString("en-IN", { month: "short", year: "numeric" }); };
 /** "Oct 26" / "26년 10월" (chart axes) */

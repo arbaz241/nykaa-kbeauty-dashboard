@@ -18,7 +18,7 @@ import { shareIn } from "@/lib/profile";
 import { spanLabel } from "@/lib/period";
 import { useTiers } from "@/lib/tiers";
 import { useMarket } from "@/lib/useMarket";
-import { dayMonth, monthName, tr } from "@/lib/i18n";
+import { dayMonth, monthsName, tr } from "@/lib/i18n";
 import { ScopeLine } from "@/components/Scope";
 import { useScope } from "@/lib/scope";
 
@@ -112,8 +112,8 @@ function AllView({ m, onPick, span }: { m: M; onPick: (c: string) => void; span:
       <ActionSection id="snapshot" kicker={tr("Category snapshot", "카테고리 요약")}
         title={rows[0] ? tr(`${catName(rows[0].c)} is the biggest of our ${CATEGORIES.length} categories with ${pct(rows[0].size, 0)} of all buying; ${scope?.selling.brands ?? "–"} brands sell in them and ${scope?.top100.brands ?? "–"} reach a top 100 today`,
           `추적 ${CATEGORIES.length}개 카테고리 중 최대: ${catName(rows[0].c)} (전체 판매의 ${pct(rows[0].size, 0)}). 판매 브랜드 ${scope?.selling.brands ?? "–"}개, 오늘 상위 100위 진입 ${scope?.top100.brands ?? "–"}개`) : tr("Category snapshot", "카테고리 요약")}
-        note={tr(<>Categories ranked by their part of all <Def k="ratingFlow">buying</Def> in our {CATEGORIES.length} categories together (= 100%), {monthName(span.start)}: skincare {pct(skin, 0)}, makeup {pct(1 - skin, 0)}. Brands in the top 100 = brands with a product in that category&rsquo;s top 100 today (how many brands sell in each category at any rank is on the category&rsquo;s own page). Leader, leading Korean brand and top 5: share of the category. Click the top-5 figure for the names; the best seller opens on Nykaa.</>,
-          <>추적 {CATEGORIES.length}개 카테고리 전체 <Def k="ratingFlow">판매</Def>(= 100%) 중 비중 순, {monthName(span.start)}: 스킨케어 {pct(skin, 0)}, 메이크업 {pct(1 - skin, 0)}. 상위 100위 브랜드 = 오늘 해당 카테고리 상위 100위에 제품이 있는 브랜드 (순위와 무관한 전체 판매 브랜드 수는 카테고리 페이지에). 선두·K-뷰티 1위·상위 5개: 카테고리 점유율. 상위 5개 수치를 누르면 브랜드명, 베스트셀러는 Nykaa에서 열림.</>)}>
+        note={tr(<>Categories ranked by their part of all <Def k="ratingFlow">buying</Def> in our {CATEGORIES.length} categories together (= 100%), {monthsName(span.start, span.end)}: skincare {pct(skin, 0)}, makeup {pct(1 - skin, 0)}. Brands in the top 100 = brands with a product in that category&rsquo;s top 100 today (how many brands sell in each category at any rank is on the category&rsquo;s own page). Leader, leading Korean brand and top 5: share of the category. Click the top-5 figure for the names; the best seller opens on Nykaa.</>,
+          <>추적 {CATEGORIES.length}개 카테고리 전체 <Def k="ratingFlow">판매</Def>(= 100%) 중 비중 순, {monthsName(span.start, span.end)}: 스킨케어 {pct(skin, 0)}, 메이크업 {pct(1 - skin, 0)}. 상위 100위 브랜드 = 오늘 해당 카테고리 상위 100위에 제품이 있는 브랜드 (순위와 무관한 전체 판매 브랜드 수는 카테고리 페이지에). 선두·K-뷰티 1위·상위 5개: 카테고리 점유율. 상위 5개 수치를 누르면 브랜드명, 베스트셀러는 Nykaa에서 열림.</>)}>
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[1080px] text-[13px]">
             <thead><tr className="border-b border-line text-left text-[11.5px] uppercase tracking-[0.08em] text-muted">
@@ -180,7 +180,7 @@ function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; sp
   const win = m.win!;
   const today = useMemo(() => m.shelf.filter((r) => r.subcategory === cat).sort((a, b) => a.rank - b.rank), [m.shelf, cat]);
   const sh = useMemo(() => shareIn(m.flow, cat), [m.flow, cat]);
-  const prevMonth = m.rmonths?.prev[0] ?? span.start;
+  const prevMonths = m.rmonths ? monthsName(m.rmonths.prev[0], m.rmonths.prev[m.rmonths.prev.length - 1]) : monthsName(span.start, span.end);
   const prev = useMemo(() => (m.prevFlow ? shareIn(m.prevFlow, cat) : null), [m.prevFlow, cat]);
   const brands = useMemo(() => {
     const val = new Map<string, number>(); for (const r of sh.rows) val.set(r.brand, (val.get(r.brand) ?? 0) + r.value);
@@ -248,7 +248,7 @@ function CategoryView({ cat, m, tiers, span }: { cat: string; m: M; tiers: T; sp
                 <tr className={`border-b border-line/60 align-top ${x.b === focus ? "bg-accent-soft" : tiers.isPinned(x.b) ? "bg-accent-soft/40" : ""}`}>
                   <td className="px-4 py-2.5 tabular text-muted">{x.share > 0 ? brands.indexOf(x) + 1 : "–"}</td>
                   <td className="px-2 py-2.5"><b className="font-medium">{x.b}</b> <span className={`ml-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${ORIGIN_CHIP[x.origin] ?? ORIGIN_CHIP.unknown}`}>{ORIGIN_LABEL[x.origin] ?? x.origin}</span>{tiers.isPinned(x.b) ? <span className="ml-1 rounded bg-brand px-1.5 py-px text-[10px] font-semibold uppercase text-on-brand">{tr("ours", "자사")}</span> : tiers.inSet(x.b) ? <span className="ml-1 text-[10.5px] font-semibold uppercase text-accent-strong">{tiers.group(x.b) === "korean" ? tr("K-beauty rival", "K-뷰티 경쟁사") : tr("main brand", "주요 브랜드")}</span> : null}</td>
-                  <td className="px-2 py-2.5 tabular"><div className="flex items-center gap-2"><span className="w-12">{x.share > 0 ? pct(x.share, 1) : "–"}</span><span className="h-1.5 rounded-full bg-brand" style={{ width: `${Math.max(2, (x.share / (leader?.share || 1)) * 120)}px` }} /></div>{x.change !== null && <Basis>{pts(x.change)} {tr(`vs ${monthName(prevMonth)}`, `${monthName(prevMonth)} 대비`)}</Basis>}</td>
+                  <td className="px-2 py-2.5 tabular"><div className="flex items-center gap-2"><span className="w-12">{x.share > 0 ? pct(x.share, 1) : "–"}</span><span className="h-1.5 rounded-full bg-brand" style={{ width: `${Math.max(2, (x.share / (leader?.share || 1)) * 120)}px` }} /></div>{x.change !== null && <Basis>{pts(x.change)} {tr(`vs ${prevMonths}`, `${prevMonths} 대비`)}</Basis>}</td>
                   <td className="px-2 py-2.5 tabular">{x.places}</td>
                   <td className="max-w-[300px] px-2 py-2.5">{x.seller ? <>{shortName(x.seller.name, x.b)} <span className="text-muted tabular">#{x.seller.rankEnd} · {inr(x.seller.price)}</span></> : <span className="text-muted">{x.places ? tr("no buying counted", "판매 집계 없음") : tr("left the top 100", "상위 100위 이탈")}</span>}</td>
                   <td className="px-4 py-2.5 text-right"><DetailsButton open={openB === x.b} onClick={() => setOpenB(openB === x.b ? null : x.b)} /></td>
