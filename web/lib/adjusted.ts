@@ -106,21 +106,35 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
  *  months that are, at the same pace. */
 export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolProduct[], rates: Rates, months: string[],
   readOn: (pid: string) => string | null, originOf: (b: string) => string, capped: Map<string, number>,
-  lifetime: (pid: string) => Lifetime | null = () => null): FlowRow[] {
+  lifetime: (pid: string) => Lifetime | null = () => null, perReview: Map<string, number> = new Map(), extra: OffList[] = [],
+  catalogMrp: Map<string, number> = new Map()): FlowRow[] {
   const day = ix.days[ix.days.length - 1]; const endMap = day ? ix.byDay.get(day) : undefined; if (!endMap) return [];
   const byMember = new Map<string, PoolProduct>();
   for (const p of pool) for (const m of p.members ?? [p.product_id]) if (!byMember.has(m)) byMember.set(m, p);
+  const offLife = new Map(extra.flatMap((x) => (x.life ? [[x.product_id, x.life] as const] : [])));
+  const lifeOf = (m: string) => lifetime(m) ?? offLife.get(m) ?? null;
   const entries = [...endMap.values()].filter((e) => e.subcategory !== "kbeauty_store").sort((a, b) => a.rank - b.rank);
+  type Entry = (typeof entries)[number];
+  // listed products first, so a review pool with a listed size is counted there and its catalogue sizes are skipped
+  const all = [...entries.map((e) => ({ e, off: null as OffList | null })),
+    ...extra.map((x) => ({ e: { product_id: x.product_id, subcategory: x.subcategory, mrp: x.mrp, price: x.price, rank: 0, nykaa_rank: null } as unknown as Entry, off: x }))];
   const seen = new Set<string>(); const out: FlowRow[] = [];
-  for (const e of entries) {
-    const d = dims.get(e.product_id); const brand = d?.brand ?? "?"; const name = d?.name ?? e.product_id;
+  for (const { e, off } of all) {
+    const d = dims.get(e.product_id); const brand = d?.brand ?? off?.brand ?? "?"; const name = d?.name ?? off?.name ?? e.product_id;
     const pp = byMember.get(e.product_id); const combo = isCombo(name);
-    let reviews = 0; let buyers = 0; let poolSize = 1; let price = e.mrp ?? e.price ?? null;
+    if (off && (!pp || combo || seen.has(`${e.subcategory}|${pp.product_id}`))) continue;
+    let reviews = 0; let buyers = 0; let poolSize = 1; let price = e.mrp ?? e.price ?? null; let seeded = false;
     if (pp) {
       const sizes = (pp.members ?? []).map((m) => endMap.get(`${e.subcategory}|${m}`)).filter((x): x is NonNullable<typeof x> => !!x);
       poolSize = sizes.length || 1;
-      // sizes sharing one set of reviews: the middle MRP of the sizes on the list (as the ratings method did)
-      const ps = sizes.map((x) => x.mrp ?? x.price).filter((p): p is number => !!p).sort((a, b) => a - b);
+      // sizes sharing one set of reviews: the middle MRP of the sizes on the list (as the ratings method did).
+      // Owner 31 Oct (Korean sunscreen looked too small, 3%): Nykaa's list can show a page at its mini
+      // size (Beauty of Joseon Relief Sun: 10 ml, ₹350) while its 22,799 ratings and reviews cover the 50 ml at ₹1,570
+      // too; the brand catalogue's price for the same page counts as one more size (Relief Sun ₹350 -> ₹960).
+      const ps = [...sizes.map((x) => x.mrp ?? x.price), ...(pp.members ?? [pp.product_id]).map((m) => {
+        const c = catalogMrp.get(m); const l = endMap.get(`${e.subcategory}|${m}`);
+        return c && c !== (l?.mrp ?? l?.price ?? e.mrp) ? c : null;
+      })].filter((p): p is number => !!p).sort((a, b) => a - b);
       if (ps.length > 1) price = ps.length % 2 ? ps[(ps.length - 1) / 2] : (ps[ps.length / 2 - 1] + ps[ps.length / 2]) / 2;
       const key = `${e.subcategory}|${pp.product_id}`;
       if (!seen.has(key)) {
@@ -144,26 +158,76 @@ export function adjustedFlow(ix: DailyIndex, dims: Map<string, Dim>, pool: PoolP
         // borrowed 6 per 100, so 239 buyers in a month, on a page with 250 ratings in its life (54 reviews). A product
         // that joined a list after the ratings window (so nothing caps it above) never gets more buyers per review
         // than its own page shows. Lists that began inside the window (lip care) are left as they were.
-        const life = rt && rt.level !== "brand × category" && rt.level !== "product" && rt.level !== "category, plain reviews" && pace === null
-          && perDay(ix, e.subcategory, CAL_START, CAL_END) >= 7;
+        // Off-list catalogue products had no window on a list either, so they always take these limits.
+        const life = rt && (off || (rt.level !== "brand × category" && rt.level !== "product" && rt.level !== "category, plain reviews" && pace === null
+          && perDay(ix, e.subcategory, CAL_START, CAL_END) >= 7));
         if (life) {
           // owner 23 Oct, "still lower": its September was a push (15 of 24 reviews in 1-8 Sep, 2 in October to the
           // 23rd), and its page holds 250 ratings since its first review on 7 Aug 2023, ~7 a month. No more buyers a
           // month than its life's average (only products that joined a list after 9 Oct; 3 of them on 23 Oct).
-          const first = d?.first_review_date ? Date.parse(d.first_review_date) : NaN;
+          const fd = d?.first_review_date ?? (off ? pp.first : null);
+          const first = fd ? Date.parse(fd) : NaN;
           const lifeMonths = Number.isFinite(first) ? Math.max(1, (Date.parse(day) - first) / (864e5 * 30.44)) : null;
           for (const m of pp.members ?? [pp.product_id]) {
-            const l = lifetime(m); if (!l) continue;
+            const l = lifeOf(m); if (!l) continue;
             buyers = Math.min(buyers, reviews * l.perReview);
             if (lifeMonths) buyers = Math.min(buyers, l.ratings / lifeMonths);
           }
+        }
+        // owner 31 Oct (Mamonde Rose HA mask: Korean #2 in masks here, far too high): launched 16 Aug, 335
+        // ratings on 300 reviews (masks: 10.8 per review), 215 of them in September. Nearly every rating came with a
+        // review, the mark of samples sent out for reviews. Buyers come from the ratings left without one, a month
+        // over its life (~14 a month), never more than (ratings per review - 1) per review.
+        // Launches only (first review in the last SEEDED_MONTHS): a page selling for years with few ratings per review
+        // counts them differently, not seeded. Maybelline's Super Stay cushion (first reviews Aug 2026, 607 in
+        // September) had 2,678 buyers a month here on a page with 1,217 ratings in its life: 31% -> 9% of foundation.
+        const med = perReview.get(e.subcategory);
+        const fr = d?.first_review_date ?? pp.first;
+        const age = fr ? (Date.parse(day) - Date.parse(fr)) / (864e5 * 30.44) : NaN;
+        if (med && Number.isFinite(age) && age <= SEEDED_MONTHS) for (const m of pp.members ?? [pp.product_id]) {
+          const l = lifeOf(m);
+          if (!l || l.perReview >= SEEDED_MAX || l.perReview >= med / SEEDED_DIV) continue;
+          seeded = true;
+          buyers = Math.min(buyers, reviews * (l.perReview - 1), (l.ratings - l.ratings / l.perReview) / Math.max(1, age));
+          break;
         }
       }
     }
     const flow = combo ? 0 : buyers;
     out.push({ product_id: e.product_id, subcategory: e.subcategory, brand, origin: d?.origin ?? originOf(brand), name, url: d?.url ?? null,
-      flow, value: flow * (price ?? 0), rankStart: null, rankEnd: e.rank, price: e.price ?? e.mrp ?? null, partial: false, combo, rawFlow: buyers,
-      poolSize, nykaaRank: e.nykaa_rank ?? e.rank, reviews: Math.round(reviews), noHistory: !pp });
+      flow, value: flow * (price ?? 0), rankStart: null, rankEnd: off ? null : e.rank, price: e.price ?? e.mrp ?? null, partial: false, combo, rawFlow: buyers,
+      poolSize, nykaaRank: off ? 0 : e.nykaa_rank ?? e.rank, reviews: Math.round(reviews), noHistory: !pp, seeded, offList: !!off });
+  }
+  return out;
+}
+
+/** Owner 31 Oct 2026 (Korean brands looked too small: 3% of sunscreen, 10% of moisturisers): sellers outside a list's
+ *  top 100 were not counted at all, and Korean brands sell more there (only 3 Korean brands in our sunscreen top 100). A brand-catalogue product (51 brands, read on Mondays) that is on no list
+ *  today but has review history counts in its first category, under the same rates and limits as listed products,
+ *  without a rank. Products we have no reviews for still count nothing. */
+export interface OffList { product_id: string; subcategory: string; brand: string; name: string; mrp: number | null; price: number | null; life: Lifetime | null }
+/** The catalogue's MRP for pages Nykaa's lists show at a mini size (15 ml or g or less). Only minis: elsewhere the
+ *  catalogue's price for the same page can be a multi-pack (Dot & Key face wash: ₹1,734 against the 80 ml at ₹295;
+ *  taking those made face wash 20% of all buying instead of 13%). */
+const MINI = 15;
+export function catalogMrpOf(catalog: { scrape_date: string; product_id: string; mrp: number | null; price: number | null }[], listed: { product_id: string; pack_size: string | null }[]) {
+  const minis = new Set(listed.filter((r) => { const m = /(\d+(?:\.\d+)?)\s*(ml|g)\b/i.exec(r.pack_size ?? ""); return m && Number(m[1]) <= MINI; }).map((r) => r.product_id));
+  const last = new Map<string, [string, number]>();
+  for (const c of catalog) { const p = c.mrp ?? c.price; if (p && minis.has(c.product_id) && (last.get(c.product_id)?.[0] ?? "") <= c.scrape_date) last.set(c.product_id, [c.scrape_date, p]); }
+  return new Map([...last].map(([k, [, p]]) => [k, p]));
+}
+export function offListOf(catalog: { scrape_date: string; product_id: string; brand: string; name: string; subcategories: string[]; mrp: number | null; price: number | null;
+  rating_count: number | null; detail_review_count: number | null }[], listed: { product_id: string; subcategory: string }[]): OffList[] {
+  const cats = new Set(listed.map((r) => r.subcategory)); cats.delete("kbeauty_store");
+  const onList = new Set(listed.map((r) => r.product_id));
+  const latest = new Map<string, (typeof catalog)[number]>();
+  for (const c of catalog) if ((latest.get(c.product_id)?.scrape_date ?? "") <= c.scrape_date) latest.set(c.product_id, c);
+  const out: OffList[] = [];
+  for (const c of latest.values()) {
+    const cat = (c.subcategories ?? []).find((s) => cats.has(s));
+    if (!cat || onList.has(c.product_id)) continue;
+    const life = c.rating_count && c.detail_review_count && c.rating_count >= c.detail_review_count ? { perReview: c.rating_count / c.detail_review_count, ratings: c.rating_count } : null;
+    out.push({ product_id: c.product_id, subcategory: cat, brand: c.brand, name: c.name, mrp: c.mrp, price: c.price, life });
   }
   return out;
 }
@@ -226,6 +290,13 @@ export function perReviewByCategory(counts: { scrape_date: string; product_id: s
  *  per review, the rule that already sizes categories against each other (Maybelline foundation 50% -> 42%, Nykaa
  *  Skin sheet masks 75% -> 38%; skincare shares move under 2 pts). */
 export const FAMILY_X = 4;
+/** Fewer ratings per review than this, under a third of the category's median, first review in the last 6 months:
+ *  reviews seeded at launch. On 30 Oct, 11 listings (Maybelline cushion, Simple lip balm, Mamonde mask, Lakme's
+ *  October launches, d'Alba sun cream); the next lowest (Aestura, Dr.Althea, Biodance: 3-5 per review) sell widely
+ *  and are left as they are. */
+const SEEDED_MAX = 2;
+const SEEDED_DIV = 3;
+const SEEDED_MONTHS = 6;
 export interface Lifetime { perReview: number; ratings: number }
 /** Each product's ratings over its life on Nykaa, and per written review (its page's latest counts). */
 export function lifetimeRatio(counts: { scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }[]) {
@@ -246,7 +317,8 @@ export function sizeByReviews(flow: FlowRow[], perReview: Map<string, number>): 
   const est = new Map<string, number>(); const raw = new Map<string, number>();
   for (const r of flow) {
     est.set(r.subcategory, (est.get(r.subcategory) ?? 0) + r.value);
-    if (r.flow > 0 && r.value > 0) raw.set(r.subcategory, (raw.get(r.subcategory) ?? 0) + (r.reviews ?? 0) * (perReview.get(r.subcategory) ?? 10) * (r.value / r.flow));
+    // seeded reviews would size the whole category up too: those rows count their buyers as they are
+    if (r.flow > 0 && r.value > 0) raw.set(r.subcategory, (raw.get(r.subcategory) ?? 0) + (r.seeded ? r.value : (r.reviews ?? 0) * (perReview.get(r.subcategory) ?? 10) * (r.value / r.flow)));
   }
   const k = new Map<string, number>();
   for (const [c, e] of est) k.set(c, e > 0 ? (raw.get(c) ?? 0) / e : 0);

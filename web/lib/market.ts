@@ -258,6 +258,10 @@ export interface FlowRow {
   nykaaRank: number;
   /** Adjusted reviews (lib/adjusted): the reviews behind `flow`, and whether the product's reviews are read yet. */
   reviews?: number; noHistory?: boolean;
+  /** Reviews seeded at launch (lib/adjusted SEEDED_MAX): buyers come from the ratings left without a review. */
+  seeded?: boolean;
+  /** A brand-catalogue product on no list today (lib/adjusted offListOf): counts in shares, has no rank. */
+  offList?: boolean;
 }
 
 /** Combos, kits and routines: several products sold as one listing. */
@@ -414,7 +418,7 @@ export function aggregate(rows: FlowRow[], keyOf: (r: FlowRow) => string): Map<s
   for (const r of rows) {
     const k = keyOf(r); let a = m.get(k);
     if (!a) { a = { key: k, flow: 0, value: 0, listings: 0, top20: 0, best: null }; m.set(k, a); }
-    a.flow += r.flow; a.value += r.value; a.listings++; if ((r.rankEnd ?? 999) <= 20) a.top20++;
+    a.flow += r.flow; a.value += r.value; if (!r.offList) a.listings++; if ((r.rankEnd ?? 999) <= 20) a.top20++;
     if (r.rankEnd !== null && (a.best === null || r.rankEnd < a.best)) a.best = r.rankEnd;
   }
   return m;
