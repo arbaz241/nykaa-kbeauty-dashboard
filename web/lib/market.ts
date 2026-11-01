@@ -63,9 +63,14 @@ export function nameHome(name: string | null | undefined): string | null {
   for (const [cat, re] of NAME_RULES) if (re.test(name)) return cat;
   return null;
 }
+const FACE_SLEEPING = /\bsleeping (mask|pack)\b/i;
 /** Whether a listing counts in a list: Nykaa's label decides; without one, the name decides when it clearly points to
  *  another category; otherwise it counts. */
 export const countsIn = (cat: string, l3: string | null | undefined, name?: string | null) => {
+  // owner 1 Nov 2026: a face sleeping mask counts in masks, not moisturisers, whatever its label. Laneige Bouncy & Firm
+  // Sleeping Mask has stood at #13-18 on Nykaa's Masks & Peels page for 48 days (next to Innisfree's volcanic clay
+  // mask) under the label "Night Cream"; Clayco's and Moody's sleeping masks there are labelled Masks & Peels.
+  if (name && FACE_SLEEPING.test(name) && !/\b(lips?|eye)\b/i.test(name) && (cat === "masks" || cat === "face_moisturizer")) return cat === "masks";
   if (l3) return !HOME_L3[cat] || HOME_L3[cat].includes(l3);
   const home = nameHome(name);
   return !home || home === cat || !HOME_L3[cat] || (!!KEEP[cat] && KEEP[cat].test(name!));
@@ -260,8 +265,6 @@ export interface FlowRow {
   reviews?: number; noHistory?: boolean;
   /** Reviews seeded at launch (lib/adjusted SEEDED_MAX): buyers come from the ratings left without a review. */
   seeded?: boolean;
-  /** A brand-catalogue product on no list today (lib/adjusted offListOf): counts in shares, has no rank. */
-  offList?: boolean;
 }
 
 /** Combos, kits and routines: several products sold as one listing. */
@@ -418,7 +421,7 @@ export function aggregate(rows: FlowRow[], keyOf: (r: FlowRow) => string): Map<s
   for (const r of rows) {
     const k = keyOf(r); let a = m.get(k);
     if (!a) { a = { key: k, flow: 0, value: 0, listings: 0, top20: 0, best: null }; m.set(k, a); }
-    a.flow += r.flow; a.value += r.value; if (!r.offList) a.listings++; if ((r.rankEnd ?? 999) <= 20) a.top20++;
+    a.flow += r.flow; a.value += r.value; a.listings++; if ((r.rankEnd ?? 999) <= 20) a.top20++;
     if (r.rankEnd !== null && (a.best === null || r.rankEnd < a.best)) a.best = r.rankEnd;
   }
   return m;
