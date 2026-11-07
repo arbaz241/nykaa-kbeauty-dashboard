@@ -46,14 +46,10 @@ export function learnRates(ix: DailyIndex, ratings: FlowRow[], windowReviews: Ma
   readOn: (pid: string) => string | null, originOf: (b: string) => string, familyCount: (cat: string, pid: string) => boolean = () => false,
   perReview: Map<string, number> = new Map()): Rates {
   const t = new Map<string, [number, number]>();
-  const fam = new Map<string, [number, number]>(); // per category: new ratings in the window, of them on range-wide counts
-  for (const r of ratings) {
-    if (r.combo || r.subcategory === "kbeauty_store" || r.rankStart === null) continue;
-    const x = fam.get(r.subcategory) ?? [0, 0]; x[0] += r.flow; if (familyCount(r.subcategory, r.product_id)) x[1] += r.flow; fam.set(r.subcategory, x);
-  }
-  // no window of its own (lists added after the ratings froze), or most of it on range-wide counts: brand rates there
-  // would rest on those counts, so every product is sized from plain reviews x the category's ratings per review
-  const plain = (cat: string) => { const x = fam.get(cat); return !x || x[0] <= 0 || x[1] / x[0] > PLAIN_SHARE; };
+  // owner 7 Nov 2026: one buyers-per-review figure per category, the same for every brand. Brand rates learned on the
+  // ratings window rested on counters Nykaa shares across a range (TONYMOLY Wonder toners: one counter for 4 sizes,
+  // twice the toner norm of ratings per review), so every product with a category figure is sized from plain reviews
+  const plain = (cat: string) => perReview.has(cat);
   const add = (k: string, ra: number, re: number) => { const x = t.get(k) ?? [0, 0]; x[0] += ra; x[1] += re; t.set(k, x); };
   const seenPool = new Set<string>();
   for (const r of ratings) {
@@ -299,7 +295,6 @@ export function lifetimeRatio(counts: { scrape_date: string; product_id: string;
   // fewer ratings than reviews is a page that counts them differently (La Roche-Posay Effaclar gel): no figure
   return (pid: string): Lifetime | null => { const v = last.get(pid)?.[1]; return v && v.perReview >= 1 ? v : null; };
 }
-const PLAIN_SHARE = 0.5;
 export function familyCounts(counts: { scrape_date: string; product_id: string; review_count: number | null; rating_count: number | null }[], listed: { product_id: string; subcategory: string }[], perReview: Map<string, number>) {
   const last = new Map<string, [string, number]>();
   for (const c of counts) if (c.review_count && c.rating_count && (last.get(c.product_id)?.[0] ?? "") <= c.scrape_date) last.set(c.product_id, [c.scrape_date, c.rating_count / c.review_count]);
