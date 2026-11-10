@@ -3,7 +3,8 @@ import { tr } from "./i18n";
 /** Nykaa's own figures (plan v3, owner 18 Oct 2026: "go into FSN E-Commerce Ventures' statements... use other sources
  *  only where you don't have the clear figure"). Every number here is from Nykaa's investor documents on
  *  nykaa.com/investor-relations (presentations, call transcripts, quarterly updates). Add each quarter when Nykaa
- *  publishes; Jul–Sep 2026 results are due in early November (only the provisional update of 4 Oct is out). */
+ *  publishes. Nykaa's own site blocks scripted downloads, so the Q2 FY27 files link to the copies Nykaa filed with the
+ *  National Stock Exchange (nsearchives.nseindia.com, the same PDFs). */
 
 export const IR_PAGE = "https://www.nykaa.com/investor-relations/lp";
 
@@ -24,8 +25,8 @@ export const NYKAA_QUARTERS = (): QuarterGrowth[] => [
   { start: "2025-10-01", label: tr("Oct–Dec 2025", "2025년 10–12월"), fy: "Q3 FY26", url: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-2/Investor-Presentation-Q3.pdf", gmv: 4302, value: 0.27, doc: tr("Investor presentation Q3 FY26", "투자자 자료 FY26 3분기") },
   { start: "2026-01-01", label: tr("Jan–Mar 2026", "2026년 1–3월"), fy: "Q4 FY26", url: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-5/Investor-Presentation-Q4-2026.pdf", gmv: 3892, value: 0.27, doc: tr("Investor presentation Q4 FY26", "투자자 자료 FY26 4분기") },
   { start: "2026-04-01", label: tr("Apr–Jun 2026", "2026년 4–6월"), fy: "Q1 FY27", url: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-8/NykaaInvestorPresentation-v1.pdf", gmv: 4105, value: 0.28, doc: tr("Investor presentation Q1 FY27", "투자자 자료 FY27 1분기") },
-  { start: "2026-07-01", label: tr("Jul–Sep 2026", "2026년 7–9월"), fy: "Q2 FY27", url: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-10/NykaaQ2FY27Revenueupdate.pdf", gmv: null, value: null, doc: tr("Quarterly update, 4 Oct 2026", "분기 업데이트, 2026년 10월 4일"),
-    note: tr("Provisional: beauty sales after returns grew in the \"late twenties\"; some festive growth moved from Jul–Sep into Oct–Dec", "잠정: 반품 후 뷰티 매출 \"20% 후반\" 성장. 페스티브 시즌 성장 일부가 7–9월에서 10–12월로 이동") },
+  { start: "2026-07-01", label: tr("Jul–Sep 2026", "2026년 7–9월"), fy: "Q2 FY27", url: "https://nsearchives.nseindia.com/corporate/NYKAA_04112026160901_Initmation_final_Inv_Presentation.pdf", gmv: 4454, value: 0.25, doc: tr("Investor presentation Q2 FY27", "투자자 자료 FY27 2분기"),
+    note: tr("Nykaa: the festive season fell in Oct–Dec this year, so Jul–Sep had less of it than a year earlier. Beauty sales after discounts and returns grew 28%.", "Nykaa: 올해 페스티브 시즌은 10–12월에 해당, 7–9월은 전년보다 페스티브 비중 작음. 할인·반품 후 뷰티 매출은 28% 성장.") },
 ];
 
 export const DOC = {
@@ -33,7 +34,8 @@ export const DOC = {
   q4fy26call: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-5/transcript-of-the-conference-call-for-analyst-Investors-Q4-FY26.pdf",
   q1fy27: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-8/NykaaInvestorPresentation-v1.pdf",
   q1fy27call: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-8/Transcript-of-the-Conference-Call-for-Analyst-Investors-Q1-FY27.pdf",
-  q2fy27: "https://www.nykaa.com/media/wysiwyg/uiTools/2026-10/NykaaQ2FY27Revenueupdate.pdf",
+  q2fy27: "https://nsearchives.nseindia.com/corporate/NYKAA_04112026160901_Initmation_final_Inv_Presentation.pdf",
+  q2fy27call: "https://nsearchives.nseindia.com/corporate/NYKAA_06112026222127_TranscriptQ2FY27.pdf",
 };
 
 /** Beauty GMV by financial year (April–March), Investor presentation Q4 FY26, page 9. Growth is Nykaa's own
